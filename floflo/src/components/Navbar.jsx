@@ -1,10 +1,19 @@
+import { useState } from "react";
 import { NavLink } from "react-router-dom";
+import { FaBars, FaTimes } from "react-icons/fa";
+
 import { useFloFlo } from "../context/FloFloContext";
 
-import logoFloFlo from "../assets/svg/felix_cara_sonriendo.svg";
+import felixLogo from "../assets/svg/felix_cara_sonriendo.svg";
 
 const Navbar = () => {
-  const { points, soundEnabled, setSoundEnabled } = useFloFlo();
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const {
+    points,
+    soundEnabled,
+    setSoundEnabled,
+  } = useFloFlo();
 
   const linkClass = ({ isActive }) =>
     `font-semibold transition ${
@@ -14,17 +23,28 @@ const Navbar = () => {
     }`;
 
   return (
-    <nav className="w-full bg-white/80 backdrop-blur-md border-b border-[#E3D9FF] shadow-sm">
-      <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between gap-6">
-        <NavLink to="/" className="flex items-center gap-3">
-          <img src={logoFloFlo} alt="FloFlo" className="w-12 h-12" />
+    <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-[#E3D9FF] shadow-sm">
+      <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+
+        {/* LOGO */}
+        <NavLink
+          to="/"
+          className="flex items-center gap-3"
+        >
+          <img
+            src={felixLogo}
+            alt="FloFlo"
+            className="w-12 h-12"
+          />
 
           <span className="text-3xl font-bold text-[#4B367C]">
             FloFlo
           </span>
         </NavLink>
 
-        <div className="hidden md:flex items-center gap-7">
+        {/* MENU DESKTOP */}
+        <div className="hidden lg:flex items-center gap-8">
+
           <NavLink to="/" className={linkClass}>
             Home
           </NavLink>
@@ -50,27 +70,125 @@ const Navbar = () => {
           </NavLink>
         </div>
 
+        {/* DERECHA */}
         <div className="flex items-center gap-3">
-          <div className="hidden sm:block bg-[#FFF3C4] text-[#5C4A00] font-bold px-4 py-2 rounded-full shadow-sm">
+
+          {/* PUNTOS */}
+          <div className="hidden md:flex bg-[#FFF3C4] text-[#5C4A00] font-bold px-4 py-2 rounded-full shadow-sm">
             ⭐ {points}
           </div>
 
+          {/* SONIDO */}
           <button
             type="button"
-            onClick={() => setSoundEnabled(!soundEnabled)}
-            className="hidden sm:block bg-white text-[#4B367C] font-bold px-4 py-2 rounded-full shadow-sm hover:shadow-md transition"
+            onClick={() =>
+              setSoundEnabled(!soundEnabled)
+            }
+            className="hidden md:block bg-[#E8DDFF] text-[#4B367C] font-bold px-4 py-2 rounded-full shadow-sm hover:shadow-md transition"
           >
             {soundEnabled ? "🔊" : "🔇"}
           </button>
 
+          {/* PERFIL */}
           <NavLink
             to="/registro"
-            className="bg-[#9B7BE8] hover:bg-[#8B6FD6] text-white font-semibold px-5 py-3 rounded-full transition"
+            className="hidden md:block bg-[#9B7BE8] hover:bg-[#8B6FD6] text-white font-semibold px-5 py-3 rounded-full transition"
           >
             Mi Perfil
           </NavLink>
+
+          {/* HAMBURGUESA */}
+          <button
+            onClick={() => setMenuOpen(!menuOpen)}
+            className="lg:hidden text-[#4B367C] text-2xl"
+          >
+            {menuOpen ? <FaTimes /> : <FaBars />}
+          </button>
+
         </div>
       </div>
+
+      {/* MENU MOVIL */}
+      {menuOpen && (
+        <div className="lg:hidden bg-white border-t border-[#E3D9FF] px-6 py-5">
+
+          <div className="flex flex-col gap-5">
+
+            <NavLink
+              to="/"
+              className={linkClass}
+              onClick={() => setMenuOpen(false)}
+            >
+              Home
+            </NavLink>
+
+            <NavLink
+              to="/emociones"
+              className={linkClass}
+              onClick={() => setMenuOpen(false)}
+            >
+              Emociones
+            </NavLink>
+
+            <NavLink
+              to="/rutinas"
+              className={linkClass}
+              onClick={() => setMenuOpen(false)}
+            >
+              Rutinas
+            </NavLink>
+
+            <NavLink
+              to="/amigos"
+              className={linkClass}
+              onClick={() => setMenuOpen(false)}
+            >
+              Amigos
+            </NavLink>
+
+            <NavLink
+              to="/conversaciones"
+              className={linkClass}
+              onClick={() => setMenuOpen(false)}
+            >
+              Conversaciones
+            </NavLink>
+
+            <NavLink
+              to="/lugares"
+              className={linkClass}
+              onClick={() => setMenuOpen(false)}
+            >
+              Lugares
+            </NavLink>
+
+            <div className="bg-[#FFF3C4] text-[#5C4A00] font-bold px-4 py-3 rounded-full w-fit">
+              ⭐ {points}
+            </div>
+
+            <button
+              type="button"
+              onClick={() =>
+                setSoundEnabled(!soundEnabled)
+              }
+              className="bg-[#E8DDFF] text-[#4B367C] font-bold px-4 py-3 rounded-full w-fit"
+            >
+              {soundEnabled
+                ? "🔊 Sonido activado"
+                : "🔇 Sonido apagado"}
+            </button>
+
+            <NavLink
+              to="/registro"
+              onClick={() => setMenuOpen(false)}
+              className="bg-[#9B7BE8] hover:bg-[#8B6FD6] text-white font-semibold px-5 py-3 rounded-full text-center transition"
+            >
+              Mi Perfil
+            </NavLink>
+
+          </div>
+        </div>
+      )}
     </nav>
   );
 };
