@@ -1,0 +1,20 @@
+import api from "./api";
+
+export const getContactConversationsByContactId = async (contactId) => {
+  const response = await api.get(`/contact-conversations/contact/${contactId}`);
+  return response.data;
+};
+
+export const createContactConversation = async (conversation) => {
+  const response = await api.post("/contact-conversations", conversation);
+  return response.data;
+};
+export const updateContactConversation = async (id, conversation) => {
+  const response = await api.put(`/contact-conversations/${id}`, conversation);
+  return response.data;
+};
+
+export const deleteContactConversation = async (id) => {
+  const response = await api.delete(`/contact-conversations/${id}`);
+  return response.data;
+};
