@@ -56,7 +56,7 @@ const handleSubmit = async (e) => {
     navigate("/");
   } catch (error) {
     console.error(error);
-    alert("Error al registrar usuario");
+    alert(error.message || "No se pudo registrar el usuario");
   }
 };
 

@@ -1,16 +1,24 @@
 import api from "./api";
 
 export const login = async (email, password) =>{
-    const response = await api.post("/auth/login",{
+    try {
+        const response = await api.post("/auth/login",{
         email,
         password
     });
     return response.data;
+    } catch (error) {
+        throw error.response?.data || { message: "Error al iniciar sesión" };
+    }  
 }
-export const register = async (userData) =>{
+export const register = async (userData) => {
+  try {
     const response = await api.post("/auth/register", userData);
     return response.data;
-}
+  } catch (error) {
+    throw error.response?.data || { message: "Error al registrar usuario" };
+  }
+};
 export const getMe = async () => {
     const response = await api.get("/auth/me");
     return response.data;
