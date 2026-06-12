@@ -60,7 +60,7 @@ const User = () => {
       const mensaje =
         error.response?.data?.message ||
         error.message ||
-        "Error al registrar usuario";
+        "Ocurrió un problema al registrar el usuario.";
 
       alert(mensaje);
     }

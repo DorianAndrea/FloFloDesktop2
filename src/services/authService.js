@@ -13,17 +13,10 @@ export const login = async (email, password) =>{
 }
 
 export const register = async (userData) => {
-  try {
-    const response = await api.post("/auth/register", userData);
-    return response.data;
-  } catch (error) {
-    const message =
-      error.response?.data?.message ||
-      "No se pudo registrar el usuario";
-
-    throw new Error(message);
-  }
+  const response = await api.post("/auth/register", userData);
+  return response.data;
 };
+
 export const getMe = async () => {
     const response = await api.get("/auth/me");
     return response.data;
