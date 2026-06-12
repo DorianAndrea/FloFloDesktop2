@@ -349,7 +349,7 @@ const LugarDetalle = () => {
 
         {lugar.imagen ? (
           <img
-            src={`http://localhost:5001${lugar.imagen}`}
+            src={`${import.meta.env.VITE_API_URL.replace("/api", "")}${lugar.imagen}`}
             alt={lugar.nombre}
             className="w-full h-72 object-cover rounded-[2.5rem] shadow-md mb-8"
           />
