@@ -55,9 +55,15 @@ const handleSubmit = async (e) => {
     alert("Usuario registrado correctamente");
     navigate("/");
   } catch (error) {
-    console.error(error);
-    alert(error.message || "No se pudo registrar el usuario");
-  }
+  console.error(error);
+
+  const mensaje =
+    error.response?.data?.message ||
+    error.message ||
+    "Error al registrar usuario";
+
+  alert(mensaje);
+}
 };
 
   return (
