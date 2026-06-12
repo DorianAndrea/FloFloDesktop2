@@ -28,7 +28,7 @@ const Login = () =>{
     navigate("/");
   } catch (error) {
     console.error(error);
-    alert("Correo o contraseña incorrectos");
+    alert(error.message || "Correo o contraseña incorrectos");
   }
 };
     return(

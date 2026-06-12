@@ -11,12 +11,17 @@ export const login = async (email, password) =>{
         throw error.response?.data || { message: "Error al iniciar sesión" };
     }  
 }
+
 export const register = async (userData) => {
   try {
     const response = await api.post("/auth/register", userData);
     return response.data;
   } catch (error) {
-    throw error.response?.data || { message: "Error al registrar usuario" };
+    const message =
+      error.response?.data?.message ||
+      "No se pudo registrar el usuario";
+
+    throw new Error(message);
   }
 };
 export const getMe = async () => {
