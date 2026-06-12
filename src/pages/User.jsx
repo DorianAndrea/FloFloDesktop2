@@ -26,50 +26,49 @@ const User = () => {
     }
   };
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-  if (password !== confirmPassword) {
-    alert("Las contraseñas no coinciden");
-    return;
-  }
+    if (password !== confirmPassword) {
+      alert("Las contraseñas no coinciden");
+      return;
+    }
 
-  try {
-    const userData = {
-      firstName,
-      lastName,
-      rut,
-      birth_date: birthDate,
-      email,
-      avatar: avatar ? avatar.name : null,
-      password,
-    };
+    try {
+      const userData = {
+        firstName,
+        lastName,
+        rut,
+        birth_date: birthDate,
+        email,
+        avatar: avatar ? avatar.name : null,
+        password,
+      };
 
-    const data = await register(userData);
+      const data = await register(userData);
 
-    localStorage.setItem("token", data.token);
-    localStorage.setItem("user", JSON.stringify(data.user));
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
 
-    setUser(data.user);
+      setUser(data.user);
 
-    alert("Usuario registrado correctamente");
-    navigate("/");
-  } catch (error) {
-  console.error(error);
+      alert("Usuario registrado correctamente");
+      navigate("/");
+    } catch (error) {
+      console.error(error);
 
-  const mensaje =
-    error.response?.data?.message ||
-    error.message ||
-    "Error al registrar usuario";
+      const mensaje =
+        error.response?.data?.message ||
+        error.message ||
+        "Error al registrar usuario";
 
-  alert(mensaje);
-}
-};
+      alert(mensaje);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-white flex items-center justify-center px-8 py-10">
       <div className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-        
         {/* FORMULARIO */}
         <div className="w-full max-w-md mx-auto">
           <h1 className="text-4xl font-light text-black-900 mb-10 text-center">
