@@ -12,7 +12,9 @@ const Navbar = () => {
 
   const linkClass = ({ isActive }) =>
     `font-semibold transition ${
-      isActive ? "text-[#9B7BE8]" : "text-[#5B4B8A] hover:text-[#8B6FD6]"
+      isActive
+        ? "text-[#9B7BE8]"
+        : "text-[#5B4B8A] hover:text-[#8B6FD6]"
     }`;
 
   const handleLogout = () => {
@@ -23,9 +25,19 @@ const Navbar = () => {
   return (
     <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-[#E3D9FF] shadow-sm">
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-        <NavLink to="/" className="flex items-center gap-3 flex-shrink-0">
-          <img src={felixLogo} alt="FloFlo" className="w-12 h-12" />
-          <span className="text-3xl font-bold text-[#4B367C]">FloFlo</span>
+        <NavLink
+          to="/"
+          className="flex items-center gap-3 flex-shrink-0"
+        >
+          <img
+            src={felixLogo}
+            alt="FloFlo"
+            className="w-12 h-12"
+          />
+
+          <span className="text-3xl font-bold text-[#4B367C]">
+            FloFlo
+          </span>
         </NavLink>
 
         <div className="hidden lg:flex items-center gap-7 flex-1 justify-center">
@@ -53,10 +65,6 @@ const Navbar = () => {
 
               <NavLink to="/lugares" className={linkClass}>
                 Lugares
-              </NavLink>
-
-              <NavLink to="/logros" className={linkClass}>
-                🏆 Logros
               </NavLink>
             </>
           )}
@@ -90,13 +98,19 @@ const Navbar = () => {
                 Cerrar sesión
               </button>
 
-              <div className="bg-[#FFF3C4] text-[#5C4A00] font-bold px-4 py-2 rounded-full shadow-sm">
-                ⭐ {points}
-              </div>
+              <NavLink
+                to="/logros"
+                className="bg-[#FFF3C4] text-[#5C4A00] font-bold px-4 py-2 rounded-full shadow-sm hover:shadow-md transition flex items-center gap-2"
+              >
+                <span>⭐</span>
+                <span>{points}</span>
+              </NavLink>
 
               <button
                 type="button"
-                onClick={() => setSoundEnabled(!soundEnabled)}
+                onClick={() =>
+                  setSoundEnabled(!soundEnabled)
+                }
                 className="bg-[#E8DDFF] text-[#4B367C] font-bold px-4 py-2 rounded-full shadow-sm hover:shadow-md transition"
               >
                 {soundEnabled ? "🔊" : "🔇"}
@@ -176,10 +190,10 @@ const Navbar = () => {
 
                 <NavLink
                   to="/logros"
-                  className={linkClass}
                   onClick={() => setMenuOpen(false)}
+                  className="bg-[#FFF3C4] text-[#5C4A00] font-bold px-4 py-3 rounded-full w-fit"
                 >
-                  🏆 Logros
+                  ⭐ {points} Logros
                 </NavLink>
 
                 <div className="font-semibold text-[#4B367C]">
@@ -194,16 +208,16 @@ const Navbar = () => {
                   Cerrar sesión
                 </button>
 
-                <div className="bg-[#FFF3C4] text-[#5C4A00] font-bold px-4 py-3 rounded-full w-fit">
-                  ⭐ {points}
-                </div>
-
                 <button
                   type="button"
-                  onClick={() => setSoundEnabled(!soundEnabled)}
+                  onClick={() =>
+                    setSoundEnabled(!soundEnabled)
+                  }
                   className="bg-[#E8DDFF] text-[#4B367C] font-bold px-4 py-3 rounded-full w-fit"
                 >
-                  {soundEnabled ? "🔊 Sonido activado" : "🔇 Sonido apagado"}
+                  {soundEnabled
+                    ? "🔊 Sonido activado"
+                    : "🔇 Sonido apagado"}
                 </button>
 
                 <NavLink
