@@ -161,7 +161,7 @@ const PersonaDetalle = () => {
           <div className="flex justify-center">
             {contact.image ? (
               <img
-                src={`${import.meta.env.VITE_API_URL.replace("/api", "")}${contact.image}`}
+                src={contact.image}
                 alt={contact.name}
                 className="w-80 h-80 object-cover rounded-3xl border"
               />

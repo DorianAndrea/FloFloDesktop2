@@ -5,6 +5,7 @@ import { login } from "../services/authService";
 import { useFloFlo } from "../context/FloFloContext";
 import felix from "../assets/svg/felix_cara_sonriendo.svg";
 
+
 const Login = () =>{
     const navigate = useNavigate();
     const { setUser } = useFloFlo();

@@ -85,7 +85,7 @@ const Lugares = () => {
             >
               {lugar.imagen ? (
                 <img
-                  src={`${import.meta.env.VITE_API_URL.replace("/api", "")}${lugar.imagen}`}
+                  src={lugar.imagen}
                   alt={lugar.nombre}
                   className="w-full h-40 object-cover rounded-2xl mb-4"
                 />

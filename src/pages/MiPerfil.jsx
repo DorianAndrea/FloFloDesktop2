@@ -12,7 +12,8 @@ const MiPerfil = () => {
   const [lastName, setLastName] = useState("");
   const [rut, setRut] = useState("");
   const [birthDate, setBirthDate] = useState("");
-  const [avatar, setAvatar] = useState("");
+  const [avatar, setAvatar] = useState(null);
+  const [preview, setPreview] = useState("");
 
   const loadProfile = async () => {
     try {
@@ -23,7 +24,8 @@ const MiPerfil = () => {
       setLastName(data.lastName || "");
       setRut(data.rut || "");
       setBirthDate(data.birth_date ? data.birth_date.slice(0, 10) : "");
-      setAvatar(data.avatar || "");
+      setAvatar(null);
+      setPreview(data.avatar || "");
     } catch (error) {
       console.error(error);
     }
@@ -32,6 +34,17 @@ const MiPerfil = () => {
   useEffect(() => {
     loadProfile();
   }, []);
+  const handleAvatarChange = (e) => {
+    const file = e.target.files[0];
+
+    if (!file) {
+      setAvatar(null);
+      return;
+    }
+
+    setAvatar(file);
+    setPreview(URL.createObjectURL(file));
+  };
 
   const handleUpdate = async (e) => {
     e.preventDefault();
@@ -47,13 +60,18 @@ const MiPerfil = () => {
     }
 
     try {
-      const updatedUser = await updateMe({
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        rut: rut.trim(),
-        birth_date: birthDate || null,
-        avatar: avatar || null,
-      });
+      const formData = new FormData();
+
+      formData.append("firstName", firstName.trim());
+      formData.append("lastName", lastName.trim());
+      formData.append("rut", rut.trim());
+      formData.append("birth_date", birthDate || "");
+
+      if (avatar instanceof File) {
+        formData.append("avatar", avatar);
+      }
+
+      const updatedUser = await updateMe(formData);
 
       setProfileUser(updatedUser);
       setUser(updatedUser);
@@ -172,13 +190,24 @@ const MiPerfil = () => {
               className="w-full py-3 text-gray-900 bg-transparent border-b border-gray-300 focus:outline-none focus:border-[#9B7BE8]"
             />
 
-            <input
-              type="text"
-              value={avatar}
-              onChange={(e) => setAvatar(e.target.value)}
-              placeholder="Avatar"
-              className="w-full py-3 text-gray-900 bg-transparent border-b border-gray-300 focus:outline-none focus:border-[#9B7BE8]"
-            />
+            <div>
+              <p className="text-gray-500 mb-2">Avatar</p>
+
+              {preview && (
+                <img
+                  src={preview}
+                  alt="Avatar"
+                  className="w-32 h-32 rounded-full object-cover mb-4 border"
+                />
+              )}
+
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleAvatarChange}
+                className="w-full py-3 text-gray-900"
+              />
+            </div>
 
             <div className="flex gap-4">
               <button

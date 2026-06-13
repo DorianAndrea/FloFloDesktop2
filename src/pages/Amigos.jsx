@@ -271,7 +271,7 @@ const Amigos = () => {
                     {/* FOTO */}
                     {contact.image ? (
                       <img
-                        src={`${import.meta.env.VITE_API_URL.replace("/api", "")}${contact.image}`}
+                        src={contact.image}
                         alt={contact.name}
                         className="w-32 h-32 object-cover rounded-xl border"
                       />
