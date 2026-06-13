@@ -5,14 +5,13 @@ import { useFloFlo } from "../context/FloFloContext";
 import { createMood } from "../services/moodService";
 import { getMoods } from "../services/moodService";
 
-import feliz from "../assets/svg/felix_cara_sonriendo.svg";
-import sorprendido from "../assets/svg/felix_cara_sorprendido.svg";
-import triste from "../assets/svg/felix_cara_triste_animado.svg";
-import enojado from "../assets/svg/felix_enojado_animado.svg";
-import felixFeliz from "../assets/svg/felix_feliz.svg";
-import felixRespirando from "../assets/svg/felix_respirando.svg";
-import felix_asustado from "../assets/svg/felix_asustado_animado_real.svg";
-
+import feliz from "../assets/webp/felix_cara_sonriendo.webp";
+import sorprendido from "../assets/webp/felix_cara_sorprendido.webp";
+import triste from "../assets/webp/felix_cara_triste_animado.webp";
+import enojado from "../assets/webp/felix_enojado_animado.webp";
+import felixRespirando from "../assets/webp/felix_respirando.webp";
+import felix_asustado from "../assets/webp/felix_asustado_animado_real.webp";
+import felixFeliz from "../assets/svg/felix_feliz.svg"; // NO CAMBIAR
 import sparkle from "../assets/sounds/sparkle.mp3";
 
 import AchievementPopup from "../components/AchievementPopup";

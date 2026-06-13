@@ -9,7 +9,7 @@ import {
   completePlace,
 } from "../services/placeService";
 
-import felix from "../assets/svg/felix_respirando.svg";
+import felix from "../assets/webp/felix_respirando.webp";
 
 const lugaresDemo = [
   {

@@ -3,7 +3,7 @@ import { NavLink } from "react-router-dom";
 import { FaBars, FaTimes } from "react-icons/fa";
 
 import { useFloFlo } from "../context/FloFloContext";
-import felixLogo from "../assets/svg/felix_cara_sonriendo.svg";
+import felixLogo from "../assets/webp/felix_cara_sonriendo.webp";
 
 const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);

@@ -12,9 +12,10 @@ import {
 import { getUserProgress } from "../services/progressService";
 import AchievementPopup from "../components/AchievementPopup";
 
-import felix from "../assets/svg/felix_cara_sonriendo.svg";
-import felixFeliz from "../assets/svg/felix_feliz.svg";
-import felixRespirando from "../assets/svg/felix_respirando.svg";
+import felix from "../assets/webp/felix_cara_sonriendo.webp";
+import felixRespirando from "../assets/webp/felix_respirando.webp";
+import felixFeliz from "../assets/svg/felix_feliz.svg"; // NO CAMBIAR
+
 
 import successSound from "../assets/sounds/kid_success.mp3";
 import wrongSound from "../assets/sounds/error.mp3";

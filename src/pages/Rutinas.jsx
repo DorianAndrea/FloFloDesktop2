@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import felix from "../assets/svg/felix_cara_sonriendo.svg";
+import felix from "../assets/webp/felix_cara_sonriendo.webp";
 import {
   createRoutine,
   getRoutines,

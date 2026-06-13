@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 
 import { login } from "../services/authService";
 import { useFloFlo } from "../context/FloFloContext";
-import felix from "../assets/svg/felix_cara_sonriendo.svg";
+import felix from "../assets/webp/felix_cara_sonriendo.webp";
 
 
 const Login = () =>{
