@@ -41,7 +41,7 @@ const Lugares = () => {
         emoji: "📍",
         esDemo: false,
       }));
-
+      console.log(data);
       setLugaresBD(lugaresFormateados);
     } catch (error) {
       console.error(error);
@@ -59,9 +59,7 @@ const Lugares = () => {
       <section className="max-w-6xl mx-auto">
         <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-10">
           <div>
-            <h1 className="text-5xl font-extrabold text-[#4B367C]">
-              Lugares
-            </h1>
+            <h1 className="text-5xl font-extrabold text-[#4B367C]">Lugares</h1>
 
             <p className="text-[#6B5A95] text-xl mt-2">
               Prepárate con Félix antes de visitar un lugar.
@@ -77,33 +75,37 @@ const Lugares = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {lugares.map((lugar) => (
-            <Link
-              key={`${lugar.esDemo ? "demo" : "bd"}-${lugar.id}`}
-              to={`/lugares/${lugar.id}`}
-              className="bg-white rounded-[2rem] p-6 shadow-md hover:scale-[1.02] transition"
-            >
-              {lugar.imagen ? (
-                <img
-                  src={lugar.imagen}
-                  alt={lugar.nombre}
-                  className="w-full h-40 object-cover rounded-2xl mb-4"
-                />
-              ) : (
-                <div className="text-5xl mb-4">
-                  {lugar.emoji || "📍"}
-                </div>
-              )}
+          {lugares.map((lugar) => {
+            const imagenValida =
+              lugar.imagen &&
+              lugar.imagen.startsWith("https://res.cloudinary.com");
 
-              <h2 className="text-3xl font-bold text-[#4B367C]">
-                {lugar.nombre}
-              </h2>
+            return (
+              <Link
+                key={`${lugar.esDemo ? "demo" : "bd"}-${lugar.id}`}
+                to={`/lugares/${lugar.id}`}
+                className="bg-white rounded-[2rem] p-6 shadow-md hover:scale-[1.02] transition"
+              >
+                {imagenValida ? (
+                  <img
+                    src={lugar.imagen}
+                    alt={lugar.nombre}
+                    className="w-full h-40 object-cover rounded-2xl mb-4"
+                  />
+                ) : (
+                  <div className="text-5xl mb-4">{lugar.emoji || "📍"}</div>
+                )}
 
-              <p className="text-[#6B5A95] mt-2">
-                {lugar.descripcion || "Sin descripción"}
-              </p>
-            </Link>
-          ))}
+                <h2 className="text-3xl font-bold text-[#4B367C]">
+                  {lugar.nombre}
+                </h2>
+
+                <p className="text-[#6B5A95] mt-2">
+                  {lugar.descripcion || "Sin descripción"}
+                </p>
+              </Link>
+            );
+          })}
         </div>
       </section>
     </main>

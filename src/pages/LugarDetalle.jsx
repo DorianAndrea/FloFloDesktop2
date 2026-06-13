@@ -336,7 +336,9 @@ const LugarDetalle = () => {
       </main>
     );
   }
-
+  const imagenValida =
+  lugar.imagen &&
+  lugar.imagen.startsWith("https://res.cloudinary.com");
   return (
     <main className="min-h-screen bg-[#F3ECFF] px-6 py-10">
       <section className="max-w-6xl mx-auto">
@@ -346,8 +348,8 @@ const LugarDetalle = () => {
         >
           ← Volver a lugares
         </Link>
-
-        {lugar.imagen ? (
+   
+        {imagenValida ? (
           <img
             src={lugar.imagen}
             alt={lugar.nombre}

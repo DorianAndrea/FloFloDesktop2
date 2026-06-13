@@ -11,6 +11,7 @@ import {
 } from "../services/conversationService";
 import { getUserProgress } from "../services/progressService";
 import AchievementPopup from "../components/AchievementPopup";
+import { getAllContactConversations } from "../services/contactConversationService";
 
 import felix from "../assets/webp/felix_cara_sonriendo.webp";
 import felixRespirando from "../assets/webp/felix_respirando.webp";
@@ -169,55 +170,97 @@ const Conversaciones = () => {
     setCompletedConversations(completedIds);
   };
 
-  const loadConversations = async () => {
-    try {
-      const data = await getConversations();
+ const loadConversations = async () => {
+  try {
+    const data = await getConversations();
+    const contactData = await getAllContactConversations();
 
-      const conversacionesFormateadas = data.map((item) => {
-        const base = contenidoBasePorTitulo[item.title];
+    const conversacionesNormales = data.map((item) => {
+      const base = contenidoBasePorTitulo[item.title];
 
-        const dialogo =
-          item.messages?.length > 0
-            ? item.messages.map((msg) => ({
-                personaje: msg.speaker,
-                texto: msg.text,
-              }))
-            : base?.dialogo || [];
+      const dialogo =
+        item.messages?.length > 0
+          ? item.messages.map((msg) => ({
+              personaje: msg.speaker,
+              texto: msg.text,
+            }))
+          : base?.dialogo || [];
 
-        const ejercicio =
-          item.exercise?.options?.length > 0
-            ? {
-                pregunta: item.exercise.question,
-                opciones: item.exercise.options.map((op) => ({
-                  texto: op.text,
-                  correcta: op.isCorrect,
-                })),
-              }
-            : base?.ejercicio || {
-                pregunta: "¿Qué debería decir Félix?",
-                opciones: [],
-              };
+      const opciones =
+        item.exercise?.options?.length > 0
+          ? item.exercise.options.map((op) => ({
+              texto: op.text,
+              correcta: op.isCorrect,
+            }))
+          : base?.ejercicio?.opciones || [];
 
-        return {
-          id: Number(item.id),
-          titulo: item.title,
-          emoji: getEmojiByTitle(item.title),
-          escenario: item.situation,
-          habilidad: item.reminder || "Conversación personalizada",
-          dialogo,
-          ejercicio,
-        };
-      });
+      return {
+        id: `normal-${item.id}`,
+        conversationId: Number(item.id),
+        tipo: "normal",
+        titulo: item.title,
+        emoji: getEmojiByTitle(item.title),
+        escenario: item.situation,
+        habilidad: item.reminder || "Conversación personalizada",
+        dialogo,
+        ejercicio: {
+          pregunta:
+            item.exercise?.question ||
+            base?.ejercicio?.pregunta ||
+            "¿Qué debería decir Félix?",
+          opciones,
+        },
+      };
+    });
 
-      setConversaciones(conversacionesFormateadas);
+    const conversacionesContactos = contactData.map((item) => {
+      const opciones = [
+        {
+          texto: item.correct_answer || item.what_to_say,
+          correcta: true,
+        },
+        {
+          texto: item.wrong_answer_1 || "No sé qué decir.",
+          correcta: false,
+        },
+        {
+          texto: item.wrong_answer_2 || "Me voy sin responder.",
+          correcta: false,
+        },
+      ].filter((op) => op.texto && op.texto.trim() !== "");
 
-      if (conversacionesFormateadas.length > 0) {
-        setConversacionSeleccionada(conversacionesFormateadas[0]);
-      }
-    } catch (error) {
-      console.error(error);
+      return {
+        id: `contact-${item.id}`,
+        conversationId: Number(item.id),
+        tipo: "contacto",
+        titulo: item.title,
+        emoji: "✨",
+        escenario: item.situation,
+        habilidad: item.reminder || "Conversación personalizada",
+        dialogo: [
+          {
+            personaje: "Félix",
+            texto: item.what_to_say,
+          },
+        ],
+        ejercicio: {
+          pregunta: "¿Qué debería decir Félix?",
+          opciones,
+        },
+      };
+    });
+
+    const todas = [...conversacionesNormales, ...conversacionesContactos];
+
+    setConversaciones(todas);
+
+    if (todas.length > 0) {
+      setConversacionSeleccionada(todas[0]);
     }
-  };
+  } catch (error) {
+    console.error(error);
+  }
+};
 
   useEffect(() => {
     loadConversations();
@@ -236,47 +279,58 @@ const Conversaciones = () => {
   };
 
   const seleccionarRespuesta = async (opcion) => {
-    setRespuestaSeleccionada(opcion);
+  setRespuestaSeleccionada(opcion);
 
-    if (!opcion.correcta) {
-      if (soundEnabled) playWrongSound();
-      return;
+  if (!opcion.correcta) {
+    if (soundEnabled) playWrongSound();
+    return;
+  }
+
+  if (soundEnabled) playSuccess();
+
+  if (conversacionSeleccionada.tipo !== "normal") {
+    setNewAchievement({
+      icon: "⭐",
+      name: "¡Muy bien!",
+      description: "Practicaste una conversación personalizada.",
+    });
+
+    setTimeout(() => {
+      setNewAchievement(null);
+    }, 5000);
+
+    return;
+  }
+
+  const idNumerico = conversacionSeleccionada.conversationId;
+
+  if (completedConversations.includes(idNumerico)) return;
+
+  try {
+    const response = await completeConversation(idNumerico);
+
+    if (response.unlockedAchievements?.length > 0) {
+      setNewAchievement(response.unlockedAchievements[0]);
+    } else {
+      setNewAchievement({
+        icon: "⭐",
+        name: "¡Muy bien!",
+        description: "Ganaste una estrella por completar la conversación.",
+      });
     }
 
-    if (soundEnabled) playSuccess();
+    setTimeout(() => {
+      setNewAchievement(null);
+    }, 5000);
 
-    const idNumerico = Number(conversacionSeleccionada.id);
+    setCompletedConversations((prev) => [...prev, idNumerico]);
 
-    if (completedConversations.includes(idNumerico)) return;
-
-    try {
-      const response = await completeConversation(idNumerico);
-
-      console.log("Respuesta completeConversation:", response);
-      console.log("unlockedAchievements:", response.unlockedAchievements);
-
-      if (response.unlockedAchievements?.length > 0) {
-        setNewAchievement(response.unlockedAchievements[0]);
-      } else {
-        setNewAchievement({
-          icon: "⭐",
-          name: "¡Muy bien!",
-          description: "Ganaste una estrella por completar la conversación.",
-        });
-      }
-
-      setTimeout(() => {
-        setNewAchievement(null);
-      }, 5000);
-
-      setCompletedConversations((prev) => [...prev, idNumerico]);
-
-      await cargarProgreso();
-      await cargarUserProgress();
-    } catch (error) {
-      console.error(error);
-    }
-  };
+    await cargarProgreso();
+    await cargarUserProgress();
+  } catch (error) {
+    console.error(error);
+  }
+};
 
   const handleChangeIA = (e) => {
     setFormIA({
@@ -584,7 +638,7 @@ const Conversaciones = () => {
                   {conversacionSeleccionada.ejercicio.opciones.map((opcion) => {
                     const seleccionada =
                       respuestaSeleccionada?.texto === opcion.texto;
-
+                    
                     return (
                       <motion.button
                         key={opcion.texto}

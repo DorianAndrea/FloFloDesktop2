@@ -1,5 +1,10 @@
 import api from "./api";
 
+export const getAllContactConversations = async () => {
+  const response = await api.get("/contact-conversations");
+  return response.data;
+};
+
 export const getContactConversationsByContactId = async (contactId) => {
   const response = await api.get(`/contact-conversations/contact/${contactId}`);
   return response.data;

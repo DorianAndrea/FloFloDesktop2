@@ -19,6 +19,9 @@ const PersonaDetalle = () => {
   const [whatToSay, setWhatToSay] = useState("");
   const [reminder, setReminder] = useState("");
   const [editingConversationId, setEditingConversationId] = useState(null);
+  const [correctAnswer, setCorrectAnswer] = useState("");
+  const [wrongAnswer1, setWrongAnswer1] = useState("");
+  const [wrongAnswer2, setWrongAnswer2] = useState("");
 
   const loadContact = async () => {
     try {
@@ -74,6 +77,10 @@ const PersonaDetalle = () => {
         situation: situation.trim(),
         what_to_say: whatToSay.trim(),
         reminder: reminder.trim(),
+
+        correct_answer: correctAnswer.trim(),
+        wrong_answer_1: wrongAnswer1.trim(),
+        wrong_answer_2: wrongAnswer2.trim(),
       };
 
       if (editingConversationId) {
@@ -91,6 +98,11 @@ const PersonaDetalle = () => {
       setSituation("");
       setWhatToSay("");
       setReminder("");
+
+      setCorrectAnswer("");
+      setWrongAnswer1("");
+      setWrongAnswer2("");
+
       setEditingConversationId(null);
 
       alert(
@@ -103,7 +115,6 @@ const PersonaDetalle = () => {
       alert("Error al guardar conversación");
     }
   };
-
   if (!contact) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -201,6 +212,29 @@ const PersonaDetalle = () => {
               value={whatToSay}
               onChange={(e) => setWhatToSay(e.target.value)}
               placeholder="¿Qué puede decir?"
+              className="w-full p-3 rounded-xl border"
+            />
+            <input
+              type="text"
+              value={correctAnswer}
+              onChange={(e) => setCorrectAnswer(e.target.value)}
+              placeholder="Respuesta correcta"
+              className="w-full p-3 rounded-xl border"
+            />
+
+            <input
+              type="text"
+              value={wrongAnswer1}
+              onChange={(e) => setWrongAnswer1(e.target.value)}
+              placeholder="Respuesta incorrecta 1"
+              className="w-full p-3 rounded-xl border"
+            />
+
+            <input
+              type="text"
+              value={wrongAnswer2}
+              onChange={(e) => setWrongAnswer2(e.target.value)}
+              placeholder="Respuesta incorrecta 2"
               className="w-full p-3 rounded-xl border"
             />
 
