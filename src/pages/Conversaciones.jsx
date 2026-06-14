@@ -238,6 +238,10 @@ const Conversaciones = () => {
           emoji: "✨",
           escenario: item.situation,
           habilidad: item.reminder || "Conversación personalizada",
+          correct_answer: item.correct_answer,
+          wrong_answer_1: item.wrong_answer_1,
+          wrong_answer_2: item.wrong_answer_2,
+          what_to_say: item.what_to_say,
           dialogo: [
             {
               personaje: "Félix",
@@ -411,6 +415,26 @@ const Conversaciones = () => {
       ? felixFeliz
       : felixRespirando
     : felix;
+
+    const opcionesNivel2 =
+  conversacionSeleccionada?.ejercicio?.opciones?.length > 0
+    ? conversacionSeleccionada.ejercicio.opciones
+    : [
+        {
+          texto:
+            conversacionSeleccionada?.correct_answer ||
+            conversacionSeleccionada?.what_to_say,
+          correcta: true,
+        },
+        {
+          texto: conversacionSeleccionada?.wrong_answer_1,
+          correcta: false,
+        },
+        {
+          texto: conversacionSeleccionada?.wrong_answer_2,
+          correcta: false,
+        },
+      ].filter((op) => op.texto && op.texto.trim() !== "");
 
   return (
     <main className="min-h-screen bg-[#F3ECFF] px-6 py-10">
@@ -643,16 +667,16 @@ const Conversaciones = () => {
                   {conversacionSeleccionada.ejercicio.pregunta}
                 </h3>
                 <p className="text-sm text-red-500 mb-4">
-                  Opciones: {conversacionSeleccionada.ejercicio.opciones.length}
+                  Opciones: {opcionesNivel2.length}
                 </p>
 
                 <div className="grid grid-cols-1 gap-4">
-                  {conversacionSeleccionada.ejercicio.opciones.length === 0 ? (
+                  {opcionesNivel2.length === 0 ? (
                     <p className="text-[#8A3A3A] bg-[#FFE1E1] rounded-2xl p-4 font-bold">
                       Esta conversación aún no tiene respuestas preparadas.
                     </p>
                   ) : (
-                    conversacionSeleccionada.ejercicio.opciones.map(
+                    opcionesNivel2.map(
                       (opcion) => {
                         const seleccionada =
                           respuestaSeleccionada?.texto === opcion.texto;
@@ -674,7 +698,7 @@ const Conversaciones = () => {
                                 : seleccionada && !opcion.correcta
                                   ? "bg-[#FFE1E1] border-[#F2A3A3] text-[#8A3A3A]"
                                   : "bg-white border-[#DCCCF8] text-[#4B367C] hover:border-[#9B7BE8]"
-                              }
+                            }
                             `}
                           >
                             {opcion.texto}
