@@ -410,25 +410,31 @@ const Conversaciones = () => {
       : felixRespirando
     : felix;
 
-  const opcionesNivel2 =
-    conversacionSeleccionada?.ejercicio?.opciones?.length > 0
-      ? conversacionSeleccionada.ejercicio.opciones
-      : [
-          {
-            texto:
-              conversacionSeleccionada?.correct_answer ||
-              conversacionSeleccionada?.what_to_say,
-            correcta: true,
-          },
-          {
-            texto: conversacionSeleccionada?.wrong_answer_1,
-            correcta: false,
-          },
-          {
-            texto: conversacionSeleccionada?.wrong_answer_2,
-            correcta: false,
-          },
-        ].filter((op) => op.texto && op.texto.trim() !== "");
+  // ✅ CORRECCIÓN: filtrar opciones inválidas antes de decidir el fallback
+  const opcionesNivel2 = (() => {
+    const opcionesDelEjercicio = (
+      conversacionSeleccionada?.ejercicio?.opciones || []
+    ).filter((op) => op.texto && op.texto.trim() !== "");
+
+    if (opcionesDelEjercicio.length > 0) return opcionesDelEjercicio;
+
+    return [
+      {
+        texto:
+          conversacionSeleccionada?.correct_answer ||
+          conversacionSeleccionada?.what_to_say,
+        correcta: true,
+      },
+      {
+        texto: conversacionSeleccionada?.wrong_answer_1,
+        correcta: false,
+      },
+      {
+        texto: conversacionSeleccionada?.wrong_answer_2,
+        correcta: false,
+      },
+    ].filter((op) => op.texto && op.texto.trim() !== "");
+  })();
 
   return (
     <main className="min-h-screen bg-[#F3ECFF] px-6 py-10">
@@ -660,10 +666,6 @@ const Conversaciones = () => {
                 <h3 className="text-2xl font-bold text-[#4B367C] mb-5">
                   {conversacionSeleccionada.ejercicio.pregunta}
                 </h3>
-
-                <p className="text-sm text-red-500 mb-4">
-                  Opciones: {opcionesNivel2.length}
-                </p>
 
                 <div className="grid grid-cols-1 gap-4">
                   {opcionesNivel2.length === 0 ? (
