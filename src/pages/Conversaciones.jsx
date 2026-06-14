@@ -174,8 +174,6 @@ const Conversaciones = () => {
       const data = await getConversations();
       const contactData = await getAllContactConversations();
 
-      console.log("CONTACT DATA:", contactData);
-
       const conversacionesNormales = data.map((item) => {
         const base = contenidoBasePorTitulo[item.title];
 
@@ -238,10 +236,10 @@ const Conversaciones = () => {
           emoji: "✨",
           escenario: item.situation,
           habilidad: item.reminder || "Conversación personalizada",
+          what_to_say: item.what_to_say,
           correct_answer: item.correct_answer,
           wrong_answer_1: item.wrong_answer_1,
           wrong_answer_2: item.wrong_answer_2,
-          what_to_say: item.what_to_say,
           dialogo: [
             {
               personaje: "Félix",
@@ -257,16 +255,12 @@ const Conversaciones = () => {
 
       const todas = [...conversacionesNormales, ...conversacionesContactos];
 
-      console.log("TODAS:", todas);
-
       setConversaciones(todas);
 
       if (todas.length > 0) {
         setConversacionSeleccionada((prev) => {
           if (!prev) return todas[0];
-
           const actualizada = todas.find((item) => item.id === prev.id);
-
           return actualizada || todas[0];
         });
       }
@@ -416,25 +410,25 @@ const Conversaciones = () => {
       : felixRespirando
     : felix;
 
-    const opcionesNivel2 =
-  conversacionSeleccionada?.ejercicio?.opciones?.length > 0
-    ? conversacionSeleccionada.ejercicio.opciones
-    : [
-        {
-          texto:
-            conversacionSeleccionada?.correct_answer ||
-            conversacionSeleccionada?.what_to_say,
-          correcta: true,
-        },
-        {
-          texto: conversacionSeleccionada?.wrong_answer_1,
-          correcta: false,
-        },
-        {
-          texto: conversacionSeleccionada?.wrong_answer_2,
-          correcta: false,
-        },
-      ].filter((op) => op.texto && op.texto.trim() !== "");
+  const opcionesNivel2 =
+    conversacionSeleccionada?.ejercicio?.opciones?.length > 0
+      ? conversacionSeleccionada.ejercicio.opciones
+      : [
+          {
+            texto:
+              conversacionSeleccionada?.correct_answer ||
+              conversacionSeleccionada?.what_to_say,
+            correcta: true,
+          },
+          {
+            texto: conversacionSeleccionada?.wrong_answer_1,
+            correcta: false,
+          },
+          {
+            texto: conversacionSeleccionada?.wrong_answer_2,
+            correcta: false,
+          },
+        ].filter((op) => op.texto && op.texto.trim() !== "");
 
   return (
     <main className="min-h-screen bg-[#F3ECFF] px-6 py-10">
@@ -551,7 +545,7 @@ const Conversaciones = () => {
             {conversaciones.map((item) => {
               const activo = conversacionSeleccionada?.id === item.id;
               const completada = completedConversations.includes(
-                Number(item.id),
+                item.conversationId,
               );
 
               return (
@@ -666,6 +660,7 @@ const Conversaciones = () => {
                 <h3 className="text-2xl font-bold text-[#4B367C] mb-5">
                   {conversacionSeleccionada.ejercicio.pregunta}
                 </h3>
+
                 <p className="text-sm text-red-500 mb-4">
                   Opciones: {opcionesNivel2.length}
                 </p>
@@ -676,20 +671,19 @@ const Conversaciones = () => {
                       Esta conversación aún no tiene respuestas preparadas.
                     </p>
                   ) : (
-                    opcionesNivel2.map(
-                      (opcion) => {
-                        const seleccionada =
-                          respuestaSeleccionada?.texto === opcion.texto;
+                    opcionesNivel2.map((opcion) => {
+                      const seleccionada =
+                        respuestaSeleccionada?.texto === opcion.texto;
 
-                        return (
-                          <motion.button
-                            key={opcion.texto}
-                            type="button"
-                            onClick={() => seleccionarRespuesta(opcion)}
-                            aria-pressed={seleccionada}
-                            whileHover={{ scale: 1.01 }}
-                            whileTap={{ scale: 0.98 }}
-                            className={`
+                      return (
+                        <motion.button
+                          key={opcion.texto}
+                          type="button"
+                          onClick={() => seleccionarRespuesta(opcion)}
+                          aria-pressed={seleccionada}
+                          whileHover={{ scale: 1.01 }}
+                          whileTap={{ scale: 0.98 }}
+                          className={`
                             w-full text-left rounded-2xl px-5 py-4 font-semibold
                             border-2 transition-all text-lg
                             ${
@@ -699,13 +693,12 @@ const Conversaciones = () => {
                                   ? "bg-[#FFE1E1] border-[#F2A3A3] text-[#8A3A3A]"
                                   : "bg-white border-[#DCCCF8] text-[#4B367C] hover:border-[#9B7BE8]"
                             }
-                            `}
-                          >
-                            {opcion.texto}
-                          </motion.button>
-                        );
-                      },
-                    )
+                          `}
+                        >
+                          {opcion.texto}
+                        </motion.button>
+                      );
+                    })
                   )}
                 </div>
 
