@@ -258,7 +258,13 @@ const Conversaciones = () => {
       setConversaciones(todas);
 
       if (todas.length > 0) {
-        setConversacionSeleccionada(todas[0]);
+        setConversacionSeleccionada((prev) => {
+          if (!prev) return todas[0];
+
+          const actualizada = todas.find((item) => item.id === prev.id);
+
+          return actualizada || todas[0];
+        });
       }
     } catch (error) {
       console.error(error);
@@ -641,34 +647,42 @@ const Conversaciones = () => {
                 </p>
 
                 <div className="grid grid-cols-1 gap-4">
-                  {conversacionSeleccionada.ejercicio.opciones.map((opcion) => {
-                    const seleccionada =
-                      respuestaSeleccionada?.texto === opcion.texto;
+                  {conversacionSeleccionada.ejercicio.opciones.length === 0 ? (
+                    <p className="text-[#8A3A3A] bg-[#FFE1E1] rounded-2xl p-4 font-bold">
+                      Esta conversación aún no tiene respuestas preparadas.
+                    </p>
+                  ) : (
+                    conversacionSeleccionada.ejercicio.opciones.map(
+                      (opcion) => {
+                        const seleccionada =
+                          respuestaSeleccionada?.texto === opcion.texto;
 
-                    return (
-                      <motion.button
-                        key={opcion.texto}
-                        type="button"
-                        onClick={() => seleccionarRespuesta(opcion)}
-                        aria-pressed={seleccionada}
-                        whileHover={{ scale: 1.01 }}
-                        whileTap={{ scale: 0.98 }}
-                        className={`
-                          w-full text-left rounded-2xl px-5 py-4 font-semibold
-                          border-2 transition-all text-lg
-                          ${
-                            seleccionada && opcion.correcta
-                              ? "bg-green-100 border-green-400 text-green-800"
-                              : seleccionada && !opcion.correcta
-                                ? "bg-[#FFE1E1] border-[#F2A3A3] text-[#8A3A3A]"
-                                : "bg-white border-[#DCCCF8] text-[#4B367C] hover:border-[#9B7BE8]"
-                          }
-                        `}
-                      >
-                        {opcion.texto}
-                      </motion.button>
-                    );
-                  })}
+                        return (
+                          <motion.button
+                            key={opcion.texto}
+                            type="button"
+                            onClick={() => seleccionarRespuesta(opcion)}
+                            aria-pressed={seleccionada}
+                            whileHover={{ scale: 1.01 }}
+                            whileTap={{ scale: 0.98 }}
+                            className={`
+                            w-full text-left rounded-2xl px-5 py-4 font-semibold
+                            border-2 transition-all text-lg
+                            ${
+                              seleccionada && opcion.correcta
+                                ? "bg-green-100 border-green-400 text-green-800"
+                                : seleccionada && !opcion.correcta
+                                  ? "bg-[#FFE1E1] border-[#F2A3A3] text-[#8A3A3A]"
+                                  : "bg-white border-[#DCCCF8] text-[#4B367C] hover:border-[#9B7BE8]"
+                              }
+                            `}
+                          >
+                            {opcion.texto}
+                          </motion.button>
+                        );
+                      },
+                    )
+                  )}
                 </div>
 
                 {respuestaSeleccionada && (
