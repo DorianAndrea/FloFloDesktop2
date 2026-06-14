@@ -14,14 +14,17 @@ const PersonaDetalle = () => {
 
   const [contact, setContact] = useState(null);
   const [conversations, setConversations] = useState([]);
+
   const [title, setTitle] = useState("");
   const [situation, setSituation] = useState("");
   const [whatToSay, setWhatToSay] = useState("");
   const [reminder, setReminder] = useState("");
-  const [editingConversationId, setEditingConversationId] = useState(null);
+
   const [correctAnswer, setCorrectAnswer] = useState("");
   const [wrongAnswer1, setWrongAnswer1] = useState("");
   const [wrongAnswer2, setWrongAnswer2] = useState("");
+
+  const [editingConversationId, setEditingConversationId] = useState(null);
 
   const loadContact = async () => {
     try {
@@ -46,6 +49,17 @@ const PersonaDetalle = () => {
     loadConversations();
   }, [id]);
 
+  const resetForm = () => {
+    setTitle("");
+    setSituation("");
+    setWhatToSay("");
+    setReminder("");
+    setCorrectAnswer("");
+    setWrongAnswer1("");
+    setWrongAnswer2("");
+    setEditingConversationId(null);
+  };
+
   const handleCreateConversation = async (e) => {
     e.preventDefault();
 
@@ -69,41 +83,41 @@ const PersonaDetalle = () => {
       return;
     }
 
+    if (!correctAnswer.trim()) {
+      alert("Debes ingresar la respuesta correcta");
+      return;
+    }
+
+    if (!wrongAnswer1.trim()) {
+      alert("Debes ingresar la respuesta incorrecta 1");
+      return;
+    }
+
+    if (!wrongAnswer2.trim()) {
+      alert("Debes ingresar la respuesta incorrecta 2");
+      return;
+    }
+
     try {
       const conversationData = {
-        user_id: contact.user_id,
         user_contact_id: contact.id,
         title: title.trim(),
         situation: situation.trim(),
         what_to_say: whatToSay.trim(),
         reminder: reminder.trim(),
-
         correct_answer: correctAnswer.trim(),
         wrong_answer_1: wrongAnswer1.trim(),
         wrong_answer_2: wrongAnswer2.trim(),
       };
-
+console.log("CONVERSATION DATA:", conversationData);
       if (editingConversationId) {
-        await updateContactConversation(
-          editingConversationId,
-          conversationData,
-        );
+        await updateContactConversation(editingConversationId, conversationData);
       } else {
         await createContactConversation(conversationData);
       }
 
       await loadConversations();
-
-      setTitle("");
-      setSituation("");
-      setWhatToSay("");
-      setReminder("");
-
-      setCorrectAnswer("");
-      setWrongAnswer1("");
-      setWrongAnswer2("");
-
-      setEditingConversationId(null);
+      resetForm();
 
       alert(
         editingConversationId
@@ -115,21 +129,19 @@ const PersonaDetalle = () => {
       alert("Error al guardar conversación");
     }
   };
-  if (!contact) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        Cargando...
-      </div>
-    );
-  }
+
   const handleEditConversation = (conversation) => {
     setEditingConversationId(conversation.id);
-    setTitle(conversation.title);
-    setSituation(conversation.situation);
-    setWhatToSay(conversation.what_to_say);
+    setTitle(conversation.title || "");
+    setSituation(conversation.situation || "");
+    setWhatToSay(conversation.what_to_say || "");
     setReminder(conversation.reminder || "");
+    setCorrectAnswer(conversation.correct_answer || "");
+    setWrongAnswer1(conversation.wrong_answer_1 || "");
+    setWrongAnswer2(conversation.wrong_answer_2 || "");
   };
-  const handleDeleteConversation = async (id) => {
+
+  const handleDeleteConversation = async (conversationId) => {
     const confirmDelete = confirm(
       "¿Seguro que quieres eliminar esta conversación?",
     );
@@ -137,13 +149,24 @@ const PersonaDetalle = () => {
     if (!confirmDelete) return;
 
     try {
-      await deleteContactConversation(id);
+      await deleteContactConversation(conversationId);
       await loadConversations();
     } catch (error) {
       console.error(error);
       alert("Error al eliminar conversación");
     }
   };
+
+  if (!contact) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        Cargando...
+      </div>
+    );
+  }
+
+  const imagenValida =
+    contact.image && contact.image.startsWith("https://res.cloudinary.com");
 
   return (
     <div className="min-h-screen bg-[#F3ECFF] px-8 py-10">
@@ -165,19 +188,21 @@ const PersonaDetalle = () => {
                 ¿Cómo puedo recordarlo?
               </h3>
 
-              <p className="text-gray-700 text-lg">{contact.memory_note}</p>
+              <p className="text-gray-700 text-lg">
+                {contact.memory_note || "Sin recordatorio"}
+              </p>
             </div>
           </div>
 
           <div className="flex justify-center">
-            {contact.image ? (
+            {imagenValida ? (
               <img
                 src={contact.image}
                 alt={contact.name}
                 className="w-80 h-80 object-cover rounded-3xl border"
               />
             ) : (
-              <div className="w-80 h-80 bg-gray-200 rounded-3xl flex items-center justify-center">
+              <div className="w-80 h-80 bg-gray-200 rounded-3xl flex items-center justify-center text-[#6B5A95] font-bold">
                 Sin foto
               </div>
             )}
@@ -214,6 +239,7 @@ const PersonaDetalle = () => {
               placeholder="¿Qué puede decir?"
               className="w-full p-3 rounded-xl border"
             />
+
             <input
               type="text"
               value={correctAnswer}
@@ -245,14 +271,26 @@ const PersonaDetalle = () => {
               className="w-full p-3 rounded-xl border"
             />
 
-            <button
-              type="submit"
-              className="bg-[#9B7BE8] text-white px-6 py-3 rounded-xl font-bold"
-            >
-              {editingConversationId
-                ? "Actualizar conversación"
-                : "Guardar conversación"}
-            </button>
+            <div className="flex gap-3">
+              <button
+                type="submit"
+                className="bg-[#9B7BE8] text-white px-6 py-3 rounded-xl font-bold"
+              >
+                {editingConversationId
+                  ? "Actualizar conversación"
+                  : "Guardar conversación"}
+              </button>
+
+              {editingConversationId && (
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="bg-white text-[#4B367C] border border-[#DCCCF8] px-6 py-3 rounded-xl font-bold"
+                >
+                  Cancelar edición
+                </button>
+              )}
+            </div>
           </form>
 
           <div className="space-y-4">
@@ -278,11 +316,27 @@ const PersonaDetalle = () => {
                     <strong>Qué decir:</strong> {conversation.what_to_say}
                   </p>
 
+                  <p className="mt-2 text-green-700">
+                    <strong>Respuesta correcta:</strong>{" "}
+                    {conversation.correct_answer || "No registrada"}
+                  </p>
+
+                  <p className="mt-2 text-red-600">
+                    <strong>Incorrecta 1:</strong>{" "}
+                    {conversation.wrong_answer_1 || "No registrada"}
+                  </p>
+
+                  <p className="mt-2 text-red-600">
+                    <strong>Incorrecta 2:</strong>{" "}
+                    {conversation.wrong_answer_2 || "No registrada"}
+                  </p>
+
                   {conversation.reminder && (
                     <p className="mt-2 text-[#6B5A95]">
                       <strong>Recordatorio:</strong> {conversation.reminder}
                     </p>
                   )}
+
                   <div className="flex gap-3 mt-4">
                     <button
                       type="button"
