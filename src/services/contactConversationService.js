@@ -23,3 +23,13 @@ export const deleteContactConversation = async (id) => {
   const response = await api.delete(`/contact-conversations/${id}`);
   return response.data;
 };
+export const completeContactConversation = async (id) => {
+  const response = await api.post(`/contact-conversations/${id}/complete`);
+  return response.data;
+  console.log("CONTACT SERVICE CARGADO");
+};
+
+export const getContactConversationProgress = async () => {
+  const response = await api.get("/contact-conversations/progress");
+  return response.data;
+};
