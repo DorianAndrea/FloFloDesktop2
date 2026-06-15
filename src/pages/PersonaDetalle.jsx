@@ -207,211 +207,198 @@ const PersonaDetalle = () => {
     contact.image && contact.image.startsWith("https://res.cloudinary.com");
 
   return (
-    <div className="min-h-screen bg-[#F3ECFF] px-8 py-10">
-      <div className="max-w-5xl mx-auto bg-white rounded-3xl shadow p-8">
-        <div className="grid md:grid-cols-2 gap-8">
-          <div>
-            <h1 className="text-5xl font-bold text-[#4B367C]">
-              {contact.name}
-            </h1>
+   <div className="min-h-screen bg-[#F3ECFF] px-8 py-10">
+  <div className="max-w-5xl mx-auto bg-white rounded-3xl shadow p-8">
+    <div className="grid md:grid-cols-2 gap-8">
+      <div>
+        <h1 className="text-5xl font-bold text-[#4B367C]">
+          {contact.name}
+        </h1>
 
-            <p className="mt-4 text-2xl text-[#6B5A95]">
-              {contact.relationship_name}
-            </p>
+        <p className="mt-4 text-2xl text-[#6B5A95]">
+          {contact.relationship_name}
+        </p>
 
-            <p className="mt-6 text-xl">📍 {contact.where_met}</p>
+        <p className="mt-6 text-xl">📍 {contact.where_met}</p>
 
-            <div className="mt-8 bg-[#F3ECFF] rounded-2xl p-6">
-              <h3 className="font-bold text-[#4B367C] text-xl mb-2">
-                ¿Cómo puedo recordarlo?
-              </h3>
+        <div className="mt-8 bg-[#F3ECFF] rounded-2xl p-6">
+          <h3 className="font-bold text-[#4B367C] text-xl mb-2">
+            ¿Cómo puedo recordarlo?
+          </h3>
 
-              <p className="text-gray-700 text-lg">
-                {contact.memory_note || "Sin recordatorio"}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex justify-center">
-            {imagenValida ? (
-              <img
-                src={contact.image}
-                alt={contact.name}
-                className="w-80 h-80 object-cover rounded-3xl border"
-              />
-            ) : (
-              <div className="w-80 h-80 bg-gray-200 rounded-3xl flex items-center justify-center text-[#6B5A95] font-bold">
-                Sin foto
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="mt-12">
-          <h2 className="text-3xl font-bold text-[#4B367C] mb-6">
-            Conversaciones preparadas
-          </h2>
-
-          <form
-            onSubmit={handleCreateConversation}
-            className="bg-[#F3ECFF] rounded-2xl p-6 mb-8 space-y-4"
-          >
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Título de la conversación"
-              className="w-full p-3 rounded-xl border"
-            />
-
-            <textarea
-              value={situation}
-              onChange={(e) => setSituation(e.target.value)}
-              placeholder="¿En qué situación ocurre?"
-              className="w-full p-3 rounded-xl border"
-            />
-            <button
-              type="button"
-              onClick={handleGenerateConversationAI}
-              disabled={generandoIA}
-              className="bg-[#4B367C] text-white px-6 py-3 rounded-xl font-bold disabled:opacity-50"
-            >
-              {generandoIA
-                ? "Félix está pensando..."
-                : "✨ Generar conversación con Félix"}
-            </button>
-
-            <button
-              type="button"
-              onClick={handleGenerateConversationAI}
-              disabled={generandoIA}
-              className="bg-[#4B367C] text-white px-6 py-3 rounded-xl font-bold disabled:opacity-50"
-            >
-              {generandoIA
-                ? "Félix está pensando..."
-                : "✨ Generar conversación con Félix"}
-            </button>
-
-            {title && (
-              <div className="bg-white rounded-2xl p-5 border-2 border-[#DCCCF8]">
-                <h3 className="text-2xl font-bold text-[#4B367C] mb-3">
-                  {title}
-                </h3>
-
-                <p className="text-[#6B5A95]">
-                  <strong>Qué decir:</strong> {whatToSay}
-                </p>
-
-                <p className="text-green-700 mt-2">
-                  <strong>Respuesta correcta:</strong> {correctAnswer}
-                </p>
-
-                <p className="text-red-600 mt-2">
-                  <strong>Incorrecta 1:</strong> {wrongAnswer1}
-                </p>
-
-                <p className="text-red-600 mt-2">
-                  <strong>Incorrecta 2:</strong> {wrongAnswer2}
-                </p>
-
-                {reminder && (
-                  <p className="text-[#6B5A95] mt-2">
-                    <strong>Recordatorio:</strong> {reminder}
-                  </p>
-                )}
-              </div>
-            )}
-
-            <div className="flex gap-3">
-              <button
-                type="submit"
-                className="bg-[#9B7BE8] text-white px-6 py-3 rounded-xl font-bold"
-              >
-                {editingConversationId
-                  ? "Actualizar conversación"
-                  : "Guardar conversación"}
-              </button>
-
-              {editingConversationId && (
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="bg-white text-[#4B367C] border border-[#DCCCF8] px-6 py-3 rounded-xl font-bold"
-                >
-                  Cancelar edición
-                </button>
-              )}
-            </div>
-          </form>
-
-          <div className="space-y-4">
-            {conversations.length === 0 ? (
-              <p className="text-[#6B5A95]">
-                Aún no hay conversaciones preparadas.
-              </p>
-            ) : (
-              conversations.map((conversation) => (
-                <div
-                  key={conversation.id}
-                  className="bg-white border-2 border-[#DCCCF8] rounded-2xl p-5"
-                >
-                  <h3 className="text-2xl font-bold text-[#4B367C]">
-                    {conversation.title}
-                  </h3>
-
-                  <p className="mt-2 text-[#6B5A95]">
-                    <strong>Situación:</strong> {conversation.situation}
-                  </p>
-
-                  <p className="mt-2 text-[#6B5A95]">
-                    <strong>Qué decir:</strong> {conversation.what_to_say}
-                  </p>
-
-                  <p className="mt-2 text-green-700">
-                    <strong>Respuesta correcta:</strong>{" "}
-                    {conversation.correct_answer || "No registrada"}
-                  </p>
-
-                  <p className="mt-2 text-red-600">
-                    <strong>Incorrecta 1:</strong>{" "}
-                    {conversation.wrong_answer_1 || "No registrada"}
-                  </p>
-
-                  <p className="mt-2 text-red-600">
-                    <strong>Incorrecta 2:</strong>{" "}
-                    {conversation.wrong_answer_2 || "No registrada"}
-                  </p>
-
-                  {conversation.reminder && (
-                    <p className="mt-2 text-[#6B5A95]">
-                      <strong>Recordatorio:</strong> {conversation.reminder}
-                    </p>
-                  )}
-
-                  <div className="flex gap-3 mt-4">
-                    <button
-                      type="button"
-                      onClick={() => handleEditConversation(conversation)}
-                      className="bg-[#9B7BE8] text-white px-5 py-2 rounded-xl font-bold"
-                    >
-                      Editar
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteConversation(conversation.id)}
-                      className="bg-red-500 text-white px-5 py-2 rounded-xl font-bold"
-                    >
-                      Eliminar
-                    </button>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
+          <p className="text-gray-700 text-lg">
+            {contact.memory_note || "Sin recordatorio"}
+          </p>
         </div>
       </div>
+
+      <div className="flex justify-center">
+        {imagenValida ? (
+          <img
+            src={contact.image}
+            alt={contact.name}
+            className="w-80 h-80 object-cover rounded-3xl border"
+          />
+        ) : (
+          <div className="w-80 h-80 bg-gray-200 rounded-3xl flex items-center justify-center text-[#6B5A95] font-bold">
+            Sin foto
+          </div>
+        )}
+      </div>
     </div>
+
+    <div className="mt-12">
+      <h2 className="text-3xl font-bold text-[#4B367C] mb-6">
+        Conversaciones con Félix con {contact.name}
+      </h2>
+
+      <form
+        onSubmit={handleCreateConversation}
+        className="bg-[#F3ECFF] rounded-2xl p-6 mb-8 space-y-4"
+      >
+        <textarea
+          value={situation}
+          onChange={(e) => setSituation(e.target.value)}
+          placeholder="Escribe el escenario. Ej: cuando nos vemos en el colegio"
+          className="w-full p-3 rounded-xl border min-h-28"
+        />
+
+        <button
+          type="button"
+          onClick={handleGenerateConversationAI}
+          disabled={generandoIA}
+          className="bg-[#4B367C] text-white px-6 py-3 rounded-xl font-bold disabled:opacity-50"
+        >
+          {generandoIA
+            ? "Félix está pensando..."
+            : "✨ Generar conversación con Félix"}
+        </button>
+
+        {title && (
+          <div className="bg-white rounded-2xl p-5 border-2 border-[#DCCCF8]">
+            <h3 className="text-2xl font-bold text-[#4B367C] mb-3">
+              {title}
+            </h3>
+
+            <p className="text-[#6B5A95]">
+              <strong>Situación:</strong> {situation}
+            </p>
+
+            <p className="text-[#6B5A95] mt-2">
+              <strong>Qué decir:</strong> {whatToSay}
+            </p>
+
+            <p className="text-green-700 mt-2">
+              <strong>Respuesta correcta:</strong> {correctAnswer}
+            </p>
+
+            <p className="text-red-600 mt-2">
+              <strong>Incorrecta 1:</strong> {wrongAnswer1}
+            </p>
+
+            <p className="text-red-600 mt-2">
+              <strong>Incorrecta 2:</strong> {wrongAnswer2}
+            </p>
+
+            {reminder && (
+              <p className="text-[#6B5A95] mt-2">
+                <strong>Recordatorio:</strong> {reminder}
+              </p>
+            )}
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          <button
+            type="submit"
+            disabled={!title || generandoIA}
+            className="bg-[#9B7BE8] text-white px-6 py-3 rounded-xl font-bold disabled:opacity-50"
+          >
+            {editingConversationId
+              ? "Actualizar conversación"
+              : "Guardar conversación"}
+          </button>
+
+          {editingConversationId && (
+            <button
+              type="button"
+              onClick={resetForm}
+              className="bg-white text-[#4B367C] border border-[#DCCCF8] px-6 py-3 rounded-xl font-bold"
+            >
+              Cancelar edición
+            </button>
+          )}
+        </div>
+      </form>
+
+      <div className="space-y-4">
+        {conversations.length === 0 ? (
+          <p className="text-[#6B5A95]">
+            Aún no hay conversaciones preparadas.
+          </p>
+        ) : (
+          conversations.map((conversation) => (
+            <div
+              key={conversation.id}
+              className="bg-white border-2 border-[#DCCCF8] rounded-2xl p-5"
+            >
+              <h3 className="text-2xl font-bold text-[#4B367C]">
+                {conversation.title}
+              </h3>
+
+              <p className="mt-2 text-[#6B5A95]">
+                <strong>Situación:</strong> {conversation.situation}
+              </p>
+
+              <p className="mt-2 text-[#6B5A95]">
+                <strong>Qué decir:</strong> {conversation.what_to_say}
+              </p>
+
+              <p className="mt-2 text-green-700">
+                <strong>Respuesta correcta:</strong>{" "}
+                {conversation.correct_answer || "No registrada"}
+              </p>
+
+              <p className="mt-2 text-red-600">
+                <strong>Incorrecta 1:</strong>{" "}
+                {conversation.wrong_answer_1 || "No registrada"}
+              </p>
+
+              <p className="mt-2 text-red-600">
+                <strong>Incorrecta 2:</strong>{" "}
+                {conversation.wrong_answer_2 || "No registrada"}
+              </p>
+
+              {conversation.reminder && (
+                <p className="mt-2 text-[#6B5A95]">
+                  <strong>Recordatorio:</strong> {conversation.reminder}
+                </p>
+              )}
+
+              <div className="flex gap-3 mt-4">
+                <button
+                  type="button"
+                  onClick={() => handleEditConversation(conversation)}
+                  className="bg-[#9B7BE8] text-white px-5 py-2 rounded-xl font-bold"
+                >
+                  Editar
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleDeleteConversation(conversation.id)}
+                  className="bg-red-500 text-white px-5 py-2 rounded-xl font-bold"
+                >
+                  Eliminar
+                </button>
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  </div>
+</div>
   );
 };
 
