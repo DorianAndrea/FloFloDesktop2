@@ -177,7 +177,8 @@ const Conversaciones = () => {
   } = useFloFlo();
 
   const [conversaciones, setConversaciones] = useState([]);
-  const [conversacionSeleccionada, setConversacionSeleccionada] = useState(null);
+  const [conversacionSeleccionada, setConversacionSeleccionada] =
+    useState(null);
   const [respuestaSeleccionada, setRespuestaSeleccionada] = useState(null);
   const [generandoIA, setGenerandoIA] = useState(false);
   const [newAchievement, setNewAchievement] = useState(null);
@@ -252,7 +253,7 @@ const Conversaciones = () => {
      const conversacionesContactos = contactData.map((item) => {
   const opciones = [
     {
-      texto: item.correct_answer,
+      texto: item.correct_answer || item.what_to_say,
       correcta: true,
     },
     {
@@ -275,19 +276,16 @@ const Conversaciones = () => {
     emoji: "✨",
     escenario: item.situation,
     habilidad: item.reminder || "Conversación personalizada",
-
     what_to_say: item.what_to_say,
     correct_answer: item.correct_answer,
     wrong_answer_1: item.wrong_answer_1,
     wrong_answer_2: item.wrong_answer_2,
-
     dialogo: [
       {
         personaje: "Félix",
         texto: item.what_to_say,
       },
     ],
-
     ejercicio: {
       pregunta: "¿Qué debería decir Félix?",
       opciones,
@@ -295,14 +293,21 @@ const Conversaciones = () => {
   };
 });
 
-      const todas = [...conversacionesNormales, ...conversacionesContactos];
+      const todas = [...conversacionesContactos, ...conversacionesNormales];
+      console.log("CONTACT DATA:", contactData);
+      console.log("CONVERSACIONES CONTACTOS:", conversacionesContactos);
+      console.log("TODAS:", todas);
       setConversaciones(todas);
 
       if (todas.length > 0) {
         setConversacionSeleccionada((prev) => {
           if (!prev) return todas[0];
+
           const actualizada = todas.find((item) => item.id === prev.id);
-          return actualizada || todas[0];
+
+          if (actualizada) return actualizada;
+
+          return todas[0];
         });
       }
     } catch (error) {
@@ -327,7 +332,7 @@ const Conversaciones = () => {
         setCargandoOpciones(true);
         const [wrong1, wrong2] = await generarOpcionesConIA(
           conversacionSeleccionada.what_to_say,
-          conversacionSeleccionada.escenario
+          conversacionSeleccionada.escenario,
         );
 
         const nuevasOpciones = [
@@ -345,9 +350,12 @@ const Conversaciones = () => {
         setConversaciones((prev) =>
           prev.map((c) =>
             c.id === conversacionSeleccionada.id
-              ? { ...c, ejercicio: { ...c.ejercicio, opciones: nuevasOpciones } }
-              : c
-          )
+              ? {
+                  ...c,
+                  ejercicio: { ...c.ejercicio, opciones: nuevasOpciones },
+                }
+              : c,
+          ),
         );
 
         setCargandoOpciones(false);
@@ -551,7 +559,8 @@ const Conversaciones = () => {
             ✨ Crear conversación con Félix
           </h2>
           <p className="text-[#6B5A95] mb-5">
-            Escribe una situación y Félix generará una conversación para practicar.
+            Escribe una situación y Félix generará una conversación para
+            practicar.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -599,7 +608,9 @@ const Conversaciones = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {conversaciones.map((item) => {
               const activo = conversacionSeleccionada?.id === item.id;
-              const completada = completedConversations.includes(item.conversationId);
+              const completada = completedConversations.includes(
+                item.conversationId,
+              );
 
               return (
                 <motion.button
@@ -623,7 +634,9 @@ const Conversaciones = () => {
                       </span>
                     )}
                   </div>
-                  <h2 className="text-2xl font-bold text-[#4B367C] mb-2">{item.titulo}</h2>
+                  <h2 className="text-2xl font-bold text-[#4B367C] mb-2">
+                    {item.titulo}
+                  </h2>
                   <p className="text-[#6B5A95] text-base">{item.escenario}</p>
                 </motion.button>
               );
@@ -639,13 +652,19 @@ const Conversaciones = () => {
                   alt="Félix acompañando"
                   className="w-36 h-36 md:w-44 md:h-44 object-contain"
                   animate={{ scale: [1, 1.04, 1] }}
-                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
+                  transition={{
+                    duration: 3,
+                    repeat: Infinity,
+                    ease: "easeInOut",
+                  }}
                 />
                 <div className="text-center md:text-left">
                   <h2 className="text-3xl md:text-4xl font-bold text-[#4B367C]">
                     {conversacionSeleccionada.titulo}
                   </h2>
-                  <p className="text-[#6B5A95] mt-2">{conversacionSeleccionada.habilidad}</p>
+                  <p className="text-[#6B5A95] mt-2">
+                    {conversacionSeleccionada.habilidad}
+                  </p>
                 </div>
               </div>
 
@@ -676,7 +695,9 @@ const Conversaciones = () => {
 
               <div className="mt-8 bg-[#F3ECFF] rounded-[2rem] p-6">
                 <p className="text-[#4B367C] font-bold mb-2">Escenario:</p>
-                <p className="text-[#6B5A95]">{conversacionSeleccionada.escenario}</p>
+                <p className="text-[#6B5A95]">
+                  {conversacionSeleccionada.escenario}
+                </p>
               </div>
 
               <div className="mt-8 bg-[#FDFBFF] border-2 border-[#E4D8FF] rounded-[2rem] p-6">
@@ -693,7 +714,11 @@ const Conversaciones = () => {
                     <div className="flex items-center gap-3 bg-[#F3ECFF] rounded-2xl p-5">
                       <motion.div
                         animate={{ rotate: 360 }}
-                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        transition={{
+                          duration: 1,
+                          repeat: Infinity,
+                          ease: "linear",
+                        }}
                         className="w-6 h-6 border-4 border-[#9B7BE8] border-t-transparent rounded-full"
                       />
                       <p className="text-[#4B367C] font-semibold">
@@ -706,7 +731,8 @@ const Conversaciones = () => {
                     </p>
                   ) : (
                     opcionesNivel2.map((opcion) => {
-                      const seleccionada = respuestaSeleccionada?.texto === opcion.texto;
+                      const seleccionada =
+                        respuestaSeleccionada?.texto === opcion.texto;
                       return (
                         <motion.button
                           key={opcion.texto}
