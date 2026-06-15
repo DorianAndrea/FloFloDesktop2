@@ -128,6 +128,42 @@ const getEmojiByTitle = (title) => {
   return contenidoBasePorTitulo[title]?.emoji || "✨";
 };
 
+// ✅ Genera opciones incorrectas con IA a partir del escenario y what_to_say
+const generarOpcionesConIA = async (whatToSay, situation) => {
+  try {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-6",
+        max_tokens: 300,
+        messages: [
+          {
+            role: "user",
+            content: `Eres un asistente para una app de habilidades sociales para niños con autismo.
+Dado este escenario: "${situation}"
+Y la respuesta CORRECTA que debe decir Félix: "${whatToSay}"
+
+Genera exactamente 2 respuestas INCORRECTAS que Félix NO debería decir en esta situación.
+Las respuestas incorrectas deben ser cortas, simples y claramente inadecuadas para el contexto.
+
+Responde SOLO con JSON válido, sin texto adicional, sin backticks:
+{"wrong_1": "...", "wrong_2": "..."}`,
+          },
+        ],
+      }),
+    });
+
+    const data = await response.json();
+    const text = data.content?.[0]?.text || "";
+    const parsed = JSON.parse(text.trim());
+    return [parsed.wrong_1, parsed.wrong_2];
+  } catch (e) {
+    // Fallback si la IA falla
+    return ["Me quedo en silencio.", "Me alejo sin responder."];
+  }
+};
+
 const Conversaciones = () => {
   const {
     points,
@@ -141,11 +177,11 @@ const Conversaciones = () => {
   } = useFloFlo();
 
   const [conversaciones, setConversaciones] = useState([]);
-  const [conversacionSeleccionada, setConversacionSeleccionada] =
-    useState(null);
+  const [conversacionSeleccionada, setConversacionSeleccionada] = useState(null);
   const [respuestaSeleccionada, setRespuestaSeleccionada] = useState(null);
   const [generandoIA, setGenerandoIA] = useState(false);
   const [newAchievement, setNewAchievement] = useState(null);
+  const [cargandoOpciones, setCargandoOpciones] = useState(false);
 
   const [formIA, setFormIA] = useState({
     topic: "",
@@ -212,22 +248,8 @@ const Conversaciones = () => {
         };
       });
 
+      // ✅ Para contactos: opciones se generarán con IA al seleccionar, por ahora vacías
       const conversacionesContactos = contactData.map((item) => {
-        const opciones = [
-          {
-            texto: item.correct_answer || item.what_to_say,
-            correcta: true,
-          },
-          {
-            texto: item.wrong_answer_1 || "No sé qué decir.",
-            correcta: false,
-          },
-          {
-            texto: item.wrong_answer_2 || "Me voy sin responder.",
-            correcta: false,
-          },
-        ].filter((op) => op.texto && op.texto.trim() !== "");
-
         return {
           id: `contact-${item.id}`,
           conversationId: Number(item.id),
@@ -237,9 +259,6 @@ const Conversaciones = () => {
           escenario: item.situation,
           habilidad: item.reminder || "Conversación personalizada",
           what_to_say: item.what_to_say,
-          correct_answer: item.correct_answer,
-          wrong_answer_1: item.wrong_answer_1,
-          wrong_answer_2: item.wrong_answer_2,
           dialogo: [
             {
               personaje: "Félix",
@@ -248,13 +267,12 @@ const Conversaciones = () => {
           ],
           ejercicio: {
             pregunta: "¿Qué debería decir Félix?",
-            opciones,
+            opciones: [], // se generan con IA al seleccionar
           },
         };
       });
 
       const todas = [...conversacionesNormales, ...conversacionesContactos];
-
       setConversaciones(todas);
 
       if (todas.length > 0) {
@@ -274,6 +292,47 @@ const Conversaciones = () => {
     cargarProgreso();
     cargarUserProgress();
   }, []);
+
+  // ✅ Cuando se selecciona una conversación de contacto sin opciones, las genera con IA
+  useEffect(() => {
+    if (
+      conversacionSeleccionada?.tipo === "contacto" &&
+      conversacionSeleccionada?.ejercicio?.opciones?.length === 0 &&
+      conversacionSeleccionada?.what_to_say
+    ) {
+      const generarOpciones = async () => {
+        setCargandoOpciones(true);
+        const [wrong1, wrong2] = await generarOpcionesConIA(
+          conversacionSeleccionada.what_to_say,
+          conversacionSeleccionada.escenario
+        );
+
+        const nuevasOpciones = [
+          { texto: conversacionSeleccionada.what_to_say, correcta: true },
+          { texto: wrong1, correcta: false },
+          { texto: wrong2, correcta: false },
+        ].sort(() => Math.random() - 0.5);
+
+        // Actualiza la conversación seleccionada y la lista
+        setConversacionSeleccionada((prev) => ({
+          ...prev,
+          ejercicio: { ...prev.ejercicio, opciones: nuevasOpciones },
+        }));
+
+        setConversaciones((prev) =>
+          prev.map((c) =>
+            c.id === conversacionSeleccionada.id
+              ? { ...c, ejercicio: { ...c.ejercicio, opciones: nuevasOpciones } }
+              : c
+          )
+        );
+
+        setCargandoOpciones(false);
+      };
+
+      generarOpciones();
+    }
+  }, [conversacionSeleccionada?.id]);
 
   const progreso =
     conversaciones.length > 0
@@ -340,10 +399,7 @@ const Conversaciones = () => {
   };
 
   const handleChangeIA = (e) => {
-    setFormIA({
-      ...formIA,
-      [e.target.name]: e.target.value,
-    });
+    setFormIA({ ...formIA, [e.target.name]: e.target.value });
   };
 
   const handleGenerateConversationIA = async () => {
@@ -410,31 +466,9 @@ const Conversaciones = () => {
       : felixRespirando
     : felix;
 
-  // ✅ CORRECCIÓN: filtrar opciones inválidas antes de decidir el fallback
-  const opcionesNivel2 = (() => {
-    const opcionesDelEjercicio = (
-      conversacionSeleccionada?.ejercicio?.opciones || []
-    ).filter((op) => op.texto && op.texto.trim() !== "");
-
-    if (opcionesDelEjercicio.length > 0) return opcionesDelEjercicio;
-
-    return [
-      {
-        texto:
-          conversacionSeleccionada?.correct_answer ||
-          conversacionSeleccionada?.what_to_say,
-        correcta: true,
-      },
-      {
-        texto: conversacionSeleccionada?.wrong_answer_1,
-        correcta: false,
-      },
-      {
-        texto: conversacionSeleccionada?.wrong_answer_2,
-        correcta: false,
-      },
-    ].filter((op) => op.texto && op.texto.trim() !== "");
-  })();
+  const opcionesNivel2 = (
+    conversacionSeleccionada?.ejercicio?.opciones || []
+  ).filter((op) => op.texto && op.texto.trim() !== "");
 
   return (
     <main className="min-h-screen bg-[#F3ECFF] px-6 py-10">
@@ -446,7 +480,6 @@ const Conversaciones = () => {
             <h1 className="text-4xl md:text-6xl font-extrabold text-[#4B367C] mb-3">
               Conversaciones
             </h1>
-
             <p className="text-lg md:text-xl text-[#6B5A95]">
               Practica situaciones simples con Félix.
             </p>
@@ -458,7 +491,6 @@ const Conversaciones = () => {
                 <div className="bg-yellow-100 px-6 py-3 rounded-full shadow">
                   ⭐ {points} Estrellas
                 </div>
-
                 <div className="bg-purple-100 px-6 py-3 rounded-full shadow">
                   🏆 Nivel {level}
                 </div>
@@ -482,7 +514,6 @@ const Conversaciones = () => {
               {completedConversations.length} de {conversaciones.length}
             </p>
           </div>
-
           <div className="h-4 bg-[#E8DDFF] rounded-full overflow-hidden">
             <motion.div
               className="h-full bg-[#9B7BE8] rounded-full"
@@ -496,10 +527,8 @@ const Conversaciones = () => {
           <h2 className="text-2xl font-bold text-[#4B367C] mb-2">
             ✨ Crear conversación con Félix
           </h2>
-
           <p className="text-[#6B5A95] mb-5">
-            Escribe una situación y Félix generará una conversación para
-            practicar.
+            Escribe una situación y Félix generará una conversación para practicar.
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -510,7 +539,6 @@ const Conversaciones = () => {
               placeholder="Tema: Pedir ayuda"
               className="p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8]"
             />
-
             <input
               name="situation"
               value={formIA.situation}
@@ -518,7 +546,6 @@ const Conversaciones = () => {
               placeholder="Situación"
               className="p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8]"
             />
-
             <input
               name="person"
               value={formIA.person}
@@ -526,7 +553,6 @@ const Conversaciones = () => {
               placeholder="Persona: Profesora"
               className="p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8]"
             />
-
             <input
               name="emotion"
               value={formIA.emotion}
@@ -550,9 +576,7 @@ const Conversaciones = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
             {conversaciones.map((item) => {
               const activo = conversacionSeleccionada?.id === item.id;
-              const completada = completedConversations.includes(
-                item.conversationId,
-              );
+              const completada = completedConversations.includes(item.conversationId);
 
               return (
                 <motion.button
@@ -565,27 +589,18 @@ const Conversaciones = () => {
                   transition={{ duration: 0.25 }}
                   className={`
                     bg-white rounded-[2rem] p-6 text-left shadow-md transition-all
-                    ${
-                      activo
-                        ? "ring-4 ring-[#9B7BE8]"
-                        : "ring-2 ring-transparent"
-                    }
+                    ${activo ? "ring-4 ring-[#9B7BE8]" : "ring-2 ring-transparent"}
                   `}
                 >
                   <div className="flex justify-between items-center mb-4">
                     <span className="text-4xl">{item.emoji}</span>
-
                     {completada && (
                       <span className="bg-green-100 text-green-700 text-sm font-bold px-3 py-1 rounded-full">
                         Hecho
                       </span>
                     )}
                   </div>
-
-                  <h2 className="text-2xl font-bold text-[#4B367C] mb-2">
-                    {item.titulo}
-                  </h2>
-
+                  <h2 className="text-2xl font-bold text-[#4B367C] mb-2">{item.titulo}</h2>
                   <p className="text-[#6B5A95] text-base">{item.escenario}</p>
                 </motion.button>
               );
@@ -601,46 +616,31 @@ const Conversaciones = () => {
                   alt="Félix acompañando"
                   className="w-36 h-36 md:w-44 md:h-44 object-contain"
                   animate={{ scale: [1, 1.04, 1] }}
-                  transition={{
-                    duration: 3,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
+                  transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                 />
-
                 <div className="text-center md:text-left">
                   <h2 className="text-3xl md:text-4xl font-bold text-[#4B367C]">
                     {conversacionSeleccionada.titulo}
                   </h2>
-
-                  <p className="text-[#6B5A95] mt-2">
-                    {conversacionSeleccionada.habilidad}
-                  </p>
+                  <p className="text-[#6B5A95] mt-2">{conversacionSeleccionada.habilidad}</p>
                 </div>
               </div>
 
               <div className="space-y-4">
                 {conversacionSeleccionada.dialogo.map((linea, index) => {
                   const esFelix = linea.personaje === "Félix";
-
                   return (
                     <motion.div
                       key={`${linea.personaje}-${index}`}
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.08 }}
-                      className={`flex ${
-                        esFelix ? "justify-start" : "justify-end"
-                      }`}
+                      className={`flex ${esFelix ? "justify-start" : "justify-end"}`}
                     >
                       <div
                         className={`
                           max-w-[85%] rounded-[1.5rem] px-6 py-4 shadow-sm
-                          ${
-                            esFelix
-                              ? "bg-[#E8DDFF] text-[#4B367C]"
-                              : "bg-[#FFF3C4] text-[#5C4A00]"
-                          }
+                          ${esFelix ? "bg-[#E8DDFF] text-[#4B367C]" : "bg-[#FFF3C4] text-[#5C4A00]"}
                         `}
                       >
                         <p className="font-bold mb-1">{linea.personaje}</p>
@@ -653,30 +653,37 @@ const Conversaciones = () => {
 
               <div className="mt-8 bg-[#F3ECFF] rounded-[2rem] p-6">
                 <p className="text-[#4B367C] font-bold mb-2">Escenario:</p>
-                <p className="text-[#6B5A95]">
-                  {conversacionSeleccionada.escenario}
-                </p>
+                <p className="text-[#6B5A95]">{conversacionSeleccionada.escenario}</p>
               </div>
 
               <div className="mt-8 bg-[#FDFBFF] border-2 border-[#E4D8FF] rounded-[2rem] p-6">
                 <p className="text-sm font-bold text-[#9B7BE8] mb-2">
                   Nivel 2 · Elige la respuesta correcta
                 </p>
-
                 <h3 className="text-2xl font-bold text-[#4B367C] mb-5">
                   {conversacionSeleccionada.ejercicio.pregunta}
                 </h3>
 
                 <div className="grid grid-cols-1 gap-4">
-                  {opcionesNivel2.length === 0 ? (
+                  {/* ✅ Estado de carga mientras la IA genera opciones */}
+                  {cargandoOpciones ? (
+                    <div className="flex items-center gap-3 bg-[#F3ECFF] rounded-2xl p-5">
+                      <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                        className="w-6 h-6 border-4 border-[#9B7BE8] border-t-transparent rounded-full"
+                      />
+                      <p className="text-[#4B367C] font-semibold">
+                        Félix está preparando las opciones...
+                      </p>
+                    </div>
+                  ) : opcionesNivel2.length === 0 ? (
                     <p className="text-[#8A3A3A] bg-[#FFE1E1] rounded-2xl p-4 font-bold">
                       Esta conversación aún no tiene respuestas preparadas.
                     </p>
                   ) : (
                     opcionesNivel2.map((opcion) => {
-                      const seleccionada =
-                        respuestaSeleccionada?.texto === opcion.texto;
-
+                      const seleccionada = respuestaSeleccionada?.texto === opcion.texto;
                       return (
                         <motion.button
                           key={opcion.texto}
@@ -712,11 +719,7 @@ const Conversaciones = () => {
                     animate={{ opacity: 1, y: 0 }}
                     className={`
                       mt-6 rounded-2xl p-5 font-bold text-lg
-                      ${
-                        respuestaSeleccionada.correcta
-                          ? "bg-green-100 text-green-800"
-                          : "bg-[#FFE1E1] text-[#8A3A3A]"
-                      }
+                      ${respuestaSeleccionada.correcta ? "bg-green-100 text-green-800" : "bg-[#FFE1E1] text-[#8A3A3A]"}
                     `}
                   >
                     {respuestaSeleccionada.correcta
