@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { getContactById } from "../services/contactService";
-
+import { generateContactConversation } from "../services/aiService";
 import {
   getContactConversationsByContactId,
   createContactConversation,
@@ -19,6 +19,7 @@ const PersonaDetalle = () => {
   const [situation, setSituation] = useState("");
   const [whatToSay, setWhatToSay] = useState("");
   const [reminder, setReminder] = useState("");
+  const [generandoIA, setGenerandoIA] = useState(false);
 
   const [correctAnswer, setCorrectAnswer] = useState("");
   const [wrongAnswer1, setWrongAnswer1] = useState("");
@@ -58,6 +59,40 @@ const PersonaDetalle = () => {
     setWrongAnswer1("");
     setWrongAnswer2("");
     setEditingConversationId(null);
+  };
+
+  const handleGenerateConversationAI = async () => {
+    if (!contact) {
+      alert("Aún se está cargando la persona");
+      return;
+    }
+
+    if (!situation.trim()) {
+      alert("Primero escribe el escenario");
+      return;
+    }
+
+    try {
+      setGenerandoIA(true);
+
+      const data = await generateContactConversation({
+        contactName: contact.name,
+        relationshipName: contact.relationship_name,
+        situation: situation.trim(),
+      });
+
+      setTitle(data.title || "");
+      setWhatToSay(data.what_to_say || "");
+      setCorrectAnswer(data.correct_answer || "");
+      setWrongAnswer1(data.wrong_answer_1 || "");
+      setWrongAnswer2(data.wrong_answer_2 || "");
+      setReminder(data.reminder || "");
+    } catch (error) {
+      console.error(error);
+      alert("Error al generar conversación con Félix");
+    } finally {
+      setGenerandoIA(false);
+    }
   };
 
   const handleCreateConversation = async (e) => {
@@ -109,9 +144,12 @@ const PersonaDetalle = () => {
         wrong_answer_1: wrongAnswer1.trim(),
         wrong_answer_2: wrongAnswer2.trim(),
       };
-console.log("CONVERSATION DATA:", conversationData);
+      
       if (editingConversationId) {
-        await updateContactConversation(editingConversationId, conversationData);
+        await updateContactConversation(
+          editingConversationId,
+          conversationData,
+        );
       } else {
         await createContactConversation(conversationData);
       }
@@ -232,6 +270,16 @@ console.log("CONVERSATION DATA:", conversationData);
               placeholder="¿En qué situación ocurre?"
               className="w-full p-3 rounded-xl border"
             />
+            <button
+              type="button"
+              onClick={handleGenerateConversationAI}
+              disabled={generandoIA}
+              className="bg-[#4B367C] text-white px-6 py-3 rounded-xl font-bold disabled:opacity-50"
+            >
+              {generandoIA
+                ? "Félix está pensando..."
+                : "✨ Generar conversación con Félix"}
+            </button>
 
             <textarea
               value={whatToSay}

@@ -249,28 +249,51 @@ const Conversaciones = () => {
       });
 
       // ✅ Para contactos: opciones se generarán con IA al seleccionar, por ahora vacías
-      const conversacionesContactos = contactData.map((item) => {
-        return {
-          id: `contact-${item.id}`,
-          conversationId: Number(item.id),
-          tipo: "contacto",
-          titulo: item.title,
-          emoji: "✨",
-          escenario: item.situation,
-          habilidad: item.reminder || "Conversación personalizada",
-          what_to_say: item.what_to_say,
-          dialogo: [
-            {
-              personaje: "Félix",
-              texto: item.what_to_say,
-            },
-          ],
-          ejercicio: {
-            pregunta: "¿Qué debería decir Félix?",
-            opciones: [], // se generan con IA al seleccionar
-          },
-        };
-      });
+     const conversacionesContactos = contactData.map((item) => {
+  const opciones = [
+    {
+      texto: item.correct_answer,
+      correcta: true,
+    },
+    {
+      texto: item.wrong_answer_1,
+      correcta: false,
+    },
+    {
+      texto: item.wrong_answer_2,
+      correcta: false,
+    },
+  ]
+    .filter((op) => op.texto && op.texto.trim() !== "")
+    .sort(() => Math.random() - 0.5);
+
+  return {
+    id: `contact-${item.id}`,
+    conversationId: Number(item.id),
+    tipo: "contacto",
+    titulo: item.title,
+    emoji: "✨",
+    escenario: item.situation,
+    habilidad: item.reminder || "Conversación personalizada",
+
+    what_to_say: item.what_to_say,
+    correct_answer: item.correct_answer,
+    wrong_answer_1: item.wrong_answer_1,
+    wrong_answer_2: item.wrong_answer_2,
+
+    dialogo: [
+      {
+        personaje: "Félix",
+        texto: item.what_to_say,
+      },
+    ],
+
+    ejercicio: {
+      pregunta: "¿Qué debería decir Félix?",
+      opciones,
+    },
+  };
+});
 
       const todas = [...conversacionesNormales, ...conversacionesContactos];
       setConversaciones(todas);
