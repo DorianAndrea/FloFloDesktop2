@@ -144,7 +144,7 @@ const PersonaDetalle = () => {
         wrong_answer_1: wrongAnswer1.trim(),
         wrong_answer_2: wrongAnswer2.trim(),
       };
-      
+
       if (editingConversationId) {
         await updateContactConversation(
           editingConversationId,
@@ -281,43 +281,46 @@ const PersonaDetalle = () => {
                 : "✨ Generar conversación con Félix"}
             </button>
 
-            <textarea
-              value={whatToSay}
-              onChange={(e) => setWhatToSay(e.target.value)}
-              placeholder="¿Qué puede decir?"
-              className="w-full p-3 rounded-xl border"
-            />
+            <button
+              type="button"
+              onClick={handleGenerateConversationAI}
+              disabled={generandoIA}
+              className="bg-[#4B367C] text-white px-6 py-3 rounded-xl font-bold disabled:opacity-50"
+            >
+              {generandoIA
+                ? "Félix está pensando..."
+                : "✨ Generar conversación con Félix"}
+            </button>
 
-            <input
-              type="text"
-              value={correctAnswer}
-              onChange={(e) => setCorrectAnswer(e.target.value)}
-              placeholder="Respuesta correcta"
-              className="w-full p-3 rounded-xl border"
-            />
+            {title && (
+              <div className="bg-white rounded-2xl p-5 border-2 border-[#DCCCF8]">
+                <h3 className="text-2xl font-bold text-[#4B367C] mb-3">
+                  {title}
+                </h3>
 
-            <input
-              type="text"
-              value={wrongAnswer1}
-              onChange={(e) => setWrongAnswer1(e.target.value)}
-              placeholder="Respuesta incorrecta 1"
-              className="w-full p-3 rounded-xl border"
-            />
+                <p className="text-[#6B5A95]">
+                  <strong>Qué decir:</strong> {whatToSay}
+                </p>
 
-            <input
-              type="text"
-              value={wrongAnswer2}
-              onChange={(e) => setWrongAnswer2(e.target.value)}
-              placeholder="Respuesta incorrecta 2"
-              className="w-full p-3 rounded-xl border"
-            />
+                <p className="text-green-700 mt-2">
+                  <strong>Respuesta correcta:</strong> {correctAnswer}
+                </p>
 
-            <textarea
-              value={reminder}
-              onChange={(e) => setReminder(e.target.value)}
-              placeholder="Recordatorio"
-              className="w-full p-3 rounded-xl border"
-            />
+                <p className="text-red-600 mt-2">
+                  <strong>Incorrecta 1:</strong> {wrongAnswer1}
+                </p>
+
+                <p className="text-red-600 mt-2">
+                  <strong>Incorrecta 2:</strong> {wrongAnswer2}
+                </p>
+
+                {reminder && (
+                  <p className="text-[#6B5A95] mt-2">
+                    <strong>Recordatorio:</strong> {reminder}
+                  </p>
+                )}
+              </div>
+            )}
 
             <div className="flex gap-3">
               <button
