@@ -1,7 +1,13 @@
 import api from "./api";
 
-export const getPlaces = async () => {
-  const response = await api.get("/places");
+export const getPlaces = async (search = "", order = "recientes") => {
+  const response = await api.get("/places", {
+    params: {
+      search,
+      order,
+    },
+  });
+
   return response.data;
 };
 

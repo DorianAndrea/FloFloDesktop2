@@ -22,6 +22,9 @@ const Amigos = () => {
   const [relationshipTypes, setRelationshipTypes] = useState([]);
   const [relationshipTypeId, setRelationshipTypeId] = useState("");
   const [editingContactId, setEditingContactId] = useState(null);
+  const [busqueda, setBusqueda] = useState("");
+  const [busquedaDebounce, setBusquedaDebounce] = useState("");
+  const [orden, setOrden] = useState("recientes");
 
   const loadRelationshipTypes = async () => {
     try {
@@ -36,7 +39,7 @@ const Amigos = () => {
     try {
       if (!user) return;
 
-      const data = await getContacts();
+      const data = await getContacts(busquedaDebounce, orden);
 
       const contactosUsuario = data.filter(
         (contacto) => Number(contacto.user_id) === Number(user.id),
@@ -51,7 +54,15 @@ const Amigos = () => {
   useEffect(() => {
     loadContacts();
     loadRelationshipTypes();
-  }, [user]);
+  }, [user, busquedaDebounce, orden]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setBusquedaDebounce(busqueda);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [busqueda]);
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -238,6 +249,30 @@ const Amigos = () => {
         </div>
 
         <div className="mt-16 w-full">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+            <input
+              id="buscar-amigo"
+              name="buscar-amigo"
+              type="text"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="🔍 Buscar por nombre, relación o lugar..."
+              className="w-full p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8]"
+            />
+
+            <select
+              id="orden-amigos"
+              name="orden-amigos"
+              value={orden}
+              onChange={(e) => setOrden(e.target.value)}
+              className="w-full p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8]"
+            >
+              <option value="recientes">Más recientes</option>
+              <option value="antiguos">Más antiguos</option>
+              <option value="az">A-Z</option>
+              <option value="za">Z-A</option>
+            </select>
+          </div>
           <h2 className="text-3xl font-bold mb-8 text-center">
             Personas que conozco
           </h2>

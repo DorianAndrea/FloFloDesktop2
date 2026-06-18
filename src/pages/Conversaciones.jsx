@@ -211,6 +211,7 @@ const Conversaciones = () => {
     wrongAnswer2: "",
   });
   const [busqueda, setBusqueda] = useState("");
+  const [busquedaDebounce, setBusquedaDebounce] = useState("");
 
   const [formIA, setFormIA] = useState({
     topic: "",
@@ -249,6 +250,7 @@ const Conversaciones = () => {
         paginaActual,
         conversacionesPorPagina,
         busqueda,
+        busquedaDebounce,
         orden,
       );
 
@@ -344,7 +346,15 @@ const Conversaciones = () => {
     loadConversations();
     cargarProgreso();
     cargarUserProgress();
-  }, [paginaActual, busqueda, orden]);
+  }, [paginaActual, busquedaDebounce, orden]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setBusquedaDebounce(busqueda);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [busqueda]);
 
   useEffect(() => {
     if (

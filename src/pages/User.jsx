@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { register } from "../services/authService";
 import { useFloFlo } from "../context/FloFloContext";
+import { formatRut } from "../utils/formatRut";
 
 const User = () => {
   const [firstName, setFirstName] = useState("");
@@ -38,7 +39,7 @@ const User = () => {
       const userData = {
         firstName,
         lastName,
-        rut,
+        rut: cleanRut(rut),
         birth_date: birthDate,
         email,
         avatar: avatar ? avatar.name : null,
@@ -95,7 +96,7 @@ const User = () => {
             <input
               type="text"
               value={rut}
-              onChange={(e) => setRut(e.target.value)}
+              onChange={(e) => setRut(formatRut(e.target.value))}
               placeholder="Rut"
               className="w-full py-3 text-gray-900 placeholder-gray-400 bg-transparent border-b border-gray-300 focus:outline-none focus:border-cyan-700"
             />

@@ -1,9 +1,14 @@
 import api from "./api";
 
-export const getContacts = async () => {
+export const getContacts = async (search = "", order = "recientes") => {
+  const response = await api.get("/contacts", {
+    params: {
+      search,
+      order,
+    },
+  });
 
-    const response = await api.get("/contacts");
-    return response.data;
+  return response.data;
 };
 
 export const createContact = async (contact) =>{

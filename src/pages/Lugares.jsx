@@ -28,10 +28,13 @@ const lugaresPredeterminados = [
 
 const Lugares = () => {
   const [lugaresBD, setLugaresBD] = useState([]);
+  const [busqueda, setBusqueda] = useState("");
+  const [busquedaDebounce, setBusquedaDebounce] = useState("");
+  const [orden, setOrden] = useState("recientes");
 
   const loadPlaces = async () => {
     try {
-      const data = await getPlaces();
+      const data = await getPlaces(busquedaDebounce, orden);
 
       const lugaresFormateados = data.map((lugar) => ({
         id: lugar.id,
@@ -50,9 +53,20 @@ const Lugares = () => {
 
   useEffect(() => {
     loadPlaces();
-  }, []);
+  }, [busquedaDebounce, orden]);
 
-  const lugares = [...lugaresPredeterminados, ...lugaresBD];
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setBusquedaDebounce(busqueda);
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [busqueda]);
+
+  const lugares =
+    busqueda.trim() || orden !== "recientes"
+      ? lugaresBD
+      : [...lugaresPredeterminados, ...lugaresBD];
 
   return (
     <main className="min-h-screen bg-[#F3ECFF] px-6 py-10">
@@ -72,6 +86,30 @@ const Lugares = () => {
           >
             Crear lugar
           </Link>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          <input
+            id="buscar-lugar"
+            name="buscar-lugar"
+            type="text"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            placeholder="🔍 Buscar por nombre o descripción..."
+            className="w-full p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8] text-[#4B367C] font-semibold"
+          />
+
+          <select
+            id="orden-lugares"
+            name="orden-lugares"
+            value={orden}
+            onChange={(e) => setOrden(e.target.value)}
+            className="w-full p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8] text-[#4B367C] font-semibold"
+          >
+            <option value="recientes">Más recientes</option>
+            <option value="antiguos">Más antiguos</option>
+            <option value="az">A-Z</option>
+            <option value="za">Z-A</option>
+          </select>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
