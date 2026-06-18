@@ -16,6 +16,7 @@ import Login from "./pages/Login";
 import PersonaDetalle from "./pages/PersonaDetalle";
 import MiPerfil from "./pages/MiPerfil";
 import Logros from "./pages/Logros";
+import PanelPadres from "./pages/PanelPadres";
 
 function App() {
   return (
@@ -115,6 +116,15 @@ function App() {
           element={
             <ProtectedRoute>
               <Logros />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/panel-padres"
+          element={
+            <ProtectedRoute>
+              <PanelPadres />
             </ProtectedRoute>
           }
         />

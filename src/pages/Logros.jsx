@@ -1,21 +1,25 @@
 import { useEffect, useState } from "react";
 import { getAchievements } from "../services/achievementService";
+import { useFloFlo } from "../context/FloFloContext";
 
 const Logros = () => {
   const [achievements, setAchievements] = useState([]);
+  const { user } = useFloFlo();
 
   const loadAchievements = async () => {
-    try {
-      const data = await getAchievements();
-      setAchievements(data);
-    } catch (error) {
-      console.error(error);
-    }
-  };
+  try {
+    if (!user?.id) return;
+
+    const data = await getAchievements(user.id);
+    setAchievements(data);
+  } catch (error) {
+    console.error(error);
+  }
+};
 
   useEffect(() => {
     loadAchievements();
-  }, []);
+  }, [user]);
 
   return (
     <main className="min-h-screen bg-[#F3ECFF] px-6 py-10">
