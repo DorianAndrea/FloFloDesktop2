@@ -50,9 +50,12 @@ const PanelPadres = () => {
           >
             Descargar PDF
           </a>
+          <p className="text-xs text-gray-500 mt-2 break-all">
+            URL PDF: {`${api.defaults.baseURL}/report/${user.id}`}
+          </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">          
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <Card titulo="Emociones" valor={dashboard.emotions} emoji="😊" />
           <Card titulo="Rutinas" valor={dashboard.routines} emoji="🕒" />
           <Card titulo="Lugares" valor={dashboard.places} emoji="📍" />
