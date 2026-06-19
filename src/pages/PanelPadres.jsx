@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useFloFlo } from "../context/FloFloContext";
 import { getParentDashboard } from "../services/parentDashboardService";
-
+import api from "../services/api";
 const PanelPadres = () => {
   const { user } = useFloFlo();
   const [dashboard, setDashboard] = useState(null);
@@ -43,7 +43,7 @@ const PanelPadres = () => {
           </div>
 
           <a
-            href={`http://localhost:5001/api/report/${user.id}`}
+            href={`${api.defaults.baseURL}/report/${user.id}`}
             target="_blank"
             rel="noreferrer"
             className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-3 rounded-xl font-semibold shadow-md transition text-center w-fit"
