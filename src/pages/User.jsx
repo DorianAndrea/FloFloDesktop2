@@ -10,12 +10,18 @@ const User = () => {
   const [rut, setRut] = useState("");
   const [birthDate, setBirthDate] = useState("");
   const [email, setEmail] = useState("");
+  const [role, setRole] = useState("child");
   const [avatar, setAvatar] = useState(null);
   const [preview, setPreview] = useState(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
   const navigate = useNavigate();
   const { setUser } = useFloFlo();
+
+  const cleanRut = (value) => {
+    return value.replace(/\./g, "").replace(/-/g, "");
+  };
 
   const handleImageChange = (e) => {
     const file = e.target.files[0];
@@ -44,6 +50,7 @@ const User = () => {
         email,
         avatar: avatar ? avatar.name : null,
         password,
+        role,
       };
 
       const data = await register(userData);
@@ -70,7 +77,6 @@ const User = () => {
   return (
     <div className="min-h-screen bg-white flex items-center justify-center px-8 py-10">
       <div className="w-full max-w-6xl grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-        {/* FORMULARIO */}
         <div className="w-full max-w-md mx-auto">
           <h1 className="text-4xl font-light text-black-900 mb-10 text-center">
             Inscripción
@@ -105,9 +111,17 @@ const User = () => {
               type="date"
               value={birthDate}
               onChange={(e) => setBirthDate(e.target.value)}
-              placeholder="Fecha Nacimiento"
               className="w-full py-3 text-gray-900 placeholder-gray-400 bg-transparent border-b border-gray-300 focus:outline-none focus:border-cyan-700"
             />
+
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              className="w-full py-3 text-gray-900 bg-transparent border-b border-gray-300 focus:outline-none focus:border-cyan-700"
+            >
+              <option value="child">Niño</option>
+              <option value="parent">Padre/Cuidador</option>
+            </select>
 
             <input
               type="email"
@@ -149,7 +163,6 @@ const User = () => {
           </form>
         </div>
 
-        {/* IMAGEN DERECHA */}
         <div className="flex items-center justify-center">
           {preview ? (
             <img
