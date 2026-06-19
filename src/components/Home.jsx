@@ -81,24 +81,49 @@ const Home = () => {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center mb-10">
           <div className="text-center lg:text-left">
-            <p className="text-[#8B6FD6] font-bold text-lg mb-3">
+            <p className="text-[#8B6FD6] font-bold text-lg mb-2">
               Bienvenido a FloFlo
             </p>
 
+            <p
+              className={`inline-block text-sm font-bold px-4 py-2 rounded-full mb-4 ${
+                user?.role === "parent"
+                  ? "bg-[#CFEFD9] text-[#2F6B4F] border border-[#9ED5B3]"
+                  : "bg-[#E8DDFF] text-[#6B4FC3] border border-[#D6C7FF]"
+              }`}
+            >
+              {user?.role === "parent"
+                ? "👨‍👩‍👧 Perfil: Padre/Cuidador"
+                : "👶 Perfil: Niño"}
+            </p>
+
             <h1 className="text-5xl md:text-7xl font-extrabold text-[#4B367C] leading-tight mb-6">
-              ¡Hola{user?.firstName ? `, ${user.firstName}` : ""}! Soy Félix 👋
+              {user?.role === "parent"
+                ? `Hola${user?.firstName ? `, ${user.firstName}` : ""}. Estás en modo cuidador 👨‍👩‍👧`
+                : `¡Hola${user?.firstName ? `, ${user.firstName}` : ""}! Soy Félix 👋`}
             </h1>
 
             <p className="text-xl md:text-2xl text-[#6B5A95] leading-relaxed mb-8 max-w-2xl">
-              Estoy aquí para acompañarte a reconocer emociones, practicar
-              conversaciones y seguir rutinas con calma.
+              {user?.role === "parent"
+                ? "Desde aquí puedes acompañar, registrar avances y revisar el progreso del niño en FloFlo."
+                : "Estoy aquí para acompañarte a reconocer emociones, practicar conversaciones y seguir rutinas con calma."}
             </p>
 
             <Link
-              to={user ? "/conversaciones" : "/login"}
+              to={
+                user?.role === "parent"
+                  ? "/panel-padres"
+                  : user
+                    ? "/conversaciones"
+                    : "/login"
+              }
               className="inline-block bg-[#9B7BE8] hover:bg-[#8B6FD6] text-white text-xl font-bold px-8 py-4 rounded-full transition"
             >
-              {user ? "Continuar con Félix" : "Iniciar sesión"}
+              {user?.role === "parent"
+                ? "Ir al Panel Padres"
+                : user
+                  ? "Continuar con Félix"
+                  : "Iniciar sesión"}
             </Link>
           </div>
 
@@ -123,9 +148,11 @@ const Home = () => {
             >
               <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-white rotate-45" />
               <p className="text-[#4B367C] text-lg font-bold">
-                {(progress?.points || 0) >= 20
-                  ? "¡Lo estás haciendo increíble! Ya tienes muchas estrellas."
-                  : "Podemos ir paso a paso. No hay prisa."}
+                {user?.role === "parent"
+                  ? "Puedes registrar avances aunque el niño necesite apoyo para usar la app."
+                  : (progress?.points || 0) >= 20
+                    ? "¡Lo estás haciendo increíble! Ya tienes muchas estrellas."
+                    : "Podemos ir paso a paso. No hay prisa."}
               </p>
             </motion.div>
           </div>
@@ -207,15 +234,19 @@ const Home = () => {
         <div className="bg-white rounded-[2.5rem] p-8 md:p-10 shadow-lg flex flex-col md:flex-row items-center justify-between gap-8">
           <div>
             <p className="text-[#9B7BE8] font-bold mb-2">
-              Actividad recomendada del día
+              {user?.role === "parent"
+                ? "Actividad sugerida para acompañar"
+                : "Actividad recomendada del día"}
             </p>
+
             <h2 className="text-3xl md:text-4xl font-extrabold text-[#4B367C] mb-3">
               Prepararme para visitar un lugar
             </h2>
 
             <p className="text-[#6B5A95] text-lg max-w-2xl">
-              Félix puede mostrarte paso a paso qué puede ocurrir antes de ir a
-              un lugar nuevo.
+              {user?.role === "parent"
+                ? "Puedes preparar junto al niño una visita a un lugar nuevo o importante."
+                : "Félix puede mostrarte paso a paso qué puede ocurrir antes de ir a un lugar nuevo."}
             </p>
           </div>
 
@@ -223,7 +254,7 @@ const Home = () => {
             to="/lugares"
             className="bg-[#9B7BE8] hover:bg-[#8B6FD6] text-white font-bold px-8 py-4 rounded-full transition whitespace-nowrap"
           >
-            Ir a prepararme 
+            {user?.role === "parent" ? "Registrar lugar" : "Ir a prepararme"}
           </Link>
         </div>
       </section>

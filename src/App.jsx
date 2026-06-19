@@ -1,7 +1,9 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import Navbar from "./components/Navbar";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { useFloFlo } from "./context/FloFloContext";
+
 import EstadosAnimo from "./pages/EstadosAnimo";
 import Rutinas from "./pages/Rutinas";
 import Amigos from "./pages/Amigos";
@@ -17,6 +19,20 @@ import PersonaDetalle from "./pages/PersonaDetalle";
 import MiPerfil from "./pages/MiPerfil";
 import Logros from "./pages/Logros";
 import PanelPadres from "./pages/PanelPadres";
+
+const ProtectedParentRoute = ({ children }) => {
+  const { user } = useFloFlo();
+
+  if (!user) {
+    return <Navigate to="/login" />;
+  }
+
+  if (user.role !== "parent") {
+    return <Navigate to="/" />;
+  }
+
+  return children;
+};
 
 function App() {
   return (
@@ -123,9 +139,9 @@ function App() {
         <Route
           path="/panel-padres"
           element={
-            <ProtectedRoute>
+            <ProtectedParentRoute>
               <PanelPadres />
-            </ProtectedRoute>
+            </ProtectedParentRoute>
           }
         />
       </Routes>

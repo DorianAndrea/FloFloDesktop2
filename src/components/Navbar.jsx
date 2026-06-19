@@ -13,6 +13,8 @@ const Navbar = () => {
 
   const { user, logout, soundEnabled, setSoundEnabled } = useFloFlo();
 
+  const isParent = user?.role === "parent";
+
   const activityLinks = [
     { name: "Emociones", path: "/emociones", emoji: "😊" },
     { name: "Rutinas", path: "/rutinas", emoji: "🕒" },
@@ -41,9 +43,7 @@ const Navbar = () => {
 
   const linkClass = ({ isActive }) =>
     `font-semibold transition ${
-      isActive
-        ? "text-[#9B7BE8]"
-        : "text-[#5B4B8A] hover:text-[#8B6FD6]"
+      isActive ? "text-[#9B7BE8]" : "text-[#5B4B8A] hover:text-[#8B6FD6]"
     }`;
 
   const closeMenus = () => {
@@ -58,14 +58,20 @@ const Navbar = () => {
   };
 
   return (
-    <nav className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-[#E3D9FF] shadow-sm">
+    <nav
+      className={`sticky top-0 z-50 backdrop-blur-md border-b shadow-sm transition ${
+        user
+          ? isParent
+            ? "bg-[#CFEFD9]/95 border-[#9ED5B3]"
+            : "bg-[#F3ECFF]/95 border-[#D6C7FF]"
+          : "bg-white/90 border-[#E3D9FF]"
+      }`}
+    >
       <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
         <NavLink to="/" className="flex items-center gap-3 flex-shrink-0">
           <img src={felixLogo} alt="FloFlo" className="w-12 h-12" />
 
-          <span className="text-3xl font-bold text-[#4B367C]">
-            FloFlo
-          </span>
+          <span className="text-3xl font-bold text-[#4B367C]">FloFlo</span>
         </NavLink>
 
         <div className="hidden lg:flex items-center gap-7 flex-1 justify-center">
@@ -112,18 +118,20 @@ const Navbar = () => {
                 )}
               </div>
 
-              <NavLink
-                to="/panel-padres"
-                className={({ isActive }) =>
-                  `font-semibold px-4 py-2 rounded-full transition ${
-                    isActive
-                      ? "bg-[#E8DDFF] text-[#4B367C]"
-                      : "bg-[#F5F0FF] text-[#5B4B8A] hover:bg-[#E8DDFF]"
-                  }`
-                }
-              >
-                Panel Padres
-              </NavLink>
+              {isParent && (
+                <NavLink
+                  to="/panel-padres"
+                  className={({ isActive }) =>
+                    `font-semibold px-4 py-2 rounded-full transition ${
+                      isActive
+                        ? "bg-[#CFEFD9] text-[#2F6B4F] border border-[#9ED5B3]"
+                        : "bg-[#EAF8EF] text-[#2F6B4F] border border-[#9ED5B3] hover:bg-[#CFEFD9]"
+                    }`
+                  }
+                >
+                  Panel Padres
+                </NavLink>
+              )}
             </>
           )}
         </div>
@@ -144,9 +152,21 @@ const Navbar = () => {
             </>
           ) : (
             <>
-              <span className="font-semibold text-[#4B367C] whitespace-nowrap">
-                Hola, {user.firstName}
-              </span>
+              <div className="flex flex-col leading-tight">
+                <span className="font-semibold text-[#4B367C] whitespace-nowrap">
+                  Hola, {user.firstName}
+                </span>
+
+                <span
+                  className={`text-xs font-bold px-2 py-1 rounded-full w-fit ${
+                    isParent
+                      ? "bg-[#CFEFD9] text-[#2F6B4F] border border-[#9ED5B3]"
+                      : "bg-[#E8DDFF] text-[#6B4FC3]"
+                  }`}
+                >
+                  {isParent ? "Padre/Cuidador" : "Niño"}
+                </span>
+              </div>
 
               <NavLink
                 to="/logros"
@@ -200,10 +220,23 @@ const Navbar = () => {
 
             {user ? (
               <>
-                <div>
-                  <p className="font-bold text-[#4B367C] mb-3">
-                    Actividades
+                <div className="bg-[#F7F3FF] rounded-2xl p-4">
+                  <p className="font-bold text-[#4B367C]">
+                    Hola, {user.firstName}
                   </p>
+                  <p
+                    className={`text-sm font-bold px-3 py-2 rounded-full w-fit mt-2 ${
+                      isParent
+                        ? "bg-[#CFEFD9] text-[#2F6B4F] border border-[#9ED5B3]"
+                        : "bg-[#E8DDFF] text-[#6B4FC3]"
+                    }`}
+                  >
+                    Perfil: {isParent ? "Padre/Cuidador" : "Niño"}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="font-bold text-[#4B367C] mb-3">Actividades</p>
 
                   <div className="flex flex-col gap-3 pl-3">
                     {activityLinks.map((link) => (
@@ -219,13 +252,15 @@ const Navbar = () => {
                   </div>
                 </div>
 
-                <NavLink
-                  to="/panel-padres"
-                  onClick={closeMenus}
-                  className="bg-[#F5F0FF] text-[#4B367C] font-bold px-4 py-3 rounded-full w-fit"
-                >
-                  👨‍👩‍👧 Panel Padres
-                </NavLink>
+                {isParent && (
+                  <NavLink
+                    to="/panel-padres"
+                    onClick={closeMenus}
+                    className="bg-[#CFEFD9] text-[#2F6B4F] border border-[#9ED5B3] font-bold px-4 py-3 rounded-full w-fit"
+                  >
+                    👨‍👩‍👧 Panel Padres
+                  </NavLink>
+                )}
 
                 <NavLink
                   to="/logros"
@@ -235,18 +270,12 @@ const Navbar = () => {
                   ⭐ {achievementCount} Logros
                 </NavLink>
 
-                <div className="font-semibold text-[#4B367C]">
-                  Hola, {user.firstName}
-                </div>
-
                 <button
                   type="button"
                   onClick={() => setSoundEnabled(!soundEnabled)}
                   className="bg-[#E8DDFF] text-[#4B367C] font-bold px-4 py-3 rounded-full w-fit"
                 >
-                  {soundEnabled
-                    ? "🔊 Sonido activado"
-                    : "🔇 Sonido apagado"}
+                  {soundEnabled ? "🔊 Sonido activado" : "🔇 Sonido apagado"}
                 </button>
 
                 <NavLink
