@@ -249,7 +249,7 @@ const PersonaDetalle = () => {
 
     <div className="mt-12">
       <h2 className="text-3xl font-bold text-[#4B367C] mb-6">
-        Conversaciones con Félix con {contact.name}
+        Conversaciones de Félix con {contact.name}
       </h2>
 
       <form

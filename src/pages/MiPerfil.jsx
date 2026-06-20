@@ -13,6 +13,7 @@ const MiPerfil = () => {
   const [lastName, setLastName] = useState("");
   const [rut, setRut] = useState("");
   const [birthDate, setBirthDate] = useState("");
+  const [role, setRole] = useState("child");
   const [avatar, setAvatar] = useState(null);
   const [preview, setPreview] = useState("");
 
@@ -25,13 +26,14 @@ const MiPerfil = () => {
       setLastName(data.lastName || "");
       setRut(data.rut || "");
       setBirthDate(data.birth_date ? data.birth_date.slice(0, 10) : "");
+      setRole(data.role || "child");
       setAvatar(null);
       setPreview(data.avatar || "");
     } catch (error) {
       console.error(error);
     }
   };
-
+  <option value="child">Niño</option>;
   useEffect(() => {
     loadProfile();
   }, []);
@@ -68,16 +70,25 @@ const MiPerfil = () => {
       formData.append("lastName", lastName.trim());
       formData.append("rut", rut.trim());
       formData.append("birth_date", birthDate || "");
+      formData.append("role", role);
 
       if (avatar instanceof File) {
         formData.append("avatar", avatar);
       }
 
+      console.log("ROLE QUE ENVÍO:", role);
+
       const updatedUser = await updateMe(formData);
 
-      setProfileUser(updatedUser);
-      setUser(updatedUser);
-      localStorage.setItem("user", JSON.stringify(updatedUser));
+      const safeUpdatedUser = {
+        ...user,
+        ...updatedUser,
+        role,
+      };
+
+      setProfileUser(safeUpdatedUser);
+      setUser(safeUpdatedUser);
+      localStorage.setItem("user", JSON.stringify(safeUpdatedUser));
 
       setEditing(false);
       alert("Perfil actualizado correctamente");
@@ -104,7 +115,7 @@ const MiPerfil = () => {
               Mi Perfil
             </h1>
             <p className="text-[#6B5A95] mt-2">
-              Revisa y actualiza la información de Félix.
+              Revisa y actualiza tu información de FloFlo.
             </p>
           </div>
 
@@ -135,6 +146,19 @@ const MiPerfil = () => {
               <div className="bg-[#FDFBFF] border border-[#E4D8FF] rounded-2xl p-5 md:col-span-2">
                 <p className="text-gray-500">Correo</p>
                 <p className="text-xl font-semibold break-all">{user.email}</p>
+              </div>
+
+              <div className="bg-[#FDFBFF] border border-[#E4D8FF] rounded-2xl p-5">
+                <p className="text-gray-500">Rol</p>
+                <p
+                  className={`inline-block mt-2 px-4 py-2 rounded-full font-bold ${
+                    user.role === "parent"
+                      ? "bg-[#CFEFD9] text-[#2F6B4F] border border-[#9ED5B3]"
+                      : "bg-[#E8DDFF] text-[#6B4FC3] border border-[#D6C7FF]"
+                  }`}
+                >
+                  {user.role === "parent" ? "Padre/Cuidador" : "Niño"}
+                </p>
               </div>
 
               <div className="bg-[#FDFBFF] border border-[#E4D8FF] rounded-2xl p-5">
@@ -184,7 +208,10 @@ const MiPerfil = () => {
             </div>
           </div>
         ) : (
-          <form onSubmit={handleUpdate} className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-10">
+          <form
+            onSubmit={handleUpdate}
+            className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-10"
+          >
             <div className="space-y-6">
               <input
                 id="perfil-nombre"
@@ -205,6 +232,17 @@ const MiPerfil = () => {
                 placeholder="Apellido"
                 className="w-full py-3 text-gray-900 bg-transparent border-b border-gray-300 focus:outline-none focus:border-[#9B7BE8]"
               />
+
+              <select
+                id="perfil-role"
+                name="role"
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                className="w-full py-3 text-gray-900 bg-transparent border-b border-gray-300 focus:outline-none focus:border-[#9B7BE8]"
+              >
+                <option value="child">Niño</option>
+                <option value="parent">Padre/Cuidador</option>
+              </select>
 
               <input
                 id="perfil-rut"

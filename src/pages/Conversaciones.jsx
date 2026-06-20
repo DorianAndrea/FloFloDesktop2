@@ -1092,35 +1092,35 @@ const Conversaciones = () => {
                 </div>
 
                 <div className="space-y-4">
-                  {conversacionSeleccionada.dialogo.map((linea, index) => {
-                    const esFelix = linea.personaje === "Félix";
+                  {conversacionSeleccionada.dialogo
+                    .filter((linea) => linea.texto)
+                    .map((linea, index) => {
+                      const esFelix = linea.personaje === "Félix";
 
-                    return (
-                      <motion.div
-                        key={`${linea.personaje}-${index}`}
-                        initial={{ opacity: 0, y: 8 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.08 }}
-                        className={`flex ${
-                          esFelix ? "justify-start" : "justify-end"
-                        }`}
-                      >
-                        <div
-                          className={`
-                          max-w-[85%] rounded-[1.5rem] px-6 py-4 shadow-sm
-                          ${
-                            esFelix
-                              ? "bg-[#E8DDFF] text-[#4B367C]"
-                              : "bg-[#FFF3C4] text-[#5C4A00]"
-                          }
-                        `}
+                      return (
+                        <motion.div
+                          key={`${linea.personaje}-${index}`}
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.08 }}
+                          className={`flex ${esFelix ? "justify-start" : "justify-end"}`}
                         >
-                          <p className="font-bold mb-1">{linea.personaje}</p>
-                          <p className="text-xl">{linea.texto}</p>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
+                          <div
+                            className={`
+                              max-w-[85%] rounded-[1.5rem] px-6 py-4 shadow-sm
+                              ${
+                                esFelix
+                                  ? "bg-[#E8DDFF] text-[#4B367C]"
+                                  : "bg-[#FFF3C4] text-[#5C4A00]"
+                              }
+                            `}
+                           >
+                            <p className="font-bold mb-1">{linea.personaje}</p>
+                            <p className="text-xl">{linea.texto}</p>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
                 </div>
 
                 <div className="mt-8 bg-[#F3ECFF] rounded-[2rem] p-6">
@@ -1174,16 +1174,16 @@ const Conversaciones = () => {
                             whileHover={{ scale: 1.01 }}
                             whileTap={{ scale: 0.98 }}
                             className={`
-                            w-full text-left rounded-2xl px-5 py-4 font-semibold
-                            border-2 transition-all text-lg
-                            ${
-                              seleccionada && opcion.correcta
-                                ? "bg-green-100 border-green-400 text-green-800"
-                                : seleccionada && !opcion.correcta
-                                  ? "bg-[#FFE1E1] border-[#F2A3A3] text-[#8A3A3A]"
-                                  : "bg-white border-[#DCCCF8] text-[#4B367C] hover:border-[#9B7BE8]"
-                            }
-                          `}
+              w-full text-left rounded-2xl px-5 py-4 font-semibold
+              border-2 transition-all text-lg
+              ${
+                seleccionada && opcion.correcta
+                  ? "bg-green-100 border-green-400 text-green-800"
+                  : seleccionada && !opcion.correcta
+                    ? "bg-[#FFE1E1] border-[#F2A3A3] text-[#8A3A3A]"
+                    : "bg-white border-[#DCCCF8] text-[#4B367C] hover:border-[#9B7BE8]"
+              }
+            `}
                           >
                             {opcion.texto}
                           </motion.button>
@@ -1199,13 +1199,13 @@ const Conversaciones = () => {
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       className={`
-                      mt-6 rounded-2xl p-5 font-bold text-lg
-                      ${
-                        respuestaSeleccionada.correcta
-                          ? "bg-green-100 text-green-800"
-                          : "bg-[#FFE1E1] text-[#8A3A3A]"
-                      }
-                    `}
+        mt-6 rounded-2xl p-5 font-bold text-lg
+        ${
+          respuestaSeleccionada.correcta
+            ? "bg-green-100 text-green-800"
+            : "bg-[#FFE1E1] text-[#8A3A3A]"
+        }
+      `}
                     >
                       {respuestaSeleccionada.correcta
                         ? "¡Muy bien! Félix está feliz por tu esfuerzo."

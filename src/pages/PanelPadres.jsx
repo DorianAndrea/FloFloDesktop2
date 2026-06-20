@@ -1,17 +1,46 @@
 import { useEffect, useState } from "react";
 import { useFloFlo } from "../context/FloFloContext";
 import { getParentDashboard } from "../services/parentDashboardService";
+import {
+  getChildrenByParent,
+  linkChildToParent,
+} from "../services/parentChildService";
+
 import api from "../services/api";
+
 const PanelPadres = () => {
   const { user } = useFloFlo();
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [children, setChildren] = useState([]);
+  const [selectedChild, setSelectedChild] = useState(null);
+  const [childEmail, setChildEmail] = useState("");
 
   useEffect(() => {
-    const cargarDashboard = async () => {
+    const cargarDatos = async () => {
       try {
-        const data = await getParentDashboard(user.id);
-        setDashboard(data);
+        setLoading(true);
+
+        if (user?.role === "parent") {
+          const childrenData = await getChildrenByParent(user.id);
+
+          setChildren(childrenData);
+
+          if (childrenData.length > 0) {
+            const firstChild = childrenData[0];
+            setSelectedChild(firstChild);
+            localStorage.setItem("selectedChild", JSON.stringify(firstChild));
+            window.dispatchEvent(new Event("selectedChildChanged"));
+
+            const dashboardData = await getParentDashboard(firstChild.id);
+            setDashboard(dashboardData);
+          } else {
+            setDashboard(null);
+          }
+        } else {
+          const dashboardData = await getParentDashboard(user.id);
+          setDashboard(dashboardData);
+        }
       } catch (error) {
         console.error("Error cargando panel de padres:", error);
       } finally {
@@ -20,12 +49,101 @@ const PanelPadres = () => {
     };
 
     if (user?.id) {
-      cargarDashboard();
+      cargarDatos();
     }
   }, [user]);
 
+  const handleChildChange = async (e) => {
+    const childId = e.target.value;
+
+    const child = children.find((item) => String(item.id) === childId);
+
+    setSelectedChild(child);
+    setLoading(true);
+    localStorage.setItem("selectedChild", JSON.stringify(child));
+    window.dispatchEvent(new Event("selectedChildChanged"));
+
+    try {
+      const dashboardData = await getParentDashboard(childId);
+      setDashboard(dashboardData);
+    } catch (error) {
+      console.error("Error cargando dashboard del niño:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  const handleLinkChild = async () => {
+  try {
+    if (!childEmail.trim()) {
+      alert("Ingresa el correo del niño");
+      return;
+    }
+
+    const result = await linkChildToParent(user.id, childEmail.trim());
+
+    alert(`${result.child.firstName} fue asociado correctamente`);
+
+    const updatedChildren = await getChildrenByParent(user.id);
+    setChildren(updatedChildren);
+
+    const childToSelect =
+      updatedChildren.find((child) => String(child.id) === String(result.child.id)) ||
+      updatedChildren[0];
+
+    if (childToSelect) {
+      setSelectedChild(childToSelect);
+
+      localStorage.setItem("selectedChild", JSON.stringify(childToSelect));
+      window.dispatchEvent(new Event("selectedChildChanged"));
+
+      const dashboardData = await getParentDashboard(childToSelect.id);
+      setDashboard(dashboardData);
+    }
+
+    setChildEmail("");
+  } catch (error) {
+    console.error("ERROR ASOCIANDO:", error.response?.data || error);
+
+    alert(error.response?.data?.message || "No fue posible asociar al niño");
+  }
+};
+
   if (loading) {
     return <p className="text-center mt-10">Cargando panel...</p>;
+  }
+  if (!dashboard) {
+    return (
+      <main className="min-h-screen bg-purple-50 p-6">
+        <section className="max-w-5xl mx-auto bg-white rounded-3xl p-6 shadow-md">
+          <h1 className="text-3xl font-bold text-purple-700 mb-3">
+            Panel para Padres
+          </h1>
+
+          <p className="text-gray-600 mb-5">
+            No hay información disponible todavía. Asocia un niño a este
+            cuidador para ver su progreso.
+          </p>
+
+          <div className="flex flex-col md:flex-row gap-3">
+            <input
+              type="email"
+              value={childEmail}
+              onChange={(e) => setChildEmail(e.target.value)}
+              placeholder="Correo del niño"
+              className="border border-purple-200 rounded-xl px-4 py-3 flex-1"
+            />
+
+            <button
+              type="button"
+              onClick={handleLinkChild}
+              className="bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-xl font-semibold transition"
+            >
+              Asociar niño
+            </button>
+          </div>
+        </section>
+      </main>
+    );
   }
 
   return (
@@ -41,9 +159,50 @@ const PanelPadres = () => {
               Revisa el avance general del niño en FloFlo.
             </p>
           </div>
+          {user?.role === "parent" && (
+            <div className="mt-4">
+              <label className="block text-sm font-bold text-purple-700 mb-2">
+                Niño seleccionado
+              </label>
+              <div className="mt-4 flex flex-col md:flex-row gap-3">
+                <input
+                  type="email"
+                  value={childEmail}
+                  onChange={(e) => setChildEmail(e.target.value)}
+                  placeholder="Correo del niño"
+                  className="border border-purple-200 rounded-xl px-4 py-3 flex-1"
+                />
 
+                <button
+                  type="button"
+                  onClick={handleLinkChild}
+                  className="bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-xl font-semibold transition"
+                >
+                  Asociar niño
+                </button>
+              </div>
+
+              {children.length > 0 ? (
+                <select
+                  value={selectedChild?.id || ""}
+                  onChange={handleChildChange}
+                  className="bg-white border border-purple-200 rounded-xl px-4 py-3 text-gray-700 font-semibold shadow-sm"
+                >
+                  {children.map((child) => (
+                    <option key={child.id} value={child.id}>
+                      {child.firstName} {child.lastName}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <p className="text-gray-500 text-sm">
+                  Este cuidador todavía no tiene niños asociados.
+                </p>
+              )}
+            </div>
+          )}
           <a
-            href={`${api.defaults.baseURL}/report/${user.id}`}
+            href={`${api.defaults.baseURL}/report/${selectedChild?.id || user.id}`}
             target="_blank"
             rel="noreferrer"
             className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-3 rounded-xl font-semibold shadow-md transition text-center w-fit"
@@ -52,7 +211,7 @@ const PanelPadres = () => {
           </a>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">          
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <Card titulo="Emociones" valor={dashboard.emotions} emoji="😊" />
           <Card titulo="Rutinas" valor={dashboard.routines} emoji="🕒" />
           <Card titulo="Lugares" valor={dashboard.places} emoji="📍" />
