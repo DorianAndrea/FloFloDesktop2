@@ -1,11 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import useSound from "use-sound";
 import { useFloFlo } from "../context/FloFloContext";
 import { generateConversation } from "../services/aiService";
 import {
   createConversation,
-  getConversations,
   completeConversation,
   getConversationProgress,
   getPaginatedConversations,
@@ -200,6 +199,7 @@ const Conversaciones = () => {
 
   const [editando, setEditando] = useState(false);
   const [orden, setOrden] = useState("recientes");
+
   const [formEditar, setFormEditar] = useState({
     title: "",
     situation: "",
@@ -210,6 +210,9 @@ const Conversaciones = () => {
     wrongAnswer1: "",
     wrongAnswer2: "",
   });
+
+  const editorRef = useRef(null);
+
   const [busqueda, setBusqueda] = useState("");
   const [busquedaDebounce, setBusquedaDebounce] = useState("");
 
@@ -256,7 +259,6 @@ const Conversaciones = () => {
 
       const conversacionesMapeadas = data.conversations.map((item) => {
         const base = contenidoBasePorTitulo[item.title];
-
         const esContacto = item.tipo === "contacto";
 
         const dialogo =
@@ -577,12 +579,14 @@ const Conversaciones = () => {
 
   const abrirEditor = (conversation) => {
     const mensajeFelix =
-      conversation.dialogo?.find((msg) => msg.personaje === "Félix")?.texto ||
       conversation.what_to_say ||
+      conversation.dialogo?.find((msg) => msg.personaje === "Félix")?.texto ||
       "";
 
     const correcta =
-      conversation.ejercicio?.opciones?.find((op) => op.correcta)?.texto || "";
+      conversation.correct_answer ||
+      conversation.ejercicio?.opciones?.find((op) => op.correcta)?.texto ||
+      "";
 
     const incorrectas =
       conversation.ejercicio?.opciones?.filter((op) => !op.correcta) || [];
@@ -594,12 +598,20 @@ const Conversaciones = () => {
       messageFelix: mensajeFelix,
       question: conversation.ejercicio?.pregunta || "¿Qué debería decir Félix?",
       correctAnswer: correcta,
-      wrongAnswer1: incorrectas[0]?.texto || "",
-      wrongAnswer2: incorrectas[1]?.texto || "",
+      wrongAnswer1: conversation.wrong_answer_1 || incorrectas[0]?.texto || "",
+      wrongAnswer2: conversation.wrong_answer_2 || incorrectas[1]?.texto || "",
     });
 
     setConversacionSeleccionada(conversation);
+    setRespuestaSeleccionada(null);
     setEditando(true);
+
+    setTimeout(() => {
+      editorRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }, 0);
   };
 
   const cancelarEdicion = () => {
@@ -662,10 +674,7 @@ const Conversaciones = () => {
         },
       };
 
-      await updateConversation(
-        conversacionSeleccionada.conversationId,
-        payload,
-      );
+      await updateConversation(conversacionSeleccionada.conversationId, payload);
 
       setEditando(false);
       await loadConversations();
@@ -680,6 +689,7 @@ const Conversaciones = () => {
   return (
     <main className="min-h-screen bg-[#F3ECFF] px-6 py-10">
       <AchievementPopup achievement={newAchievement} />
+
       {modalEliminar && (
         <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
           <div className="bg-white rounded-[2rem] p-8 max-w-md w-full shadow-xl">
@@ -715,6 +725,7 @@ const Conversaciones = () => {
           </div>
         </div>
       )}
+
       <section className="max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-10">
           <div className="text-center md:text-left">
@@ -835,6 +846,7 @@ const Conversaciones = () => {
                 className="w-full p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8] text-[#4B367C] font-semibold"
               />
             </div>
+
             <div className="bg-white rounded-[2rem] p-5 shadow-sm mb-6">
               <select
                 id="orden-conversaciones"
@@ -878,13 +890,13 @@ const Conversaciones = () => {
                     animate={{ scale: activo ? 1.03 : 1 }}
                     transition={{ duration: 0.25 }}
                     className={`
-                    bg-white rounded-[2rem] p-8 text-left shadow-md transition-all cursor-pointer min-h-[360px] flex flex-col justify-between
-                    ${
-                      activo
-                        ? "ring-4 ring-[#9B7BE8]"
-                        : "ring-2 ring-transparent"
-                    }
-                  `}
+                      bg-white rounded-[2rem] p-8 text-left shadow-md transition-all cursor-pointer min-h-[360px] flex flex-col justify-between
+                      ${
+                        activo
+                          ? "ring-4 ring-[#9B7BE8]"
+                          : "ring-2 ring-transparent"
+                      }
+                    `}
                   >
                     <div className="flex justify-between items-center mb-4">
                       <span className="text-4xl">{item.emoji}</span>
@@ -982,7 +994,10 @@ const Conversaciones = () => {
 
           <div>
             {editando && (
-              <div className="bg-white rounded-[2rem] shadow-lg p-6 mb-8">
+              <div
+                ref={editorRef}
+                className="bg-white rounded-[2rem] shadow-lg p-6 mb-8"
+              >
                 <h2 className="text-2xl font-bold text-[#4B367C] mb-5">
                   Editar conversación
                 </h2>
@@ -1103,7 +1118,9 @@ const Conversaciones = () => {
                           initial={{ opacity: 0, y: 8 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: index * 0.08 }}
-                          className={`flex ${esFelix ? "justify-start" : "justify-end"}`}
+                          className={`flex ${
+                            esFelix ? "justify-start" : "justify-end"
+                          }`}
                         >
                           <div
                             className={`
@@ -1114,7 +1131,7 @@ const Conversaciones = () => {
                                   : "bg-[#FFF3C4] text-[#5C4A00]"
                               }
                             `}
-                           >
+                          >
                             <p className="font-bold mb-1">{linea.personaje}</p>
                             <p className="text-xl">{linea.texto}</p>
                           </div>
@@ -1174,16 +1191,16 @@ const Conversaciones = () => {
                             whileHover={{ scale: 1.01 }}
                             whileTap={{ scale: 0.98 }}
                             className={`
-              w-full text-left rounded-2xl px-5 py-4 font-semibold
-              border-2 transition-all text-lg
-              ${
-                seleccionada && opcion.correcta
-                  ? "bg-green-100 border-green-400 text-green-800"
-                  : seleccionada && !opcion.correcta
-                    ? "bg-[#FFE1E1] border-[#F2A3A3] text-[#8A3A3A]"
-                    : "bg-white border-[#DCCCF8] text-[#4B367C] hover:border-[#9B7BE8]"
-              }
-            `}
+                              w-full text-left rounded-2xl px-5 py-4 font-semibold
+                              border-2 transition-all text-lg
+                              ${
+                                seleccionada && opcion.correcta
+                                  ? "bg-green-100 border-green-400 text-green-800"
+                                  : seleccionada && !opcion.correcta
+                                    ? "bg-[#FFE1E1] border-[#F2A3A3] text-[#8A3A3A]"
+                                    : "bg-white border-[#DCCCF8] text-[#4B367C] hover:border-[#9B7BE8]"
+                              }
+                            `}
                           >
                             {opcion.texto}
                           </motion.button>
@@ -1199,13 +1216,13 @@ const Conversaciones = () => {
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       className={`
-        mt-6 rounded-2xl p-5 font-bold text-lg
-        ${
-          respuestaSeleccionada.correcta
-            ? "bg-green-100 text-green-800"
-            : "bg-[#FFE1E1] text-[#8A3A3A]"
-        }
-      `}
+                        mt-6 rounded-2xl p-5 font-bold text-lg
+                        ${
+                          respuestaSeleccionada.correcta
+                            ? "bg-green-100 text-green-800"
+                            : "bg-[#FFE1E1] text-[#8A3A3A]"
+                        }
+                      `}
                     >
                       {respuestaSeleccionada.correcta
                         ? "¡Muy bien! Félix está feliz por tu esfuerzo."

@@ -1,116 +1,200 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useFloFlo } from "../context/FloFloContext";
-import { getMyDashboard } from "../services/parentDashboardService";
-import {
-  getChildrenByParent,
-  linkChildToParent,
-} from "../services/parentChildService";
-
 import api from "../services/api";
 
 const PanelPadres = () => {
   const { user } = useFloFlo();
+
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
   const [children, setChildren] = useState([]);
   const [selectedChild, setSelectedChild] = useState(null);
   const [childEmail, setChildEmail] = useState("");
 
-  useEffect(() => {
-    const cargarDatos = async () => {
-      try {
-        setLoading(true);
+  const getMyDashboard = async () => {
+    const response = await api.get("/parent-dashboard/me");
+    return response.data;
+  };
 
-        if (user?.role === "parent") {
-          const childrenData = await getChildrenByParent(user.id);
+  const getChildDashboard = async (childId) => {
+    const response = await api.get(`/parent-dashboard/children/${childId}`);
+    return response.data;
+  };
 
-          setChildren(childrenData);
+  const getMyChildren = async () => {
+    const response = await api.get("/parent-child/me/children");
+    return Array.isArray(response.data) ? response.data : response.data.children || [];
+  };
 
-          if (childrenData.length > 0) {
-            const firstChild = childrenData[0];
-            setSelectedChild(firstChild);
-            localStorage.setItem("selectedChild", JSON.stringify(firstChild));
-            window.dispatchEvent(new Event("selectedChildChanged"));
+  const linkChildToMe = async (email) => {
+    const response = await api.post("/parent-child/me/children", {
+      childEmail: email,
+    });
 
-            const dashboardData = await getParentDashboard(firstChild.id);
-            setDashboard(dashboardData);
-          } else {
-            setDashboard(null);
-          }
-        } else {
-          const dashboardData = await getMyDashboard();
+    return response.data;
+  };
+
+  const getChildFirstName = (child) => {
+    return child?.firstName || child?.first_name || child?.name || "Niño";
+  };
+
+  const getChildLastName = (child) => {
+    return child?.lastName || child?.last_name || "";
+  };
+
+  const getChildFullName = (child) => {
+    return `${getChildFirstName(child)} ${getChildLastName(child)}`.trim();
+  };
+
+  const saveSelectedChild = (child) => {
+    if (!child) {
+      localStorage.removeItem("selectedChild");
+      window.dispatchEvent(new Event("selectedChildChanged"));
+      return;
+    }
+
+    localStorage.setItem("selectedChild", JSON.stringify(child));
+    window.dispatchEvent(new Event("selectedChildChanged"));
+  };
+
+  const getStoredSelectedChild = () => {
+    try {
+      const storedChild = localStorage.getItem("selectedChild");
+      return storedChild ? JSON.parse(storedChild) : null;
+    } catch (error) {
+      localStorage.removeItem("selectedChild");
+      return null;
+    }
+  };
+
+  const cargarDatos = useCallback(async () => {
+    try {
+      setLoading(true);
+
+      if (user?.role === "parent") {
+        const childrenData = await getMyChildren();
+        setChildren(childrenData);
+
+        if (childrenData.length > 0) {
+          const storedChild = getStoredSelectedChild();
+
+          const childToSelect =
+            childrenData.find(
+              (child) => String(child.id) === String(storedChild?.id),
+            ) || childrenData[0];
+
+          setSelectedChild(childToSelect);
+          saveSelectedChild(childToSelect);
+
+          const dashboardData = await getChildDashboard(childToSelect.id);
           setDashboard(dashboardData);
+        } else {
+          setSelectedChild(null);
+          setDashboard(null);
+          saveSelectedChild(null);
         }
-      } catch (error) {
-        console.error("Error cargando panel de padres:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
 
+        return;
+      }
+
+      const dashboardData = await getMyDashboard();
+      setDashboard(dashboardData);
+    } catch (error) {
+      console.error("Error cargando panel de padres:", error.response?.data || error);
+      setDashboard(null);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id, user?.role]);
+
+  useEffect(() => {
     if (user?.id) {
       cargarDatos();
     }
-  }, [user]);
+  }, [user?.id, cargarDatos]);
 
   const handleChildChange = async (e) => {
     const childId = e.target.value;
+    const child = children.find((item) => String(item.id) === String(childId));
 
-    const child = children.find((item) => String(item.id) === childId);
+    if (!child) return;
 
     setSelectedChild(child);
     setLoading(true);
-    localStorage.setItem("selectedChild", JSON.stringify(child));
-    window.dispatchEvent(new Event("selectedChildChanged"));
+    saveSelectedChild(child);
 
     try {
-      const dashboardData = await getParentDashboard(childId);
+      const dashboardData = await getChildDashboard(child.id);
       setDashboard(dashboardData);
     } catch (error) {
-      console.error("Error cargando dashboard del niño:", error);
+      console.error("Error cargando dashboard del niño:", error.response?.data || error);
+      alert("No fue posible cargar el dashboard del niño");
     } finally {
       setLoading(false);
     }
   };
+
   const handleLinkChild = async () => {
-  try {
-    if (!childEmail.trim()) {
-      alert("Ingresa el correo del niño");
-      return;
+    try {
+      if (!childEmail.trim()) {
+        alert("Ingresa el correo del niño");
+        return;
+      }
+
+      const result = await linkChildToMe(childEmail.trim());
+      const linkedChild = result.child;
+
+      alert(`${getChildFirstName(linkedChild)} fue asociado correctamente`);
+
+      const updatedChildren = await getMyChildren();
+      setChildren(updatedChildren);
+
+      const childToSelect =
+        updatedChildren.find(
+          (child) => String(child.id) === String(linkedChild?.id),
+        ) || updatedChildren[0];
+
+      if (childToSelect) {
+        setSelectedChild(childToSelect);
+        saveSelectedChild(childToSelect);
+
+        const dashboardData = await getChildDashboard(childToSelect.id);
+        setDashboard(dashboardData);
+      }
+
+      setChildEmail("");
+    } catch (error) {
+      console.error("ERROR ASOCIANDO:", error.response?.data || error);
+      alert(error.response?.data?.message || "No fue posible asociar al niño");
     }
+  };
 
-    const result = await linkChildToParent(user.id, childEmail.trim());
+  const handleDownloadReport = async () => {
+    try {
+      const reportPath =
+        user?.role === "parent" && selectedChild?.id
+          ? `/report/children/${selectedChild.id}`
+          : "/report/me";
 
-    alert(`${result.child.firstName} fue asociado correctamente`);
+      const response = await api.get(reportPath, {
+        responseType: "blob",
+      });
 
-    const updatedChildren = await getChildrenByParent(user.id);
-    setChildren(updatedChildren);
+      const file = new Blob([response.data], { type: "application/pdf" });
+      const fileUrl = URL.createObjectURL(file);
+      window.open(fileUrl, "_blank", "noopener,noreferrer");
 
-    const childToSelect =
-      updatedChildren.find((child) => String(child.id) === String(result.child.id)) ||
-      updatedChildren[0];
-
-    if (childToSelect) {
-      setSelectedChild(childToSelect);
-
-      localStorage.setItem("selectedChild", JSON.stringify(childToSelect));
-      window.dispatchEvent(new Event("selectedChildChanged"));
-
-      const dashboardData = await getParentDashboard(childToSelect.id);
-      setDashboard(dashboardData);
+      setTimeout(() => URL.revokeObjectURL(fileUrl), 60_000);
+    } catch (error) {
+      console.error("Error descargando reporte:", error.response?.data || error);
+      alert("No fue posible descargar el reporte");
     }
-
-    setChildEmail("");
-  } catch (error) {
-    console.error("ERROR ASOCIANDO:", error.response?.data || error);
-
-    alert(error.response?.data?.message || "No fue posible asociar al niño");
-  }
-};
+  };
 
   if (loading) {
     return <p className="text-center mt-10">Cargando panel...</p>;
   }
+
   if (!dashboard) {
     return (
       <main className="min-h-screen bg-purple-50 p-6">
@@ -124,23 +208,29 @@ const PanelPadres = () => {
             cuidador para ver su progreso.
           </p>
 
-          <div className="flex flex-col md:flex-row gap-3">
-            <input
-              type="email"
-              value={childEmail}
-              onChange={(e) => setChildEmail(e.target.value)}
-              placeholder="Correo del niño"
-              className="border border-purple-200 rounded-xl px-4 py-3 flex-1"
-            />
+          {user?.role === "parent" ? (
+            <div className="flex flex-col md:flex-row gap-3">
+              <input
+                type="email"
+                value={childEmail}
+                onChange={(e) => setChildEmail(e.target.value)}
+                placeholder="Correo del niño"
+                className="border border-purple-200 rounded-xl px-4 py-3 flex-1"
+              />
 
-            <button
-              type="button"
-              onClick={handleLinkChild}
-              className="bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-xl font-semibold transition"
-            >
-              Asociar niño
-            </button>
-          </div>
+              <button
+                type="button"
+                onClick={handleLinkChild}
+                className="bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-xl font-semibold transition"
+              >
+                Asociar niño
+              </button>
+            </div>
+          ) : (
+            <p className="text-gray-500">
+              Esta sección está pensada para cuidadores o padres.
+            </p>
+          )}
         </section>
       </main>
     );
@@ -159,12 +249,14 @@ const PanelPadres = () => {
               Revisa el avance general del niño en FloFlo.
             </p>
           </div>
+
           {user?.role === "parent" && (
             <div className="mt-4">
               <label className="block text-sm font-bold text-purple-700 mb-2">
                 Niño seleccionado
               </label>
-              <div className="mt-4 flex flex-col md:flex-row gap-3">
+
+              <div className="mt-4 flex flex-col md:flex-row gap-3 mb-4">
                 <input
                   type="email"
                   value={childEmail}
@@ -190,7 +282,7 @@ const PanelPadres = () => {
                 >
                   {children.map((child) => (
                     <option key={child.id} value={child.id}>
-                      {child.firstName} {child.lastName}
+                      {getChildFullName(child)}
                     </option>
                   ))}
                 </select>
@@ -201,14 +293,14 @@ const PanelPadres = () => {
               )}
             </div>
           )}
-          <a
-            href={`${api.defaults.baseURL}/report/${selectedChild?.id || user.id}`}
-            target="_blank"
-            rel="noreferrer"
+
+          <button
+            type="button"
+            onClick={handleDownloadReport}
             className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-3 rounded-xl font-semibold shadow-md transition text-center w-fit"
           >
             Descargar PDF
-          </a>
+          </button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -302,6 +394,7 @@ const PanelPadres = () => {
             <p className="text-gray-500">Todavía no hay actividad reciente.</p>
           )}
         </section>
+
         <section className="mt-10 bg-white rounded-3xl p-6 shadow-md border border-purple-100">
           <h2 className="text-2xl font-bold text-purple-700 mb-5">
             Tendencia emocional semanal
@@ -319,6 +412,7 @@ const PanelPadres = () => {
             </p>
           )}
         </section>
+
         <section className="mt-10 bg-white rounded-3xl p-6 shadow-md border border-purple-100">
           <h2 className="text-2xl font-bold text-purple-700 mb-5">
             Alertas para padres
@@ -327,13 +421,14 @@ const PanelPadres = () => {
           {dashboard.alerts?.length > 0 ? (
             <div className="space-y-4">
               {dashboard.alerts.map((alert, index) => (
-                <AlertCard key={index} alert={alert} />
+                <AlertCard key={`${alert.title || "alert"}-${index}`} alert={alert} />
               ))}
             </div>
           ) : (
             <p className="text-gray-500">No hay alertas por el momento.</p>
           )}
         </section>
+
         <section className="mt-10 bg-white rounded-3xl p-6 shadow-md border border-purple-100">
           <h2 className="text-2xl font-bold text-purple-700 mb-5">
             Calendario de actividad
@@ -347,6 +442,7 @@ const PanelPadres = () => {
             </p>
           )}
         </section>
+
         <section className="mt-10 bg-white rounded-3xl p-6 shadow-md border border-purple-100">
           <h2 className="text-2xl font-bold text-purple-700 mb-5">
             Recomendaciones de Félix
@@ -356,7 +452,7 @@ const PanelPadres = () => {
             <div className="space-y-4">
               {dashboard.recommendations.map((recommendation, index) => (
                 <RecommendationCard
-                  key={index}
+                  key={`${recommendation.title || "recommendation"}-${index}`}
                   recommendation={recommendation}
                 />
               ))}
@@ -481,21 +577,19 @@ const Card = ({ titulo, valor, emoji }) => {
     <div className="bg-white rounded-3xl p-6 shadow-md border border-purple-100">
       <div className="text-4xl mb-3">{emoji}</div>
       <h2 className="text-lg font-semibold text-gray-700">{titulo}</h2>
-      <p className="text-4xl font-bold text-purple-600 mt-2">{valor}</p>
+      <p className="text-4xl font-bold text-purple-600 mt-2">{valor ?? 0}</p>
     </div>
   );
 };
+
 const RecentCard = ({ emoji, title, mainText, description }) => {
   return (
     <article className="bg-white rounded-3xl p-6 shadow-md border border-purple-100">
       <div className="text-4xl mb-3">{emoji}</div>
-
       <p className="text-sm font-bold text-purple-500 mb-1">{title}</p>
-
       <h3 className="text-xl font-bold text-gray-700">
         {mainText || "Sin registros todavía"}
       </h3>
-
       {description && <p className="text-gray-500 mt-2">{description}</p>}
     </article>
   );
@@ -515,9 +609,7 @@ const ActivityItem = ({ item }) => {
 
       <div className="flex-1">
         <h3 className="font-bold text-gray-700">{item.title}</h3>
-
         <p className="text-gray-500 text-sm">{item.description}</p>
-
         <p className="text-purple-500 text-xs font-semibold mt-1">
           {new Date(item.created_at).toLocaleDateString("es-CL")}
         </p>
@@ -525,6 +617,7 @@ const ActivityItem = ({ item }) => {
     </div>
   );
 };
+
 const EmotionBar = ({ name, count, total }) => {
   const percentage = total > 0 ? (count / total) * 100 : 0;
 
@@ -561,7 +654,7 @@ const EmotionTrendItem = ({ trend }) => {
 
   let message = "Se mantuvo estable durante las últimas semanas.";
   let trendIcon = "➖";
-  let bgColor = "bg-purple-50";
+  const bgColor = "bg-purple-50";
 
   if (difference > 0) {
     message = "Registró más veces esta emoción durante esta semana.";
@@ -616,19 +709,18 @@ const AlertCard = ({ alert }) => {
 
         <div>
           <h3 className="font-bold text-gray-700">{alert.title}</h3>
-
           <p className="text-gray-600 text-sm mt-1">{alert.message}</p>
         </div>
       </div>
     </div>
   );
 };
+
 const ActivityCalendar = ({ data }) => {
   const activityMap = {};
 
   data.forEach((item) => {
     const dateKey = new Date(item.activity_date).toISOString().split("T")[0];
-
     activityMap[dateKey] = Number(item.total);
   });
 
@@ -681,6 +773,7 @@ const ActivityCalendar = ({ data }) => {
     </div>
   );
 };
+
 const RecommendationCard = ({ recommendation }) => {
   return (
     <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4">
@@ -689,7 +782,6 @@ const RecommendationCard = ({ recommendation }) => {
 
         <div>
           <h3 className="font-bold text-gray-700">{recommendation.title}</h3>
-
           <p className="text-gray-600 text-sm mt-1">{recommendation.message}</p>
         </div>
       </div>

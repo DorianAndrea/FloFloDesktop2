@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from "react";
+import { Link } from "react-router-dom";
 import { useFloFlo } from "../context/FloFloContext";
 import {
   getContacts,
@@ -7,24 +8,26 @@ import {
   updateContact,
 } from "../services/contactService";
 import { getRelationshipTypes } from "../services/relationshipTypeService";
-import { Link } from "react-router-dom";
 
 const Amigos = () => {
   const [name, setName] = useState("");
-  const [relationshipName, setRelationName] = useState("");
   const [whereMet, setWhereMet] = useState("");
   const [memoryNote, setMemoryNote] = useState("");
   const [image, setImage] = useState("");
   const [preview, setPreview] = useState("");
+
   const { user } = useFloFlo();
+
   const [contacts, setContacts] = useState([]);
-  const fileInputRef = useRef(null);
   const [relationshipTypes, setRelationshipTypes] = useState([]);
   const [relationshipTypeId, setRelationshipTypeId] = useState("");
   const [editingContactId, setEditingContactId] = useState(null);
+
   const [busqueda, setBusqueda] = useState("");
   const [busquedaDebounce, setBusquedaDebounce] = useState("");
   const [orden, setOrden] = useState("recientes");
+
+  const fileInputRef = useRef(null);
 
   const loadRelationshipTypes = async () => {
     try {
@@ -86,9 +89,11 @@ const Amigos = () => {
     setImage(contact.image || "");
     setPreview("");
   };
+
   const handleDelete = async (id) => {
     const confirmDelete = confirm("¿Seguro que quieres eliminar esta persona?");
     if (!confirmDelete) return;
+
     try {
       await deleteContact(id);
       await loadContacts();
@@ -128,6 +133,7 @@ const Amigos = () => {
 
     try {
       const formData = new FormData();
+
       formData.append("name", name.trim());
       formData.append("relationship_type_id", relationshipTypeId);
       formData.append("where_met", whereMet.trim());
@@ -146,7 +152,6 @@ const Amigos = () => {
       await loadContacts();
 
       setName("");
-      setRelationName("");
       setRelationshipTypeId("");
       setWhereMet("");
       setMemoryNote("");
@@ -273,6 +278,7 @@ const Amigos = () => {
               <option value="za">Z-A</option>
             </select>
           </div>
+
           <h2 className="text-3xl font-bold mb-8 text-center">
             Personas que conozco
           </h2>
@@ -303,7 +309,6 @@ const Amigos = () => {
                       </p>
                     </div>
 
-                    {/* FOTO */}
                     {contact.image ? (
                       <img
                         src={contact.image}
@@ -341,6 +346,7 @@ const Amigos = () => {
                     >
                       Eliminar
                     </button>
+
                     <Link
                       to={`/amigos/${contact.id}`}
                       className="px-4 py-2 rounded-xl bg-[#9B7BE8] text-white font-semibold"

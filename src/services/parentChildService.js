@@ -1,12 +1,12 @@
 import api from "./api";
 
-export const getChildrenByParent = async (parentId) => {
-  const response = await api.get(`/parent-child/${parentId}/children`);
+export const getMyChildren = async () => {
+  const response = await api.get("/parent-child/me/children");
   return response.data;
 };
 
-export const linkChildToParent = async (parentId, childEmail) => {
-  const response = await api.post(`/parent-child/${parentId}/children`, {
+export const linkChildToMe = async (childEmail) => {
+  const response = await api.post("/parent-child/me/children", {
     childEmail,
   });
 
