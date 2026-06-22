@@ -3,7 +3,7 @@ import { NavLink } from "react-router-dom";
 import { FaBars, FaTimes, FaChevronDown } from "react-icons/fa";
 
 import { useFloFlo } from "../context/FloFloContext";
-import { getParentDashboard } from "../services/parentDashboardService";
+import { getMyDashboard } from "../services/parentDashboardService";
 import felixLogo from "../assets/webp/felix_cara_sonriendo.webp";
 
 const Navbar = () => {
@@ -31,7 +31,7 @@ const Navbar = () => {
           return;
         }
 
-        const data = await getParentDashboard(user.id);
+        const data = await getMyDashboard();
         setAchievementCount(data.achievements || 0);
       } catch (error) {
         console.error("Error cargando logros navbar:", error);

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useFloFlo } from "../context/FloFloContext";
-import { getParentDashboard } from "../services/parentDashboardService";
+import { getMyDashboard } from "../services/parentDashboardService";
 import {
   getChildrenByParent,
   linkChildToParent,
@@ -38,7 +38,7 @@ const PanelPadres = () => {
             setDashboard(null);
           }
         } else {
-          const dashboardData = await getParentDashboard(user.id);
+          const dashboardData = await getMyDashboard();
           setDashboard(dashboardData);
         }
       } catch (error) {

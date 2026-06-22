@@ -75,14 +75,8 @@ const EstadosAnimo = () => {
   const loadMoods = async () => {
     try {
       if (!user) return;
-
       const data = await getMoods();
-
-      const moodsUsuario = data.filter(
-        (mood) => Number(mood.user_id) === Number(user.id),
-      );
-
-      setMoods(moodsUsuario);
+      setMoods(data);
     } catch (error) {
       console.error(error);
     }
@@ -100,7 +94,6 @@ const EstadosAnimo = () => {
     }
     try {
       const response = await createMood({
-        user_id: user.id,
         mood_type_id: estado.id,
         comment: `Hoy me siento ${estado.nombre}`,
       });
