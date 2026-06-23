@@ -19,6 +19,7 @@ import PersonaDetalle from "./pages/PersonaDetalle";
 import MiPerfil from "./pages/MiPerfil";
 import Logros from "./pages/Logros";
 import PanelPadres from "./pages/PanelPadres";
+import PerfilSensorial from "./pages/PerfilSensorial";
 
 const ProtectedParentRoute = ({ children }) => {
   const { user } = useFloFlo();
@@ -142,6 +143,15 @@ function App() {
             <ProtectedParentRoute>
               <PanelPadres />
             </ProtectedParentRoute>
+          }
+        />
+        
+        <Route
+          path="/perfil-sensorial"
+          element={
+            <ProtectedRoute>
+              <PerfilSensorial />
+            </ProtectedRoute>
           }
         />
       </Routes>
