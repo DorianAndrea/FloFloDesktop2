@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useFloFlo } from "../context/FloFloContext";
 import api from "../services/api";
+import { getChildSensoryProfile } from "../services/sensoryProfileService";
 
 const PanelPadres = () => {
   const { user } = useFloFlo();
@@ -10,6 +11,7 @@ const PanelPadres = () => {
   const [children, setChildren] = useState([]);
   const [selectedChild, setSelectedChild] = useState(null);
   const [childEmail, setChildEmail] = useState("");
+  const [sensoryProfile, setSensoryProfile] = useState(null);
 
   const getMyDashboard = async () => {
     const response = await api.get("/parent-dashboard/me");
@@ -23,7 +25,9 @@ const PanelPadres = () => {
 
   const getMyChildren = async () => {
     const response = await api.get("/parent-child/me/children");
-    return Array.isArray(response.data) ? response.data : response.data.children || [];
+    return Array.isArray(response.data)
+      ? response.data
+      : response.data.children || [];
   };
 
   const linkChildToMe = async (email) => {
@@ -33,6 +37,24 @@ const PanelPadres = () => {
 
     return response.data;
   };
+
+  const loadChildSensoryProfile = useCallback(async (childId) => {
+    try {
+      if (!childId) {
+        setSensoryProfile(null);
+        return;
+      }
+
+      const data = await getChildSensoryProfile(childId);
+      setSensoryProfile(data || null);
+    } catch (error) {
+      console.error(
+        "Error cargando perfil sensorial:",
+        error.response?.data || error,
+      );
+      setSensoryProfile(null);
+    }
+  }, []);
 
   const getChildFirstName = (child) => {
     return child?.firstName || child?.first_name || child?.name || "Niño";
@@ -88,9 +110,11 @@ const PanelPadres = () => {
 
           const dashboardData = await getChildDashboard(childToSelect.id);
           setDashboard(dashboardData);
+          await loadChildSensoryProfile(childToSelect.id);
         } else {
           setSelectedChild(null);
           setDashboard(null);
+          setSensoryProfile(null);
           saveSelectedChild(null);
         }
 
@@ -100,12 +124,15 @@ const PanelPadres = () => {
       const dashboardData = await getMyDashboard();
       setDashboard(dashboardData);
     } catch (error) {
-      console.error("Error cargando panel de padres:", error.response?.data || error);
+      console.error(
+        "Error cargando panel de padres:",
+        error.response?.data || error,
+      );
       setDashboard(null);
     } finally {
       setLoading(false);
     }
-  }, [user?.id, user?.role]);
+  }, [user?.id, user?.role, loadChildSensoryProfile]);
 
   useEffect(() => {
     if (user?.id) {
@@ -126,8 +153,12 @@ const PanelPadres = () => {
     try {
       const dashboardData = await getChildDashboard(child.id);
       setDashboard(dashboardData);
+      await loadChildSensoryProfile(child.id);
     } catch (error) {
-      console.error("Error cargando dashboard del niño:", error.response?.data || error);
+      console.error(
+        "Error cargando dashboard del niño:",
+        error.response?.data || error,
+      );
       alert("No fue posible cargar el dashboard del niño");
     } finally {
       setLoading(false);
@@ -160,6 +191,7 @@ const PanelPadres = () => {
 
         const dashboardData = await getChildDashboard(childToSelect.id);
         setDashboard(dashboardData);
+        await loadChildSensoryProfile(childToSelect.id);
       }
 
       setChildEmail("");
@@ -186,7 +218,10 @@ const PanelPadres = () => {
 
       setTimeout(() => URL.revokeObjectURL(fileUrl), 60_000);
     } catch (error) {
-      console.error("Error descargando reporte:", error.response?.data || error);
+      console.error(
+        "Error descargando reporte:",
+        error.response?.data || error,
+      );
       alert("No fue posible descargar el reporte");
     }
   };
@@ -319,7 +354,95 @@ const PanelPadres = () => {
           />
           <Card titulo="Logros" valor={dashboard.achievements} emoji="⭐" />
         </div>
+        {user?.role === "parent" && selectedChild && (
+          <section className="mt-10 bg-white rounded-3xl p-6 shadow-md border border-purple-100">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-5">
+              <div>
+                <h2 className="text-2xl font-bold text-purple-700">
+                  Perfil sensorial de {getChildFirstName(selectedChild)}
+                </h2>
 
+                <p className="text-gray-500 mt-1">
+                  Resumen rápido para anticipar apoyos y evitar sobrecargas.
+                </p>
+              </div>
+
+              <span className="bg-purple-100 text-purple-700 px-4 py-2 rounded-full text-sm font-bold w-fit">
+                🧩 Perfil sensorial
+              </span>
+            </div>
+
+            {hasSensoryProfileData(sensoryProfile) ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <SensoryCard
+                  title="Sensibilidades principales"
+                  emoji="⚡"
+                  items={[
+                    {
+                      label: "Ruido",
+                      value: sensoryProfile?.noise_sensitivity,
+                    },
+                    { label: "Luz", value: sensoryProfile?.light_sensitivity },
+                    {
+                      label: "Texturas",
+                      value: sensoryProfile?.texture_sensitivity,
+                    },
+                    {
+                      label: "Multitudes",
+                      value: sensoryProfile?.crowd_sensitivity,
+                    },
+                  ]}
+                />
+
+                <SensoryCard
+                  title="Cosas que ayudan"
+                  emoji="🧸"
+                  items={[
+                    {
+                      label: "Objetos calmantes",
+                      value: sensoryProfile?.calming_items,
+                    },
+                    {
+                      label: "Actividades calmantes",
+                      value: sensoryProfile?.calming_activities,
+                    },
+                  ]}
+                />
+
+                <SensoryCard
+                  title="Señales de estrés"
+                  emoji="🚦"
+                  items={[
+                    { label: "Señales", value: sensoryProfile?.stress_signals },
+                  ]}
+                />
+
+                <SensoryCard
+                  title="Estrategias de apoyo"
+                  emoji="💜"
+                  items={[
+                    {
+                      label: "Estrategias",
+                      value: sensoryProfile?.support_strategies,
+                    },
+                    { label: "Notas", value: sensoryProfile?.notes },
+                  ]}
+                />
+              </div>
+            ) : (
+              <div className="bg-purple-50 rounded-2xl p-5">
+                <p className="text-gray-600">
+                  Este niño todavía no tiene un perfil sensorial completado.
+                </p>
+
+                <p className="text-purple-600 text-sm font-semibold mt-2">
+                  Cuando lo complete desde su cuenta, aparecerá aquí para el
+                  cuidador.
+                </p>
+              </div>
+            )}
+          </section>
+        )}
         <section className="mt-10">
           <h2 className="text-2xl font-bold text-purple-700 mb-5">
             Actividad reciente
@@ -421,7 +544,10 @@ const PanelPadres = () => {
           {dashboard.alerts?.length > 0 ? (
             <div className="space-y-4">
               {dashboard.alerts.map((alert, index) => (
-                <AlertCard key={`${alert.title || "alert"}-${index}`} alert={alert} />
+                <AlertCard
+                  key={`${alert.title || "alert"}-${index}`}
+                  alert={alert}
+                />
               ))}
             </div>
           ) : (
@@ -786,6 +912,48 @@ const RecommendationCard = ({ recommendation }) => {
         </div>
       </div>
     </div>
+  );
+};
+const hasText = (value) => {
+  return typeof value === "string" && value.trim().length > 0;
+};
+
+const hasSensoryProfileData = (profile) => {
+  if (!profile) return false;
+
+  return [
+    profile.noise_sensitivity,
+    profile.light_sensitivity,
+    profile.texture_sensitivity,
+    profile.crowd_sensitivity,
+    profile.calming_items,
+    profile.calming_activities,
+    profile.stress_signals,
+    profile.support_strategies,
+    profile.notes,
+  ].some(hasText);
+};
+
+const SensoryCard = ({ title, emoji, items }) => {
+  const visibleItems = items.filter((item) => hasText(item.value));
+
+  if (visibleItems.length === 0) return null;
+
+  return (
+    <article className="bg-purple-50 rounded-2xl p-5 border border-purple-100">
+      <div className="text-3xl mb-3">{emoji}</div>
+
+      <h3 className="text-lg font-bold text-gray-700 mb-3">{title}</h3>
+
+      <div className="space-y-3">
+        {visibleItems.map((item) => (
+          <div key={item.label}>
+            <p className="text-sm font-bold text-purple-600">{item.label}</p>
+            <p className="text-gray-600 text-sm mt-1">{item.value}</p>
+          </div>
+        ))}
+      </div>
+    </article>
   );
 };
 
