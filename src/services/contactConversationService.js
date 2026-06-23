@@ -26,7 +26,6 @@ export const deleteContactConversation = async (id) => {
 export const completeContactConversation = async (id) => {
   const response = await api.post(`/contact-conversations/${id}/complete`);
   return response.data;
-  console.log("CONTACT SERVICE CARGADO");
 };
 
 export const getContactConversationProgress = async () => {

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useFloFlo } from "../context/FloFloContext";
 import api from "../services/api";
 import { getChildSensoryProfile } from "../services/sensoryProfileService";
@@ -367,9 +368,18 @@ const PanelPadres = () => {
                 </p>
               </div>
 
-              <span className="bg-purple-100 text-purple-700 px-4 py-2 rounded-full text-sm font-bold w-fit">
-                🧩 Perfil sensorial
-              </span>
+              <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                <span className="bg-purple-100 text-purple-700 px-4 py-2 rounded-full text-sm font-bold w-fit">
+                  🧩 Perfil sensorial
+                </span>
+
+                <Link
+                  to="/perfil-sensorial"
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-2 rounded-xl text-sm font-bold shadow-md transition w-fit"
+                >
+                  Ver perfil completo
+                </Link>
+              </div>
             </div>
 
             {hasSensoryProfileData(sensoryProfile) ? (

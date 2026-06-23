@@ -20,6 +20,8 @@ import MiPerfil from "./pages/MiPerfil";
 import Logros from "./pages/Logros";
 import PanelPadres from "./pages/PanelPadres";
 import PerfilSensorial from "./pages/PerfilSensorial";
+import ForgotPassword from "./pages/ForgotPassword";
+import ResetPassword from "./pages/ResetPassword";
 
 const ProtectedParentRoute = ({ children }) => {
   const { user } = useFloFlo();
@@ -46,6 +48,10 @@ function App() {
         <Route path="/registro" element={<User />} />
 
         <Route path="/login" element={<Login />} />
+
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         <Route
           path="/mi-perfil"
@@ -145,7 +151,7 @@ function App() {
             </ProtectedParentRoute>
           }
         />
-        
+
         <Route
           path="/perfil-sensorial"
           element={

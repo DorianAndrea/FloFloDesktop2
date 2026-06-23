@@ -1,41 +1,40 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 import { login } from "../services/authService";
 import { useFloFlo } from "../context/FloFloContext";
 import felix from "../assets/webp/felix_cara_sonriendo.webp";
 
+const Login = () => {
+  const navigate = useNavigate();
+  const { setUser } = useFloFlo();
 
-const Login = () =>{
-    const navigate = useNavigate();
-    const { setUser } = useFloFlo();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-
-    const handleLogin = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
 
-  try {
-    const data = await login(email, password);
+    try {
+      const data = await login(email, password);
 
-    localStorage.setItem("token", data.token);
-    localStorage.setItem("user", JSON.stringify(data.user));
+      localStorage.setItem("token", data.token);
+      localStorage.setItem("user", JSON.stringify(data.user));
 
-    setUser(data.user);
+      setUser(data.user);
 
-    alert(`Bienvenido ${data.user.firstName}`);
+      alert(`Bienvenido ${data.user.firstName}`);
 
-    navigate("/");
-  } catch (error) {
-    console.error(error);
-    alert(error.message || "Correo o contraseña incorrectos");
-  }
-};
-    return(
-        <div className="min-h-screen bg-[#F3ECFF] flex justify-center items-center px-6">
+      navigate("/");
+    } catch (error) {
+      console.error(error);
+      alert(error.message || "Correo o contraseña incorrectos");
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#F3ECFF] flex justify-center items-center px-6">
       <div className="bg-white rounded-[2rem] shadow-lg p-10 w-full max-w-md">
-
         <div className="flex justify-center mb-6">
           <img
             src={felix}
@@ -52,10 +51,7 @@ const Login = () =>{
           Inicia sesión para continuar
         </p>
 
-        <form
-          onSubmit={handleLogin}
-          className="space-y-6"
-        >
+        <form onSubmit={handleLogin} className="space-y-6">
           <div>
             <label className="block text-[#4B367C] font-semibold mb-2">
               Correo electrónico
@@ -82,6 +78,15 @@ const Login = () =>{
               placeholder="********"
               className="w-full p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8]"
             />
+
+            <div className="text-right mt-3">
+              <Link
+                to="/forgot-password"
+                className="text-sm font-semibold text-[#7C3AED] hover:underline"
+              >
+                Olvidé mi contraseña
+              </Link>
+            </div>
           </div>
 
           <button
@@ -102,12 +107,19 @@ const Login = () =>{
             Ingresar
           </button>
         </form>
+
+        <p className="text-center text-sm text-[#6B5A95] mt-6">
+          ¿No tienes cuenta?{" "}
+          <Link
+            to="/registro"
+            className="text-[#7C3AED] font-bold hover:underline"
+          >
+            Regístrate
+          </Link>
+        </p>
       </div>
     </div>
   );
 };
 
 export default Login;
-
-    
-

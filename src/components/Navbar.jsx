@@ -21,6 +21,7 @@ const Navbar = () => {
     { name: "Amigos", path: "/amigos", emoji: "👨‍👩‍👧" },
     { name: "Conversaciones", path: "/conversaciones", emoji: "💬" },
     { name: "Lugares", path: "/lugares", emoji: "📍" },
+    { name: "Perfil Sensorial", path: "/perfil-sensorial", emoji: "🧩" },
   ];
 
   useEffect(() => {
