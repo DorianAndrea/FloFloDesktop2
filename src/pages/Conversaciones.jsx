@@ -18,6 +18,7 @@ import AchievementPopup from "../components/AchievementPopup";
 import {
   completeContactConversation,
   getContactConversationProgress,
+  toggleFavoriteContactConversation,
 } from "../services/contactConversationService";
 
 import felix from "../assets/webp/felix_cara_sonriendo.webp";
@@ -674,7 +675,10 @@ const Conversaciones = () => {
         },
       };
 
-      await updateConversation(conversacionSeleccionada.conversationId, payload);
+      await updateConversation(
+        conversacionSeleccionada.conversationId,
+        payload,
+      );
 
       setEditando(false);
       await loadConversations();
@@ -944,7 +948,16 @@ const Conversaciones = () => {
                         type="button"
                         onClick={async (e) => {
                           e.stopPropagation();
-                          await toggleFavoriteConversation(item.conversationId);
+                          if (item.tipo === "contacto") {
+                            await toggleFavoriteContactConversation(
+                              item.conversationId,
+                            );
+                          } else {
+                            await toggleFavoriteConversation(
+                              item.conversationId,
+                            );
+                          }
+
                           await loadConversations();
                         }}
                         className={`font-bold px-4 py-3 rounded-xl w-full ${

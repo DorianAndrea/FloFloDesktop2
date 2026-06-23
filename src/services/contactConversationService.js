@@ -32,3 +32,8 @@ export const getContactConversationProgress = async () => {
   const response = await api.get("/contact-conversations/progress");
   return response.data;
 };
+
+export const toggleFavoriteContactConversation = async (id) => {
+  const response = await api.post(`/contact-conversations/${id}/favorite`);
+  return response.data;
+};
