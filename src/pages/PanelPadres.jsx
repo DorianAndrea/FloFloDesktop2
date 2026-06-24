@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { useFloFlo } from "../context/FloFloContext";
 import api from "../services/api";
 import { getChildSensoryProfile } from "../services/sensoryProfileService";
+import { getChildWeeklySupportPlanHistory } from "../services/parentDashboardService";
 
 const PanelPadres = () => {
   const { user } = useFloFlo();
@@ -14,6 +15,7 @@ const PanelPadres = () => {
   const [childEmail, setChildEmail] = useState("");
   const [sensoryProfile, setSensoryProfile] = useState(null);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [weeklyPlanHistory, setWeeklyPlanHistory] = useState([]);
 
   const getMyDashboard = async () => {
     const response = await api.get("/parent-dashboard/me");
@@ -55,6 +57,24 @@ const PanelPadres = () => {
         error.response?.data || error,
       );
       setSensoryProfile(null);
+    }
+  }, []);
+
+  const loadWeeklyPlanHistory = useCallback(async (childId) => {
+    try {
+      if (!childId) {
+        setWeeklyPlanHistory([]);
+        return;
+      }
+
+      const data = await getChildWeeklySupportPlanHistory(childId);
+      setWeeklyPlanHistory(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error(
+        "Error cargando historial del plan semanal:",
+        error.response?.data || error,
+      );
+      setWeeklyPlanHistory([]);
     }
   }, []);
 
@@ -113,10 +133,12 @@ const PanelPadres = () => {
           const dashboardData = await getChildDashboard(childToSelect.id);
           setDashboard(dashboardData);
           await loadChildSensoryProfile(childToSelect.id);
+          await loadWeeklyPlanHistory(childToSelect.id);
         } else {
           setSelectedChild(null);
           setDashboard(null);
           setSensoryProfile(null);
+          setWeeklyPlanHistory([]);
           saveSelectedChild(null);
         }
 
@@ -134,7 +156,7 @@ const PanelPadres = () => {
     } finally {
       setLoading(false);
     }
-  }, [user?.id, user?.role, loadChildSensoryProfile]);
+  }, [user?.id, user?.role, loadChildSensoryProfile, loadWeeklyPlanHistory]);
 
   useEffect(() => {
     if (user?.id) {
@@ -156,6 +178,7 @@ const PanelPadres = () => {
       const dashboardData = await getChildDashboard(child.id);
       setDashboard(dashboardData);
       await loadChildSensoryProfile(child.id);
+      await loadWeeklyPlanHistory(child.id);
     } catch (error) {
       console.error(
         "Error cargando dashboard del niño:",
@@ -194,6 +217,7 @@ const PanelPadres = () => {
         const dashboardData = await getChildDashboard(childToSelect.id);
         setDashboard(dashboardData);
         await loadChildSensoryProfile(childToSelect.id);
+        await loadWeeklyPlanHistory(childToSelect.id);
       }
 
       setChildEmail("");
@@ -472,6 +496,10 @@ const PanelPadres = () => {
 
         {dashboard.weeklySupportPlan && (
           <WeeklySupportPlanCard plan={dashboard.weeklySupportPlan} />
+        )}
+
+        {user?.role === "parent" && selectedChild && (
+          <WeeklySupportPlanHistory history={weeklyPlanHistory} />
         )}
 
         <section className="mt-10">
@@ -1004,6 +1032,163 @@ const WeeklySupportPlanCard = ({ plan }) => {
         </div>
       )}
     </section>
+  );
+};
+const WeeklySupportPlanHistory = ({ history }) => {
+  const hasHistory = Array.isArray(history) && history.length > 0;
+
+  return (
+    <section className="mt-10 bg-white rounded-3xl p-6 shadow-md border border-purple-100">
+      <div className="mb-6">
+        <p className="text-sm font-bold text-purple-500 mb-1">
+          📚 Historial de planes semanales
+        </p>
+
+        <h2 className="text-2xl font-bold text-purple-700">
+          Planes anteriores
+        </h2>
+
+        <p className="text-gray-600 mt-2">
+          Aquí se guardan los planes sugeridos para cada semana. FloFlo conserva
+          un plan por niño y por semana.
+        </p>
+      </div>
+
+      {!hasHistory ? (
+        <p className="text-gray-500">
+          Todavía no hay planes semanales guardados.
+        </p>
+      ) : (
+        <div className="space-y-4">
+          {history.map((record, index) => (
+            <WeeklySupportPlanHistoryCard
+              key={record.id || index}
+              record={record}
+              index={index}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+};
+
+const WeeklySupportPlanHistoryCard = ({ record, index }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  const plan =
+    typeof record.plan === "string" ? JSON.parse(record.plan) : record.plan;
+
+  const days = Array.isArray(plan?.days) ? plan.days : [];
+  const tips = Array.isArray(plan?.tips) ? plan.tips : [];
+
+  const weekDate = record.week_start
+    ? new Date(record.week_start).toLocaleDateString("es-CL", {
+        dateStyle: "medium",
+      })
+    : "Semana no disponible";
+
+  const updatedDate = record.updated_at
+    ? new Date(record.updated_at).toLocaleString("es-CL", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      })
+    : null;
+
+  return (
+    <article className="bg-purple-50 rounded-2xl p-5 border border-purple-100">
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+        <div>
+          <div className="flex flex-wrap items-center gap-2 mb-1">
+            <h3 className="font-bold text-purple-700">
+              Semana del {weekDate}
+            </h3>
+
+            {index === 0 && (
+              <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">
+                Más reciente
+              </span>
+            )}
+          </div>
+
+          <p className="text-sm text-gray-500">
+            {updatedDate
+              ? `Actualizado el ${updatedDate}`
+              : "Sin fecha de actualización"}
+          </p>
+
+          <p className="text-gray-600 mt-3">
+            {record.focus ||
+              plan?.focus ||
+              "Plan semanal guardado para acompañar avances."}
+          </p>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setIsOpen((prev) => !prev)}
+          className="bg-white text-purple-700 border border-purple-200 px-4 py-2 rounded-xl font-bold shadow-sm w-fit hover:bg-purple-100 transition"
+        >
+          {isOpen ? "Ocultar detalle" : "Ver detalle"}
+        </button>
+      </div>
+
+      {isOpen && (
+        <div className="mt-5">
+          {days.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+              {days.map((day) => (
+                <article
+                  key={day.day}
+                  className="bg-white rounded-2xl p-4 border border-purple-100"
+                >
+                  <div className="text-3xl mb-2">{day.icon || "✨"}</div>
+
+                  <p className="text-sm font-bold text-purple-600">
+                    {day.day}
+                  </p>
+
+                  <h4 className="font-bold text-gray-700 mt-1">
+                    {day.title}
+                  </h4>
+
+                  <p className="text-gray-600 text-sm mt-2">{day.action}</p>
+
+                  {day.reason && (
+                    <p className="text-purple-500 text-xs font-semibold mt-3">
+                      {day.reason}
+                    </p>
+                  )}
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="text-gray-500">
+              Este plan no tiene días guardados.
+            </p>
+          )}
+
+          {tips.length > 0 && (
+            <div className="mt-6 bg-green-50 rounded-2xl p-5 border border-green-100">
+              <h4 className="font-bold text-gray-700 mb-3">
+                Consejos rápidos
+              </h4>
+
+              <div className="space-y-2">
+                {tips.map((tip, tipIndex) => (
+                  <p
+                    key={`${tip}-${tipIndex}`}
+                    className="text-gray-600 text-sm"
+                  >
+                    ✅ {tip}
+                  </p>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </article>
   );
 };
 
