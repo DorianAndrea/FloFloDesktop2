@@ -17,3 +17,11 @@ export const getChildWeeklySupportPlanHistory = async (childId) => {
 
   return response.data;
 };
+
+export const getChildEvolutionDashboard = async (childId) => {
+  const response = await api.get(
+    `/parent-dashboard/children/${childId}/evolution`,
+  );
+
+  return response.data;
+};

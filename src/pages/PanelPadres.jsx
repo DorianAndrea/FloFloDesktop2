@@ -3,7 +3,10 @@ import { Link } from "react-router-dom";
 import { useFloFlo } from "../context/FloFloContext";
 import api from "../services/api";
 import { getChildSensoryProfile } from "../services/sensoryProfileService";
-import { getChildWeeklySupportPlanHistory } from "../services/parentDashboardService";
+import {
+  getChildWeeklySupportPlanHistory,
+  getChildEvolutionDashboard,
+} from "../services/parentDashboardService";
 
 const PanelPadres = () => {
   const { user } = useFloFlo();
@@ -16,6 +19,7 @@ const PanelPadres = () => {
   const [sensoryProfile, setSensoryProfile] = useState(null);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [weeklyPlanHistory, setWeeklyPlanHistory] = useState([]);
+  const [evolutionDashboard, setEvolutionDashboard] = useState(null);
 
   const getMyDashboard = async () => {
     const response = await api.get("/parent-dashboard/me");
@@ -78,6 +82,24 @@ const PanelPadres = () => {
     }
   }, []);
 
+  const loadEvolutionDashboard = useCallback(async (childId) => {
+    try {
+      if (!childId) {
+        setEvolutionDashboard(null);
+        return;
+      }
+
+      const data = await getChildEvolutionDashboard(childId);
+      setEvolutionDashboard(data || null);
+    } catch (error) {
+      console.error(
+        "Error cargando dashboard de evolución:",
+        error.response?.data || error,
+      );
+      setEvolutionDashboard(null);
+    }
+  }, []);
+
   const getChildFirstName = (child) => {
     return child?.firstName || child?.first_name || child?.name || "Niño";
   };
@@ -132,13 +154,16 @@ const PanelPadres = () => {
 
           const dashboardData = await getChildDashboard(childToSelect.id);
           setDashboard(dashboardData);
+
           await loadChildSensoryProfile(childToSelect.id);
           await loadWeeklyPlanHistory(childToSelect.id);
+          await loadEvolutionDashboard(childToSelect.id);
         } else {
           setSelectedChild(null);
           setDashboard(null);
           setSensoryProfile(null);
           setWeeklyPlanHistory([]);
+          setEvolutionDashboard(null);
           saveSelectedChild(null);
         }
 
@@ -147,16 +172,26 @@ const PanelPadres = () => {
 
       const dashboardData = await getMyDashboard();
       setDashboard(dashboardData);
+      setWeeklyPlanHistory([]);
+      setEvolutionDashboard(null);
     } catch (error) {
       console.error(
         "Error cargando panel de padres:",
         error.response?.data || error,
       );
       setDashboard(null);
+      setWeeklyPlanHistory([]);
+      setEvolutionDashboard(null);
     } finally {
       setLoading(false);
     }
-  }, [user?.id, user?.role, loadChildSensoryProfile, loadWeeklyPlanHistory]);
+  }, [
+    user?.id,
+    user?.role,
+    loadChildSensoryProfile,
+    loadWeeklyPlanHistory,
+    loadEvolutionDashboard,
+  ]);
 
   useEffect(() => {
     if (user?.id) {
@@ -179,6 +214,7 @@ const PanelPadres = () => {
       setDashboard(dashboardData);
       await loadChildSensoryProfile(child.id);
       await loadWeeklyPlanHistory(child.id);
+      await loadEvolutionDashboard(child.id);
     } catch (error) {
       console.error(
         "Error cargando dashboard del niño:",
@@ -218,6 +254,7 @@ const PanelPadres = () => {
         setDashboard(dashboardData);
         await loadChildSensoryProfile(childToSelect.id);
         await loadWeeklyPlanHistory(childToSelect.id);
+        await loadEvolutionDashboard(childToSelect.id);
       }
 
       setChildEmail("");
@@ -499,7 +536,7 @@ const PanelPadres = () => {
         )}
 
         {user?.role === "parent" && selectedChild && (
-          <WeeklySupportPlanHistory history={weeklyPlanHistory} />
+          <EvolutionDashboard data={evolutionDashboard} />
         )}
 
         <section className="mt-10">
@@ -1100,9 +1137,7 @@ const WeeklySupportPlanHistoryCard = ({ record, index }) => {
       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-2 mb-1">
-            <h3 className="font-bold text-purple-700">
-              Semana del {weekDate}
-            </h3>
+            <h3 className="font-bold text-purple-700">Semana del {weekDate}</h3>
 
             {index === 0 && (
               <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">
@@ -1144,13 +1179,9 @@ const WeeklySupportPlanHistoryCard = ({ record, index }) => {
                 >
                   <div className="text-3xl mb-2">{day.icon || "✨"}</div>
 
-                  <p className="text-sm font-bold text-purple-600">
-                    {day.day}
-                  </p>
+                  <p className="text-sm font-bold text-purple-600">{day.day}</p>
 
-                  <h4 className="font-bold text-gray-700 mt-1">
-                    {day.title}
-                  </h4>
+                  <h4 className="font-bold text-gray-700 mt-1">{day.title}</h4>
 
                   <p className="text-gray-600 text-sm mt-2">{day.action}</p>
 
@@ -1163,16 +1194,12 @@ const WeeklySupportPlanHistoryCard = ({ record, index }) => {
               ))}
             </div>
           ) : (
-            <p className="text-gray-500">
-              Este plan no tiene días guardados.
-            </p>
+            <p className="text-gray-500">Este plan no tiene días guardados.</p>
           )}
 
           {tips.length > 0 && (
             <div className="mt-6 bg-green-50 rounded-2xl p-5 border border-green-100">
-              <h4 className="font-bold text-gray-700 mb-3">
-                Consejos rápidos
-              </h4>
+              <h4 className="font-bold text-gray-700 mb-3">Consejos rápidos</h4>
 
               <div className="space-y-2">
                 {tips.map((tip, tipIndex) => (
@@ -1189,6 +1216,242 @@ const WeeklySupportPlanHistoryCard = ({ record, index }) => {
         </div>
       )}
     </article>
+  );
+};
+
+const EvolutionDashboard = ({ data }) => {
+  const sensoryEvolution = data?.sensoryEvolution;
+  const emotionalEvolution = Array.isArray(data?.emotionalEvolution)
+    ? data.emotionalEvolution
+    : [];
+  const importantChanges = Array.isArray(data?.importantChanges)
+    ? data.importantChanges
+    : [];
+  const repeatedSupports = Array.isArray(data?.repeatedSupports)
+    ? data.repeatedSupports
+    : [];
+  const usefulStrategies = Array.isArray(data?.usefulStrategies)
+    ? data.usefulStrategies
+    : [];
+
+  const totalVersions = Number(sensoryEvolution?.totalVersions || 0);
+
+  const lastUpdatedAt = sensoryEvolution?.lastUpdatedAt
+    ? new Date(sensoryEvolution.lastUpdatedAt).toLocaleString("es-CL", {
+        dateStyle: "medium",
+        timeStyle: "short",
+      })
+    : null;
+
+  return (
+    <section className="mt-10 bg-white rounded-3xl p-6 shadow-md border border-purple-100">
+      <div className="mb-6">
+        <p className="text-sm font-bold text-purple-500 mb-1">
+          📈 Dashboard de evolución
+        </p>
+
+        <h2 className="text-2xl font-bold text-purple-700">
+          Evolución y cambios importantes
+        </h2>
+
+        <p className="text-gray-600 mt-2">
+          Resumen de cambios sensoriales, emocionales y apoyos que se repiten en
+          el tiempo.
+        </p>
+      </div>
+
+      {!data ? (
+        <p className="text-gray-500">
+          Todavía no hay datos suficientes para mostrar evolución.
+        </p>
+      ) : (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            <EvolutionMiniCard
+              emoji="🧩"
+              title="Evolución sensorial"
+              value={`${totalVersions} versión(es)`}
+              description={
+                lastUpdatedAt
+                  ? `Última actualización: ${lastUpdatedAt}`
+                  : "Sin historial sensorial todavía"
+              }
+            />
+
+            <EvolutionMiniCard
+              emoji="😊"
+              title="Evolución emocional"
+              value={`${emotionalEvolution.length} emoción(es)`}
+              description="Comparación entre esta semana y la anterior"
+            />
+
+            <EvolutionMiniCard
+              emoji="✨"
+              title="Cambios importantes"
+              value={`${importantChanges.length} cambio(s)`}
+              description="Cambios recientes detectados en el perfil o plan"
+            />
+          </div>
+
+          <EvolutionBlock title="Evolución emocional" emoji="😊">
+            {emotionalEvolution.length > 0 ? (
+              <div className="space-y-3">
+                {emotionalEvolution.map((emotion) => (
+                  <EmotionEvolutionItem
+                    key={emotion.mood_name}
+                    emotion={emotion}
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-sm">
+                Todavía no hay registros emocionales suficientes.
+              </p>
+            )}
+          </EvolutionBlock>
+
+          <EvolutionBlock title="Cambios recientes importantes" emoji="🚦">
+            {importantChanges.length > 0 ? (
+              <div className="space-y-3">
+                {importantChanges.map((change, index) => (
+                  <div
+                    key={`${change.title}-${index}`}
+                    className="bg-purple-50 rounded-2xl p-4 border border-purple-100"
+                  >
+                    <h4 className="font-bold text-gray-700">{change.title}</h4>
+
+                    {change.before && (
+                      <p className="text-gray-500 text-sm mt-2">
+                        Antes: {change.before}
+                      </p>
+                    )}
+
+                    <p className="text-purple-600 text-sm font-semibold mt-2">
+                      Ahora: {change.after}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-gray-500 text-sm">
+                No hay cambios recientes importantes detectados.
+              </p>
+            )}
+          </EvolutionBlock>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <EvolutionBlock title="Apoyos que se repiten más" emoji="🧸">
+              {repeatedSupports.length > 0 ? (
+                <TagList items={repeatedSupports} />
+              ) : (
+                <p className="text-gray-500 text-sm">
+                  Todavía no hay apoyos repetidos registrados.
+                </p>
+              )}
+            </EvolutionBlock>
+
+            <EvolutionBlock
+              title="Estrategias que aparecen como útiles"
+              emoji="💜"
+            >
+              {usefulStrategies.length > 0 ? (
+                <TagList items={usefulStrategies} />
+              ) : (
+                <p className="text-gray-500 text-sm">
+                  Todavía no hay estrategias suficientes para comparar.
+                </p>
+              )}
+            </EvolutionBlock>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+};
+
+const EvolutionMiniCard = ({ emoji, title, value, description }) => {
+  return (
+    <article className="bg-purple-50 rounded-2xl p-5 border border-purple-100">
+      <div className="text-3xl mb-3">{emoji}</div>
+
+      <p className="text-sm font-bold text-purple-500">{title}</p>
+
+      <h3 className="text-2xl font-bold text-gray-700 mt-1">{value}</h3>
+
+      <p className="text-gray-500 text-sm mt-2">{description}</p>
+    </article>
+  );
+};
+
+const EvolutionBlock = ({ title, emoji, children }) => {
+  return (
+    <div className="bg-white rounded-2xl border border-purple-100 p-5 shadow-sm">
+      <h3 className="text-lg font-bold text-purple-700 mb-4">
+        {emoji} {title}
+      </h3>
+
+      {children}
+    </div>
+  );
+};
+
+const EmotionEvolutionItem = ({ emotion }) => {
+  let statusText = "Estable";
+  let statusClass = "bg-gray-100 text-gray-700";
+  let icon = "➖";
+
+  if (emotion.status === "increased") {
+    statusText = "Aumentó";
+    statusClass = "bg-yellow-100 text-yellow-700";
+    icon = "↗️";
+  }
+
+  if (emotion.status === "decreased") {
+    statusText = "Disminuyó";
+    statusClass = "bg-green-100 text-green-700";
+    icon = "↘️";
+  }
+
+  return (
+    <div className="bg-purple-50 rounded-2xl p-4 border border-purple-100">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+        <div>
+          <h4 className="font-bold text-gray-700">
+            {icon} {emotion.mood_name}
+          </h4>
+
+          <p className="text-gray-500 text-sm mt-1">
+            Esta semana: {emotion.current_week} · Semana anterior:{" "}
+            {emotion.previous_week}
+          </p>
+
+          <p className="text-purple-600 text-sm font-semibold mt-1">
+            {emotion.message}
+          </p>
+        </div>
+
+        <span
+          className={`${statusClass} px-4 py-2 rounded-full text-sm font-bold w-fit`}
+        >
+          {statusText}
+        </span>
+      </div>
+    </div>
+  );
+};
+
+const TagList = ({ items }) => {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {items.map((item, index) => (
+        <span
+          key={`${item.label}-${index}`}
+          className="bg-purple-100 text-purple-700 px-3 py-2 rounded-full text-sm font-bold"
+        >
+          {item.label} · {item.count}
+        </span>
+      ))}
+    </div>
   );
 };
 
