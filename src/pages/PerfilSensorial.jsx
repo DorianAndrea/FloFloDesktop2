@@ -413,6 +413,8 @@ const HistorySection = ({ history }) => {
 };
 
 const HistoryCard = ({ item, index }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
   const date = item.created_at
     ? new Date(item.created_at).toLocaleString("es-CL", {
         dateStyle: "medium",
@@ -420,41 +422,70 @@ const HistoryCard = ({ item, index }) => {
       })
     : "Fecha no disponible";
 
+  const mainSummary =
+    item.noise_sensitivity ||
+    item.light_sensitivity ||
+    item.texture_sensitivity ||
+    item.crowd_sensitivity ||
+    item.notes ||
+    "Versión guardada del perfil sensorial.";
+
   return (
     <article className="bg-purple-50 rounded-2xl p-5 border border-purple-100">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-4">
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
         <div>
-          <h3 className="font-bold text-purple-700">
-            Versión {index + 1} del perfil sensorial
-          </h3>
+          <div className="flex items-center gap-2 flex-wrap mb-1">
+            <h3 className="font-bold text-purple-700">
+              Versión {index + 1} del perfil sensorial
+            </h3>
+
+            {index === 0 && (
+              <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold">
+                Más reciente
+              </span>
+            )}
+          </div>
 
           <p className="text-sm text-gray-500">Guardada el {date}</p>
+
+          <p className="text-sm text-gray-600 mt-3 line-clamp-2">
+            {mainSummary}
+          </p>
         </div>
 
-        {index === 0 && (
-          <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold w-fit">
-            Más reciente
-          </span>
-        )}
+        <button
+          type="button"
+          onClick={() => setIsOpen((prev) => !prev)}
+          className="bg-white text-purple-700 border border-purple-200 px-4 py-2 rounded-xl font-bold shadow-sm w-fit hover:bg-purple-100 transition"
+        >
+          {isOpen ? "Ocultar detalle" : "Ver detalle"}
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <SmallInfo title="Ruido" value={item.noise_sensitivity} />
-        <SmallInfo title="Luz" value={item.light_sensitivity} />
-        <SmallInfo title="Texturas" value={item.texture_sensitivity} />
-        <SmallInfo title="Multitudes" value={item.crowd_sensitivity} />
-        <SmallInfo title="Objetos calmantes" value={item.calming_items} />
-        <SmallInfo title="Actividades calmantes" value={item.calming_activities} />
-        <SmallInfo title="Señales" value={item.stress_signals} />
-        <SmallInfo title="Estrategias" value={item.support_strategies} />
-      </div>
+      {isOpen && (
+        <div className="mt-5">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <SmallInfo title="Ruido" value={item.noise_sensitivity} />
+            <SmallInfo title="Luz" value={item.light_sensitivity} />
+            <SmallInfo title="Texturas" value={item.texture_sensitivity} />
+            <SmallInfo title="Multitudes" value={item.crowd_sensitivity} />
+            <SmallInfo title="Objetos calmantes" value={item.calming_items} />
+            <SmallInfo
+              title="Actividades calmantes"
+              value={item.calming_activities}
+            />
+            <SmallInfo title="Señales" value={item.stress_signals} />
+            <SmallInfo title="Estrategias" value={item.support_strategies} />
+          </div>
 
-      {item.notes && (
-        <div className="mt-4 bg-white rounded-xl p-4 border border-purple-100">
-          <p className="text-sm font-bold text-purple-700 mb-1">Notas</p>
-          <p className="text-sm text-gray-600 whitespace-pre-line">
-            {item.notes}
-          </p>
+          {item.notes && (
+            <div className="mt-4 bg-white rounded-xl p-4 border border-purple-100">
+              <p className="text-sm font-bold text-purple-700 mb-1">Notas</p>
+              <p className="text-sm text-gray-600 whitespace-pre-line">
+                {item.notes}
+              </p>
+            </div>
+          )}
         </div>
       )}
     </article>
