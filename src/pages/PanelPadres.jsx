@@ -13,6 +13,7 @@ const PanelPadres = () => {
   const [selectedChild, setSelectedChild] = useState(null);
   const [childEmail, setChildEmail] = useState("");
   const [sensoryProfile, setSensoryProfile] = useState(null);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
 
   const getMyDashboard = async () => {
     const response = await api.get("/parent-dashboard/me");
@@ -203,27 +204,31 @@ const PanelPadres = () => {
   };
 
   const handleDownloadReport = async () => {
-    try {
-      const reportPath =
-        user?.role === "parent" && selectedChild?.id
-          ? `/report/children/${selectedChild.id}`
-          : "/report/me";
+    if (!selectedChild || isDownloadingPdf) return;
 
-      const response = await api.get(reportPath, {
+    try {
+      setIsDownloadingPdf(true);
+
+      const response = await api.get(`/report/children/${selectedChild.id}`, {
         responseType: "blob",
       });
 
-      const file = new Blob([response.data], { type: "application/pdf" });
-      const fileUrl = URL.createObjectURL(file);
-      window.open(fileUrl, "_blank", "noopener,noreferrer");
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
 
-      setTimeout(() => URL.revokeObjectURL(fileUrl), 60_000);
+      link.href = url;
+      link.setAttribute("download", "floflo-report.pdf");
+
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+
+      window.URL.revokeObjectURL(url);
     } catch (error) {
-      console.error(
-        "Error descargando reporte:",
-        error.response?.data || error,
-      );
-      alert("No fue posible descargar el reporte");
+      console.error("Error descargando PDF:", error);
+      alert("No se pudo descargar el PDF. Inténtalo nuevamente.");
+    } finally {
+      setIsDownloadingPdf(false);
     }
   };
 
@@ -331,11 +336,22 @@ const PanelPadres = () => {
           )}
 
           <button
-            type="button"
             onClick={handleDownloadReport}
-            className="bg-purple-600 hover:bg-purple-700 text-white px-5 py-3 rounded-xl font-semibold shadow-md transition text-center w-fit"
+            disabled={isDownloadingPdf || !selectedChild}
+            className={`bg-purple-600 text-white px-5 py-3 rounded-2xl font-bold shadow-md transition flex items-center justify-center gap-2 ${
+              isDownloadingPdf
+                ? "opacity-70 cursor-not-allowed"
+                : "hover:bg-purple-700"
+            }`}
           >
-            Descargar PDF
+            {isDownloadingPdf ? (
+              <>
+                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                Generando PDF...
+              </>
+            ) : (
+              <>📄 Descargar PDF</>
+            )}
           </button>
         </div>
 
@@ -452,7 +468,7 @@ const PanelPadres = () => {
               </div>
             )}
           </section>
-              )}
+        )}
 
         {dashboard.weeklySupportPlan && (
           <WeeklySupportPlanCard plan={dashboard.weeklySupportPlan} />
@@ -603,9 +619,7 @@ const PanelPadres = () => {
               Todavía no hay recomendaciones disponibles.
             </p>
           )}
-          
         </section>
-        
 
         {dashboard.nextAchievement && (
           <section className="mt-10 bg-white rounded-3xl p-6 shadow-md border border-purple-100">
