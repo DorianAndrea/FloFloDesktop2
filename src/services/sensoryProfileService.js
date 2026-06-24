@@ -19,3 +19,13 @@ export const getChildSensoryProfile = async (childId) => {
   const response = await api.get(`/sensory-profile/children/${childId}`);
   return response.data;
 };
+
+export const getMySensoryProfileHistory = async () => {
+  const response = await api.get("/sensory-profile/me/history");
+  return response.data;
+};
+
+export const getChildSensoryProfileHistory = async (childId) => {
+  const response = await api.get(`/sensory-profile/children/${childId}/history`);
+  return response.data;
+};
