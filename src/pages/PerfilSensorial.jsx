@@ -18,6 +18,7 @@ const emptyProfile = {
   stress_signals: "",
   support_strategies: "",
   notes: "",
+  updated_at: null,
 };
 
 const fields = [
@@ -83,6 +84,7 @@ const PerfilSensorial = () => {
   const isChild = user?.role === "child";
 
   const hasProfileData = fields.some((field) => profile[field.name]?.trim());
+  const lastUpdatedAt = profile.updated_at || history[0]?.created_at || null;
 
   const normalizeProfile = (data) => {
     if (!data) return { ...emptyProfile };
@@ -97,6 +99,7 @@ const PerfilSensorial = () => {
       stress_signals: data.stress_signals || "",
       support_strategies: data.support_strategies || "",
       notes: data.notes || "",
+      updated_at: data.updated_at || null,
     };
   };
 
@@ -204,164 +207,195 @@ const PerfilSensorial = () => {
   }
 
   return (
-    <main className="min-h-screen bg-purple-50 px-6 py-10">
-      <section className="max-w-5xl mx-auto">
-        <div className="bg-white rounded-3xl shadow-md p-6 md:p-8 mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-purple-700 mb-3">
-            Perfil Sensorial
-          </h1>
+  <main className="min-h-screen bg-purple-50 px-6 py-10">
+    <section className="max-w-5xl mx-auto">
+      <div className="bg-white rounded-3xl shadow-md p-6 md:p-8 mb-8">
+        <h1 className="text-3xl md:text-4xl font-bold text-purple-700 mb-3">
+          Perfil Sensorial
+        </h1>
 
-          {isParent ? (
-            <p className="text-gray-600">
-              Estás viendo el perfil sensorial de{" "}
-              <span className="font-bold text-purple-700">
-                {selectedChild
-                  ? `${selectedChild.firstName || ""} ${
-                      selectedChild.lastName || ""
-                    }`
-                  : "un niño seleccionado"}
-              </span>
-              .
-            </p>
-          ) : (
-            <p className="text-gray-600">
-              Registra información importante sobre sensibilidades, señales de
-              sobrecarga y estrategias que ayudan. Cada vez que guardes, FloFlo
-              conservará una versión en el historial.
-            </p>
-          )}
-        </div>
-
-        {isParent && !selectedChild && (
-          <div className="bg-white rounded-3xl shadow-md p-6 border border-purple-100">
-            <p className="text-gray-600">
-              No hay un niño seleccionado. Selecciona un niño desde el Panel de
-              Padres para ver su perfil sensorial.
-            </p>
-          </div>
+        {isParent ? (
+          <p className="text-gray-600">
+            Estás viendo el perfil sensorial de{" "}
+            <span className="font-bold text-purple-700">
+              {selectedChild
+                ? `${selectedChild.firstName || ""} ${
+                    selectedChild.lastName || ""
+                  }`
+                : "un niño seleccionado"}
+            </span>
+            .
+          </p>
+        ) : (
+          <p className="text-gray-600">
+            Registra información importante sobre sensibilidades, señales de
+            sobrecarga y estrategias que ayudan. Cada vez que guardes, FloFlo
+            conservará una versión en el historial.
+          </p>
         )}
+      </div>
 
-        {isParent && selectedChild && (
-          <>
-            <div className="bg-white rounded-3xl shadow-md p-6 md:p-8 border border-purple-100">
-              <h2 className="text-2xl font-bold text-purple-700 mb-6">
+      {isParent && !selectedChild && (
+        <div className="bg-white rounded-3xl shadow-md p-6 border border-purple-100">
+          <p className="text-gray-600">
+            No hay un niño seleccionado. Selecciona un niño desde el Panel de
+            Padres para ver su perfil sensorial.
+          </p>
+        </div>
+      )}
+
+      {isParent && selectedChild && (
+        <>
+          <div className="bg-white rounded-3xl shadow-md p-6 md:p-8 border border-purple-100">
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-purple-700">
                 Resumen sensorial actual
               </h2>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {fields.map((field) => (
-                  <InfoCard
-                    key={field.name}
-                    title={field.label}
-                    value={profile[field.name]}
-                  />
-                ))}
-              </div>
+              <LastUpdatedInfo date={lastUpdatedAt} />
             </div>
 
-            <HistorySection history={history} />
-          </>
-        )}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {fields.map((field) => (
+                <InfoCard
+                  key={field.name}
+                  title={field.label}
+                  value={profile[field.name]}
+                />
+              ))}
+            </div>
+          </div>
 
-        {isChild && !isEditing && hasProfileData && (
-          <>
-            <div className="bg-white rounded-3xl shadow-md p-6 md:p-8 border border-purple-100">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+          <HistorySection history={history} />
+        </>
+      )}
+
+      {isChild && !isEditing && hasProfileData && (
+        <>
+          <div className="bg-white rounded-3xl shadow-md p-6 md:p-8 border border-purple-100">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+              <div>
                 <h2 className="text-2xl font-bold text-purple-700">
                   Mi resumen sensorial actual
                 </h2>
 
-                <button
-                  type="button"
-                  onClick={() => setIsEditing(true)}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl font-bold shadow-md w-fit"
-                >
-                  Editar perfil
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {fields.map((field) => (
-                  <InfoCard
-                    key={field.name}
-                    title={field.label}
-                    value={profile[field.name]}
-                  />
-                ))}
-              </div>
-            </div>
-
-            <HistorySection history={history} />
-          </>
-        )}
-
-        {isChild && (!hasProfileData || isEditing) && (
-          <>
-            <form
-              onSubmit={handleSave}
-              className="bg-white rounded-3xl shadow-md p-6 md:p-8 border border-purple-100"
-            >
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-                <div>
-                  <h2 className="text-2xl font-bold text-purple-700">
-                    {hasProfileData
-                      ? "Editar perfil sensorial"
-                      : "Completar perfil"}
-                  </h2>
-
-                  <p className="text-gray-500 mt-1">
-                    Al guardar, esta versión quedará registrada en el historial
-                    sensorial.
-                  </p>
-                </div>
-
-                {hasProfileData && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsEditing(false);
-                      loadProfile();
-                    }}
-                    className="bg-white text-purple-700 border border-purple-200 px-5 py-3 rounded-xl font-bold shadow-sm w-fit"
-                  >
-                    Cancelar
-                  </button>
-                )}
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {fields.map((field) => (
-                  <div key={field.name}>
-                    <label className="block text-sm font-bold text-purple-700 mb-2">
-                      {field.label}
-                    </label>
-
-                    <textarea
-                      name={field.name}
-                      value={profile[field.name]}
-                      onChange={handleChange}
-                      placeholder={field.placeholder}
-                      rows={4}
-                      className="w-full border border-purple-200 rounded-2xl px-4 py-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-300"
-                    />
-                  </div>
-                ))}
+                <LastUpdatedInfo date={lastUpdatedAt} />
               </div>
 
               <button
-                type="submit"
-                disabled={saving}
-                className="mt-6 bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl font-bold shadow-md disabled:opacity-50"
+                type="button"
+                onClick={() => setIsEditing(true)}
+                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl font-bold shadow-md w-fit"
               >
-                {saving ? "Guardando..." : "Guardar perfil sensorial"}
+                Editar perfil
               </button>
-            </form>
+            </div>
 
-            <HistorySection history={history} />
-          </>
-        )}
-      </section>
-    </main>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {fields.map((field) => (
+                <InfoCard
+                  key={field.name}
+                  title={field.label}
+                  value={profile[field.name]}
+                />
+              ))}
+            </div>
+          </div>
+
+          <HistorySection history={history} />
+        </>
+      )}
+
+      {isChild && (!hasProfileData || isEditing) && (
+        <>
+          <form
+            onSubmit={handleSave}
+            className="bg-white rounded-3xl shadow-md p-6 md:p-8 border border-purple-100"
+          >
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+              <div>
+                <h2 className="text-2xl font-bold text-purple-700">
+                  {hasProfileData
+                    ? "Editar perfil sensorial"
+                    : "Completar perfil"}
+                </h2>
+
+                <p className="text-gray-500 mt-1">
+                  Al guardar, esta versión quedará registrada en el historial
+                  sensorial.
+                </p>
+
+                <LastUpdatedInfo date={lastUpdatedAt} />
+              </div>
+
+              {hasProfileData && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditing(false);
+                    loadProfile();
+                  }}
+                  className="bg-white text-purple-700 border border-purple-200 px-5 py-3 rounded-xl font-bold shadow-sm w-fit"
+                >
+                  Cancelar
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {fields.map((field) => (
+                <div key={field.name}>
+                  <label className="block text-sm font-bold text-purple-700 mb-2">
+                    {field.label}
+                  </label>
+
+                  <textarea
+                    name={field.name}
+                    value={profile[field.name]}
+                    onChange={handleChange}
+                    placeholder={field.placeholder}
+                    rows={4}
+                    className="w-full border border-purple-200 rounded-2xl px-4 py-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-300"
+                  />
+                </div>
+              ))}
+            </div>
+
+            <button
+              type="submit"
+              disabled={saving}
+              className="mt-6 bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl font-bold shadow-md disabled:opacity-50"
+            >
+              {saving ? "Guardando..." : "Guardar perfil sensorial"}
+            </button>
+          </form>
+
+          <HistorySection history={history} />
+        </>
+      )}
+    </section>
+  </main>
+);
+};
+const LastUpdatedInfo = ({ date }) => {
+  if (!date) {
+    return (
+      <p className="text-sm text-gray-500 mt-2">
+        Última actualización: sin registros todavía.
+      </p>
+    );
+  }
+
+  const formattedDate = new Date(date).toLocaleString("es-CL", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+
+  return (
+    <p className="text-sm text-gray-500 mt-2">
+      Última actualización:{" "}
+      <span className="font-bold text-purple-700">{formattedDate}</span>
+    </p>
   );
 };
 
