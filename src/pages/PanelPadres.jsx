@@ -452,7 +452,12 @@ const PanelPadres = () => {
               </div>
             )}
           </section>
+              )}
+
+        {dashboard.weeklySupportPlan && (
+          <WeeklySupportPlanCard plan={dashboard.weeklySupportPlan} />
         )}
+
         <section className="mt-10">
           <h2 className="text-2xl font-bold text-purple-700 mb-5">
             Actividad reciente
@@ -598,7 +603,9 @@ const PanelPadres = () => {
               Todavía no hay recomendaciones disponibles.
             </p>
           )}
+          
         </section>
+        
 
         {dashboard.nextAchievement && (
           <section className="mt-10 bg-white rounded-3xl p-6 shadow-md border border-purple-100">
@@ -907,6 +914,82 @@ const ActivityCalendar = ({ data }) => {
         <span>Más actividad</span>
       </div>
     </div>
+  );
+};
+const WeeklySupportPlanCard = ({ plan }) => {
+  const days = Array.isArray(plan?.days) ? plan.days : [];
+  const tips = Array.isArray(plan?.tips) ? plan.tips : [];
+
+  if (!plan) return null;
+
+  return (
+    <section className="mt-10 bg-white rounded-3xl p-6 shadow-md border border-purple-100">
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-3 mb-6">
+        <div>
+          <p className="text-sm font-bold text-purple-500 mb-1">
+            🗓️ Plan de apoyo semanal
+          </p>
+
+          <h2 className="text-2xl font-bold text-purple-700">
+            {plan.title || "Plan de apoyo semanal"}
+          </h2>
+
+          <p className="text-gray-600 mt-2">
+            {plan.focus ||
+              "Reforzar avances pequeños y acompañar la semana con calma."}
+          </p>
+        </div>
+
+        <span className="bg-green-100 text-green-700 px-4 py-2 rounded-full text-sm font-bold w-fit">
+          Semana sugerida
+        </span>
+      </div>
+
+      {days.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+          {days.map((day) => (
+            <article
+              key={day.day}
+              className="bg-purple-50 rounded-2xl p-4 border border-purple-100"
+            >
+              <div className="text-3xl mb-2">{day.icon || "✨"}</div>
+
+              <p className="text-sm font-bold text-purple-600">{day.day}</p>
+
+              <h3 className="font-bold text-gray-700 mt-1">{day.title}</h3>
+
+              <p className="text-gray-600 text-sm mt-2">{day.action}</p>
+
+              {day.reason && (
+                <p className="text-purple-500 text-xs font-semibold mt-3">
+                  {day.reason}
+                </p>
+              )}
+            </article>
+          ))}
+        </div>
+      ) : (
+        <p className="text-gray-500">
+          Todavía no hay suficientes datos para armar un plan semanal.
+        </p>
+      )}
+
+      {tips.length > 0 && (
+        <div className="mt-6 bg-green-50 rounded-2xl p-5 border border-green-100">
+          <h3 className="font-bold text-gray-700 mb-3">
+            Consejos rápidos para esta semana
+          </h3>
+
+          <div className="space-y-2">
+            {tips.map((tip, index) => (
+              <p key={`${tip}-${index}`} className="text-gray-600 text-sm">
+                ✅ {tip}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
   );
 };
 
