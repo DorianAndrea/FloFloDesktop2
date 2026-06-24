@@ -201,181 +201,194 @@ const PerfilSensorial = () => {
       setSaving(false);
     }
   };
-
+  const previousProfile = history?.[1] || null;
   if (loading) {
     return <p className="text-center mt-10">Cargando perfil sensorial...</p>;
   }
 
   return (
-  <main className="min-h-screen bg-purple-50 px-6 py-10">
-    <section className="max-w-5xl mx-auto">
-      <div className="bg-white rounded-3xl shadow-md p-6 md:p-8 mb-8">
-        <h1 className="text-3xl md:text-4xl font-bold text-purple-700 mb-3">
-          Perfil Sensorial
-        </h1>
+    <main className="min-h-screen bg-purple-50 px-6 py-10">
+      <section className="max-w-5xl mx-auto">
+        <div className="bg-white rounded-3xl shadow-md p-6 md:p-8 mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold text-purple-700 mb-3">
+            Perfil Sensorial
+          </h1>
 
-        {isParent ? (
-          <p className="text-gray-600">
-            Estás viendo el perfil sensorial de{" "}
-            <span className="font-bold text-purple-700">
-              {selectedChild
-                ? `${selectedChild.firstName || ""} ${
-                    selectedChild.lastName || ""
-                  }`
-                : "un niño seleccionado"}
-            </span>
-            .
-          </p>
-        ) : (
-          <p className="text-gray-600">
-            Registra información importante sobre sensibilidades, señales de
-            sobrecarga y estrategias que ayudan. Cada vez que guardes, FloFlo
-            conservará una versión en el historial.
-          </p>
-        )}
-      </div>
-
-      {isParent && !selectedChild && (
-        <div className="bg-white rounded-3xl shadow-md p-6 border border-purple-100">
-          <p className="text-gray-600">
-            No hay un niño seleccionado. Selecciona un niño desde el Panel de
-            Padres para ver su perfil sensorial.
-          </p>
+          {isParent ? (
+            <p className="text-gray-600">
+              Estás viendo el perfil sensorial de{" "}
+              <span className="font-bold text-purple-700">
+                {selectedChild
+                  ? `${selectedChild.firstName || ""} ${
+                      selectedChild.lastName || ""
+                    }`
+                  : "un niño seleccionado"}
+              </span>
+              .
+            </p>
+          ) : (
+            <p className="text-gray-600">
+              Registra información importante sobre sensibilidades, señales de
+              sobrecarga y estrategias que ayudan. Cada vez que guardes, FloFlo
+              conservará una versión en el historial.
+            </p>
+          )}
         </div>
-      )}
 
-      {isParent && selectedChild && (
-        <>
-          <div className="bg-white rounded-3xl shadow-md p-6 md:p-8 border border-purple-100">
-            <div className="mb-6">
-              <h2 className="text-2xl font-bold text-purple-700">
-                Resumen sensorial actual
-              </h2>
-
-              <LastUpdatedInfo date={lastUpdatedAt} />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {fields.map((field) => (
-                <InfoCard
-                  key={field.name}
-                  title={field.label}
-                  value={profile[field.name]}
-                />
-              ))}
-            </div>
+        {isParent && !selectedChild && (
+          <div className="bg-white rounded-3xl shadow-md p-6 border border-purple-100">
+            <p className="text-gray-600">
+              No hay un niño seleccionado. Selecciona un niño desde el Panel de
+              Padres para ver su perfil sensorial.
+            </p>
           </div>
+        )}
 
-          <HistorySection history={history} />
-        </>
-      )}
-
-      {isChild && !isEditing && hasProfileData && (
-        <>
-          <div className="bg-white rounded-3xl shadow-md p-6 md:p-8 border border-purple-100">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-              <div>
+        {isParent && selectedChild && (
+          <>
+            <div className="bg-white rounded-3xl shadow-md p-6 md:p-8 border border-purple-100">
+              <div className="mb-6">
                 <h2 className="text-2xl font-bold text-purple-700">
-                  Mi resumen sensorial actual
+                  Resumen sensorial actual
                 </h2>
 
                 <LastUpdatedInfo date={lastUpdatedAt} />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {fields.map((field) => (
+                  <InfoCard
+                    key={field.name}
+                    title={field.label}
+                    value={profile[field.name]}
+                  />
+                ))}
+              </div>
+            </div>
+            <CompareSensoryVersions
+              currentProfile={profile}
+              previousProfile={previousProfile}
+            />
+
+            <HistorySection history={history} />
+          </>
+        )}
+
+        {isChild && !isEditing && hasProfileData && (
+          <>
+            <div className="bg-white rounded-3xl shadow-md p-6 md:p-8 border border-purple-100">
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-purple-700">
+                    Mi resumen sensorial actual
+                  </h2>
+
+                  <LastUpdatedInfo date={lastUpdatedAt} />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl font-bold shadow-md w-fit"
+                >
+                  Editar perfil
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {fields.map((field) => (
+                  <InfoCard
+                    key={field.name}
+                    title={field.label}
+                    value={profile[field.name]}
+                  />
+                ))}
+              </div>
+            </div>
+            <CompareSensoryVersions
+              currentProfile={profile}
+              previousProfile={previousProfile}
+            />
+
+            <HistorySection history={history} />
+          </>
+        )}
+
+        {isChild && (!hasProfileData || isEditing) && (
+          <>
+            <form
+              onSubmit={handleSave}
+              className="bg-white rounded-3xl shadow-md p-6 md:p-8 border border-purple-100"
+            >
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-purple-700">
+                    {hasProfileData
+                      ? "Editar perfil sensorial"
+                      : "Completar perfil"}
+                  </h2>
+
+                  <p className="text-gray-500 mt-1">
+                    Al guardar, esta versión quedará registrada en el historial
+                    sensorial.
+                  </p>
+
+                  <LastUpdatedInfo date={lastUpdatedAt} />
+                </div>
+
+                {hasProfileData && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditing(false);
+                      loadProfile();
+                    }}
+                    className="bg-white text-purple-700 border border-purple-200 px-5 py-3 rounded-xl font-bold shadow-sm w-fit"
+                  >
+                    Cancelar
+                  </button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {fields.map((field) => (
+                  <div key={field.name}>
+                    <label className="block text-sm font-bold text-purple-700 mb-2">
+                      {field.label}
+                    </label>
+
+                    <textarea
+                      name={field.name}
+                      value={profile[field.name]}
+                      onChange={handleChange}
+                      placeholder={field.placeholder}
+                      rows={4}
+                      className="w-full border border-purple-200 rounded-2xl px-4 py-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-300"
+                    />
+                  </div>
+                ))}
               </div>
 
               <button
-                type="button"
-                onClick={() => setIsEditing(true)}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl font-bold shadow-md w-fit"
+                type="submit"
+                disabled={saving}
+                className="mt-6 bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl font-bold shadow-md disabled:opacity-50"
               >
-                Editar perfil
+                {saving ? "Guardando..." : "Guardar perfil sensorial"}
               </button>
-            </div>
+            </form>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {fields.map((field) => (
-                <InfoCard
-                  key={field.name}
-                  title={field.label}
-                  value={profile[field.name]}
-                />
-              ))}
-            </div>
-          </div>
+            <CompareSensoryVersions
+              currentProfile={profile}
+              previousProfile={previousProfile}
+            />
 
-          <HistorySection history={history} />
-        </>
-      )}
-
-      {isChild && (!hasProfileData || isEditing) && (
-        <>
-          <form
-            onSubmit={handleSave}
-            className="bg-white rounded-3xl shadow-md p-6 md:p-8 border border-purple-100"
-          >
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-              <div>
-                <h2 className="text-2xl font-bold text-purple-700">
-                  {hasProfileData
-                    ? "Editar perfil sensorial"
-                    : "Completar perfil"}
-                </h2>
-
-                <p className="text-gray-500 mt-1">
-                  Al guardar, esta versión quedará registrada en el historial
-                  sensorial.
-                </p>
-
-                <LastUpdatedInfo date={lastUpdatedAt} />
-              </div>
-
-              {hasProfileData && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsEditing(false);
-                    loadProfile();
-                  }}
-                  className="bg-white text-purple-700 border border-purple-200 px-5 py-3 rounded-xl font-bold shadow-sm w-fit"
-                >
-                  Cancelar
-                </button>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {fields.map((field) => (
-                <div key={field.name}>
-                  <label className="block text-sm font-bold text-purple-700 mb-2">
-                    {field.label}
-                  </label>
-
-                  <textarea
-                    name={field.name}
-                    value={profile[field.name]}
-                    onChange={handleChange}
-                    placeholder={field.placeholder}
-                    rows={4}
-                    className="w-full border border-purple-200 rounded-2xl px-4 py-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-300"
-                  />
-                </div>
-              ))}
-            </div>
-
-            <button
-              type="submit"
-              disabled={saving}
-              className="mt-6 bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl font-bold shadow-md disabled:opacity-50"
-            >
-              {saving ? "Guardando..." : "Guardar perfil sensorial"}
-            </button>
-          </form>
-
-          <HistorySection history={history} />
-        </>
-      )}
-    </section>
-  </main>
-);
+            <HistorySection history={history} />
+          </>
+        )}
+      </section>
+    </main>
+  );
 };
 const LastUpdatedInfo = ({ date }) => {
   if (!date) {
@@ -446,6 +459,91 @@ const HistorySection = ({ history }) => {
   );
 };
 
+const CompareSensoryVersions = ({ currentProfile, previousProfile }) => {
+  if (!previousProfile) {
+    return (
+      <div className="bg-white rounded-3xl shadow-md p-6 md:p-8 border border-purple-100 mt-8">
+        <p className="text-sm font-bold text-purple-500 mb-1">
+          🔍 Comparación sensorial
+        </p>
+
+        <h2 className="text-2xl font-bold text-purple-700 mb-2">
+          Cambios respecto a la versión anterior
+        </h2>
+
+        <p className="text-gray-500">
+          Todavía se necesita al menos una versión anterior para comparar
+          cambios.
+        </p>
+      </div>
+    );
+  }
+
+  const changes = fields
+    .map((field) => {
+      const currentValue = currentProfile[field.name]?.trim() || "";
+      const previousValue = previousProfile[field.name]?.trim() || "";
+
+      if (currentValue === previousValue) return null;
+
+      return {
+        label: field.label,
+        before: previousValue || "Sin información registrada",
+        after: currentValue || "Sin información registrada",
+      };
+    })
+    .filter(Boolean);
+
+  return (
+    <div className="bg-white rounded-3xl shadow-md p-6 md:p-8 border border-purple-100 mt-8">
+      <p className="text-sm font-bold text-purple-500 mb-1">
+        🔍 Comparación sensorial
+      </p>
+
+      <h2 className="text-2xl font-bold text-purple-700 mb-2">
+        Cambios respecto a la versión anterior
+      </h2>
+
+      <p className="text-gray-600 mb-6">
+        Esta sección muestra qué cambió entre el perfil sensorial actual y la
+        versión anterior guardada.
+      </p>
+
+      {changes.length === 0 ? (
+        <p className="text-gray-500">
+          No se detectaron cambios respecto a la versión anterior.
+        </p>
+      ) : (
+        <div className="space-y-4">
+          {changes.map((change) => (
+            <article
+              key={change.label}
+              className="bg-purple-50 rounded-2xl p-5 border border-purple-100"
+            >
+              <h3 className="font-bold text-purple-700 mb-3">{change.label}</h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-white rounded-xl p-4 border border-purple-100">
+                  <p className="text-sm font-bold text-gray-500 mb-1">Antes</p>
+                  <p className="text-gray-600 whitespace-pre-line">
+                    {change.before}
+                  </p>
+                </div>
+
+                <div className="bg-white rounded-xl p-4 border border-green-100">
+                  <p className="text-sm font-bold text-green-700 mb-1">Ahora</p>
+                  <p className="text-gray-600 whitespace-pre-line">
+                    {change.after}
+                  </p>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 const HistoryCard = ({ item, index }) => {
   const [isOpen, setIsOpen] = useState(false);
 
