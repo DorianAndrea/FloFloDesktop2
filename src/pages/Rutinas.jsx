@@ -18,6 +18,10 @@ const Rutinas = () => {
   const [routines, setRoutines] = useState([]);
   const [editingId, setEditingId] = useState(null);
   const [newAchievement, setNewAchievement] = useState(null);
+
+  const [routineToDelete, setRoutineToDelete] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
   const { user } = useFloFlo();
 
   const loadRoutines = async () => {
@@ -39,6 +43,14 @@ const Rutinas = () => {
   useEffect(() => {
     loadRoutines();
   }, [user]);
+
+  const resetForm = () => {
+    setName("");
+    setStartTime("");
+    setEndTime("");
+    setDescription("");
+    setEditingId(null);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -82,12 +94,7 @@ const Rutinas = () => {
         alert("Rutina creada correctamente");
       }
 
-      setName("");
-      setStartTime("");
-      setEndTime("");
-      setDescription("");
-      setEditingId(null);
-
+      resetForm();
       await loadRoutines();
     } catch (error) {
       console.error(error);
@@ -95,15 +102,33 @@ const Rutinas = () => {
     }
   };
 
-  const handleDelete = async (id) => {
+  const openDeleteModal = (routine) => {
+    setRoutineToDelete(routine);
+  };
+
+  const closeDeleteModal = () => {
+    if (isDeleting) return;
+    setRoutineToDelete(null);
+  };
+
+  const confirmDeleteRoutine = async () => {
+    if (!routineToDelete) return;
+
     try {
-      await deleteRoutine(id);
+      setIsDeleting(true);
+
+      await deleteRoutine(routineToDelete.id);
+
+      setRoutineToDelete(null);
       await loadRoutines();
     } catch (error) {
       console.error(error);
       alert("Error al eliminar la rutina");
+    } finally {
+      setIsDeleting(false);
     }
   };
+
   const handleCompleteRoutine = async (id) => {
     try {
       const response = await completeRoutine(id);
@@ -131,14 +156,16 @@ const Rutinas = () => {
 
   const handleEdit = (routine) => {
     setEditingId(routine.id);
-    setName(routine.name);
-    setStartTime(routine.start_time);
-    setEndTime(routine.end_time);
-    setDescription(routine.description);
+    setName(routine.name || "");
+    setStartTime(routine.start_time || "");
+    setEndTime(routine.end_time || "");
+    setDescription(routine.description || "");
   };
+
   return (
     <div className="relative min-h-screen bg-[#F3ECFF] px-6 py-10 overflow-hidden">
       <AchievementPopup achievement={newAchievement} />
+
       {newAchievement && (
         <div className="fixed top-24 right-8 z-50 bg-white rounded-3xl shadow-xl p-6 border-4 border-yellow-300 max-w-sm">
           <div className="text-5xl mb-3">{newAchievement.icon}</div>
@@ -152,6 +179,50 @@ const Rutinas = () => {
           </h3>
 
           <p className="text-[#6B5A95] mt-2">{newAchievement.description}</p>
+        </div>
+      )}
+
+      {routineToDelete && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center px-6">
+          <div className="bg-white rounded-[2rem] shadow-2xl p-8 max-w-md w-full border-4 border-red-100">
+            <div className="text-5xl mb-4 text-center">🗑️</div>
+
+            <h2 className="text-3xl font-extrabold text-[#4B367C] text-center mb-3">
+              ¿Eliminar esta rutina?
+            </h2>
+
+            <p className="text-[#6B5A95] text-center mb-2">
+              Estás por eliminar:
+            </p>
+
+            <p className="text-xl font-bold text-center text-red-500 mb-5">
+              {routineToDelete.name}
+            </p>
+
+            <p className="text-[#6B5A95] text-center mb-8">
+              Esta acción no se puede deshacer.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-4">
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                disabled={isDeleting}
+                className="w-full bg-[#E8DDFF] hover:bg-[#D8C7FF] text-[#4B367C] font-bold py-3 rounded-2xl transition disabled:opacity-60"
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                onClick={confirmDeleteRoutine}
+                disabled={isDeleting}
+                className="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-2xl transition disabled:opacity-60"
+              >
+                {isDeleting ? "Eliminando..." : "Sí, eliminar"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -213,14 +284,15 @@ const Rutinas = () => {
 
           <div>
             <label className="block text-[#4B367C] font-semibold mb-2">
-              Descripción
+              Descripción{" "}
+              <span className="text-[#9B7BE8] font-normal">(opcional)</span>
             </label>
 
             <textarea
               rows="4"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe la actividad, instrucciones o detalles importantes..."
+              placeholder="Describe la actividad, instrucciones o detalles opcionales..."
               className="w-full p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8] transition resize-none"
             />
           </div>
@@ -231,11 +303,23 @@ const Rutinas = () => {
           >
             {editingId ? "Actualizar Rutina" : "Guardar Rutina"}
           </button>
+
+          {editingId && (
+            <button
+              type="button"
+              onClick={resetForm}
+              className="w-full bg-[#E8DDFF] hover:bg-[#D8C7FF] text-[#4B367C] font-bold py-4 rounded-2xl transition"
+            >
+              Cancelar edición
+            </button>
+          )}
         </form>
       </div>
 
       <div className="w-full max-w-2xl bg-white rounded-[2rem] shadow-lg p-8 mx-auto mt-8">
-        <h2 className="text-3xl font-bold text-[#4B367C] mb-6">Mis Rutinas</h2>
+        <h2 className="text-3xl font-bold text-[#4B367C] mb-6">
+          Mis Rutinas
+        </h2>
 
         {routines.length === 0 ? (
           <p className="text-[#6B5A95]">No hay rutinas creadas todavía.</p>
@@ -253,9 +337,12 @@ const Rutinas = () => {
                 {routine.start_time} - {routine.end_time}
               </p>
 
-              <p className="text-[#6B5A95] mt-2">{routine.description}</p>
+              {routine.description && (
+                <p className="text-[#6B5A95] mt-2">{routine.description}</p>
+              )}
 
               <button
+                type="button"
                 onClick={() => handleEdit(routine)}
                 className="mt-4 mr-3 bg-[#9B7BE8] hover:bg-[#8B6FD6] text-white font-bold py-2 px-4 rounded-xl"
               >
@@ -263,6 +350,7 @@ const Rutinas = () => {
               </button>
 
               <button
+                type="button"
                 onClick={() => handleCompleteRoutine(routine.id)}
                 className="mt-4 mr-3 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-xl"
               >
@@ -270,7 +358,8 @@ const Rutinas = () => {
               </button>
 
               <button
-                onClick={() => handleDelete(routine.id)}
+                type="button"
+                onClick={() => openDeleteModal(routine)}
                 className="mt-4 bg-red-400 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-xl"
               >
                 Eliminar
@@ -284,3 +373,4 @@ const Rutinas = () => {
 };
 
 export default Rutinas;
+
