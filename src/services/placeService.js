@@ -52,3 +52,11 @@ export const completePlace = async (id) => {
   const response = await api.post(`/places/${id}/complete`);
   return response.data;
 };
+
+export const replacePlaceSteps = async (placeId, steps) => {
+  const response = await api.put(`/places/${placeId}/steps/replace`, {
+    steps,
+  });
+
+  return response.data;
+};

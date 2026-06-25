@@ -7,8 +7,10 @@ import {
   updatePlace,
   deletePlace,
   completePlace,
+  replacePlaceSteps,
 } from "../services/placeService";
 
+import { generatePlaceSteps } from "../services/aiService";
 import felix from "../assets/webp/felix_respirando.webp";
 
 const lugaresDemo = [
@@ -77,6 +79,15 @@ const lugaresDemo = [
   },
 ];
 
+const defaultSteps = [
+  "Vamos a salir de casa.",
+  "Iremos al lugar.",
+  "Llegaremos y miraremos alrededor.",
+  "Saludaremos a las personas presentes.",
+  "Haremos la actividad preparada.",
+  "Luego volveremos a casa.",
+];
+
 const LugarDetalle = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -87,6 +98,8 @@ const LugarDetalle = () => {
   const [modoPreparacion, setModoPreparacion] = useState(false);
   const [pasoActual, setPasoActual] = useState(0);
   const [editing, setEditing] = useState(false);
+  const [editingSteps, setEditingSteps] = useState([]);
+  const [generandoIA, setGenerandoIA] = useState(false);
 
   const [form, setForm] = useState({
     nombre: "",
@@ -109,12 +122,20 @@ const LugarDetalle = () => {
         );
 
         setLugar(lugarDemo || null);
+        setEditingSteps(lugarDemo?.pasos || defaultSteps);
         return;
       }
 
       const data = await getPlaceById(id);
       const stepsData = await getPlaceSteps(id);
-      const pasosBD = stepsData.map((step) => step.description);
+
+      const pasosBD = Array.isArray(stepsData)
+        ? stepsData
+            .map((step) => step.description)
+            .filter((step) => typeof step === "string" && step.trim() !== "")
+        : [];
+
+      const pasosFinales = pasosBD.length > 0 ? pasosBD : defaultSteps;
 
       const lugarFormateado = {
         id: data.id,
@@ -128,20 +149,11 @@ const LugarDetalle = () => {
         duracion: data.estimated_duration,
         consejos: data.tips,
         emoji: "📍",
-        pasos:
-          pasosBD.length > 0
-            ? pasosBD
-            : [
-                "Vamos a salir de casa.",
-                "Iremos al lugar.",
-                "Llegaremos y miraremos alrededor.",
-                "Saludaremos a las personas presentes.",
-                "Haremos la actividad preparada.",
-                "Luego volveremos a casa.",
-              ],
+        pasos: pasosFinales,
       };
 
       setLugar(lugarFormateado);
+      setEditingSteps(pasosFinales);
 
       setForm({
         nombre: data.name || "",
@@ -172,6 +184,57 @@ const LugarDetalle = () => {
     });
   };
 
+  const handleGenerateStepsAI = async () => {
+    if (!form.nombre.trim()) {
+      alert("Primero ingresa el nombre del lugar");
+      return;
+    }
+
+    if (!form.actividad.trim()) {
+      alert("Primero ingresa qué se hará en ese lugar");
+      return;
+    }
+
+    try {
+      setGenerandoIA(true);
+
+      const data = await generatePlaceSteps({
+        placeName: form.nombre,
+        activity: form.actividad,
+        people: form.personas,
+        transport: form.transporte,
+        duration: form.duracion,
+      });
+
+      if (!data.steps || !Array.isArray(data.steps)) {
+        alert("La IA no devolvió pasos válidos");
+        return;
+      }
+
+      setEditingSteps(data.steps);
+      alert("Félix regeneró los pasos correctamente");
+    } catch (error) {
+      console.error(error);
+      alert("Error al regenerar pasos con Félix");
+    } finally {
+      setGenerandoIA(false);
+    }
+  };
+
+  const handleStepChange = (index, value) => {
+    const newSteps = [...editingSteps];
+    newSteps[index] = value;
+    setEditingSteps(newSteps);
+  };
+
+  const addStep = () => {
+    setEditingSteps([...editingSteps, ""]);
+  };
+
+  const removeStep = (index) => {
+    setEditingSteps(editingSteps.filter((_, i) => i !== index));
+  };
+
   const handleUpdateLugar = async (e) => {
     e.preventDefault();
 
@@ -196,9 +259,14 @@ const LugarDetalle = () => {
       formData.append("transport", form.transporte.trim());
       formData.append("estimated_duration", form.duracion.trim());
       formData.append("tips", form.consejos.trim());
-      formData.append("image", lugar.imagen || "");
 
       const updated = await updatePlace(id, formData);
+
+      const pasosValidos = editingSteps
+        .map((step) => String(step || "").trim())
+        .filter((step) => step !== "");
+
+      await replacePlaceSteps(id, pasosValidos);
 
       setLugar({
         ...lugar,
@@ -211,6 +279,7 @@ const LugarDetalle = () => {
         duracion: updated.estimated_duration,
         consejos: updated.tips,
         imagen: updated.image,
+        pasos: pasosValidos,
       });
 
       setEditing(false);
@@ -257,12 +326,30 @@ const LugarDetalle = () => {
       }
 
       alert("🎉 ¡Muy bien! Félix te ayudó a prepararte. Ganaste una estrella.");
-
       setModoPreparacion(false);
     } catch (error) {
       console.error(error);
       alert("Error al guardar la preparación del lugar");
     }
+  };
+
+  const handleCancelEdit = () => {
+    setEditing(false);
+
+    if (!lugar) return;
+
+    setForm({
+      nombre: lugar.nombre || "",
+      direccion: lugar.direccion || "",
+      descripcion: lugar.descripcion || "",
+      actividad: lugar.actividad || "",
+      personas: lugar.personas || "",
+      transporte: lugar.transporte || "",
+      duracion: lugar.duracion || "",
+      consejos: lugar.consejos || "",
+    });
+
+    setEditingSteps(lugar.pasos || defaultSteps);
   };
 
   if (loading) {
@@ -303,14 +390,17 @@ const LugarDetalle = () => {
 
           <div className="flex justify-center gap-4">
             <button
+              type="button"
               onClick={anteriorPaso}
               disabled={pasoActual === 0}
               className="px-6 py-3 rounded-full bg-[#E8DDFF] text-[#4B367C] font-bold disabled:opacity-40"
             >
               Anterior
             </button>
+
             {pasoActual === lugar.pasos.length - 1 ? (
               <button
+                type="button"
                 onClick={prepararLugar}
                 className="px-6 py-3 rounded-full bg-green-500 text-white font-bold"
               >
@@ -318,6 +408,7 @@ const LugarDetalle = () => {
               </button>
             ) : (
               <button
+                type="button"
                 onClick={siguientePaso}
                 className="px-6 py-3 rounded-full bg-[#9B7BE8] text-white font-bold"
               >
@@ -327,6 +418,7 @@ const LugarDetalle = () => {
           </div>
 
           <button
+            type="button"
             onClick={() => setModoPreparacion(false)}
             className="mt-6 text-[#6B5A95] font-semibold"
           >
@@ -336,9 +428,10 @@ const LugarDetalle = () => {
       </main>
     );
   }
+
   const imagenValida =
-  lugar.imagen &&
-  lugar.imagen.startsWith("https://res.cloudinary.com");
+    lugar.imagen && lugar.imagen.startsWith("https://res.cloudinary.com");
+
   return (
     <main className="min-h-screen bg-[#F3ECFF] px-6 py-10">
       <section className="max-w-6xl mx-auto">
@@ -348,7 +441,7 @@ const LugarDetalle = () => {
         >
           ← Volver a lugares
         </Link>
-   
+
         {imagenValida ? (
           <img
             src={lugar.imagen}
@@ -366,7 +459,13 @@ const LugarDetalle = () => {
             <div className="flex justify-end gap-3 mb-6">
               <button
                 type="button"
-                onClick={() => setEditing(!editing)}
+                onClick={() => {
+                  if (editing) {
+                    handleCancelEdit();
+                  } else {
+                    setEditing(true);
+                  }
+                }}
                 className="bg-[#E8DDFF] text-[#4B367C] font-bold px-5 py-3 rounded-full"
               >
                 {editing ? "Cancelar edición" : "Editar lugar"}
@@ -451,6 +550,61 @@ const LugarDetalle = () => {
                 className="md:col-span-2 p-4 rounded-2xl border-2 border-[#DCCCF8]"
               />
 
+              <div className="md:col-span-2 bg-[#F3ECFF] rounded-[2rem] p-6">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-5">
+                  <div>
+                    <h2 className="text-2xl font-bold text-[#4B367C] mb-2">
+                      Pasos para prepararme
+                    </h2>
+
+                    <p className="text-[#6B5A95]">
+                      Puedes editar los pasos o pedirle a Félix que los regenere
+                      con IA.
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleGenerateStepsAI}
+                    disabled={generandoIA}
+                    className="bg-[#4B367C] hover:bg-[#3E2E68] text-white font-bold px-5 py-3 rounded-full disabled:opacity-50"
+                  >
+                    {generandoIA ? "Generando..." : "✨ Regenerar con Félix"}
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  {editingSteps.map((step, index) => (
+                    <div key={`${index}-${step}`} className="flex gap-3">
+                      <input
+                        value={step}
+                        onChange={(e) =>
+                          handleStepChange(index, e.target.value)
+                        }
+                        placeholder={`Paso ${index + 1}`}
+                        className="flex-1 p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8]"
+                      />
+
+                      <button
+                        type="button"
+                        onClick={() => removeStep(index)}
+                        className="px-4 rounded-2xl bg-red-100 text-red-600 font-bold"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={addStep}
+                  className="mt-5 bg-white text-[#4B367C] font-bold px-5 py-3 rounded-full shadow"
+                >
+                  + Agregar paso
+                </button>
+              </div>
+
               <button
                 type="submit"
                 className="md:col-span-2 bg-[#9B7BE8] text-white font-bold py-4 rounded-2xl"
@@ -509,6 +663,7 @@ const LugarDetalle = () => {
                 </div>
 
                 <button
+                  type="button"
                   onClick={() => {
                     setPasoActual(0);
                     setModoPreparacion(true);
