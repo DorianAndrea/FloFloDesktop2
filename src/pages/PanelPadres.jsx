@@ -432,6 +432,9 @@ const PanelPadres = () => {
           />
           <Card titulo="Logros" valor={dashboard.achievements} emoji="⭐" />
         </div>
+        {dashboard.wellnessStatus && (
+          <WellnessStatusCard status={dashboard.wellnessStatus} />
+        )}
         {user?.role === "parent" && selectedChild && (
           <section className="mt-10 bg-white rounded-3xl p-6 shadow-md border border-purple-100">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-5">
@@ -801,6 +804,82 @@ const Card = ({ titulo, valor, emoji }) => {
       <h2 className="text-lg font-semibold text-gray-700">{titulo}</h2>
       <p className="text-4xl font-bold text-purple-600 mt-2">{valor ?? 0}</p>
     </div>
+  );
+};
+const WellnessStatusCard = ({ status }) => {
+  if (!status) return null;
+
+  const reasons = Array.isArray(status.reasons) ? status.reasons : [];
+
+  const styles = {
+    green: {
+      card: "bg-green-50 border-green-200",
+      badge: "bg-green-100 text-green-700",
+      title: "text-green-700",
+    },
+    yellow: {
+      card: "bg-yellow-50 border-yellow-200",
+      badge: "bg-yellow-100 text-yellow-700",
+      title: "text-yellow-700",
+    },
+    red: {
+      card: "bg-red-50 border-red-200",
+      badge: "bg-red-100 text-red-700",
+      title: "text-red-700",
+    },
+  };
+
+  const currentStyle = styles[status.level] || styles.yellow;
+
+  return (
+    <section
+      className={`mt-10 rounded-3xl p-6 shadow-md border ${currentStyle.card}`}
+    >
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+        <div>
+          <p className="text-sm font-bold text-gray-500 mb-1">
+            Semáforo de bienestar
+          </p>
+
+          <h2 className={`text-2xl font-bold ${currentStyle.title}`}>
+            {status.icon || "🟡"} {status.title || "Requiere observación"}
+          </h2>
+
+          <p className="text-gray-600 mt-2">
+            {status.message ||
+              "Resumen general del estado actual según los registros recientes."}
+          </p>
+        </div>
+
+        <span
+          className={`px-4 py-2 rounded-full text-sm font-bold w-fit ${currentStyle.badge}`}
+        >
+          Puntaje: {status.score ?? 0}
+        </span>
+      </div>
+
+      {reasons.length > 0 && (
+        <div className="mt-5">
+          <h3 className="font-bold text-gray-700 mb-3">Motivos principales</h3>
+
+          <div className="space-y-2">
+            {reasons.map((reason, index) => (
+              <p key={`${reason}-${index}`} className="text-gray-600 text-sm">
+                • {reason}
+              </p>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {status.suggestedAction && (
+        <div className="mt-5 bg-white/70 rounded-2xl p-4 border border-white">
+          <h3 className="font-bold text-gray-700 mb-1">Acción sugerida</h3>
+
+          <p className="text-gray-600 text-sm">{status.suggestedAction}</p>
+        </div>
+      )}
+    </section>
   );
 };
 
