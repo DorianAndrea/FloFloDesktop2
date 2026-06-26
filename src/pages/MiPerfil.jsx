@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { getMe, updateMe } from "../services/authService";
 import { useFloFlo } from "../context/FloFloContext";
+import { useFeedback } from "../context/FeedbackContext";
 import { formatRut } from "../utils/formatRut";
 
 const MiPerfil = () => {
   const { setUser } = useFloFlo();
+  const { showFeedback } = useFeedback();
 
   const [user, setProfileUser] = useState(null);
   const [editing, setEditing] = useState(false);
@@ -20,8 +22,8 @@ const MiPerfil = () => {
   const loadProfile = async () => {
     try {
       const data = await getMe();
-      setProfileUser(data);
 
+      setProfileUser(data);
       setFirstName(data.firstName || "");
       setLastName(data.lastName || "");
       setRut(data.rut || "");
@@ -31,9 +33,17 @@ const MiPerfil = () => {
       setPreview(data.avatar || "");
     } catch (error) {
       console.error(error);
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudo cargar el perfil",
+        message: "Intenta nuevamente en unos segundos.",
+      });
     }
   };
-  <option value="child">Niño</option>;
+
   useEffect(() => {
     loadProfile();
   }, []);
@@ -54,12 +64,24 @@ const MiPerfil = () => {
     e.preventDefault();
 
     if (!firstName.trim()) {
-      alert("El nombre es obligatorio");
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta información",
+        title: "Nombre obligatorio",
+        message: "Debes ingresar tu nombre antes de guardar.",
+      });
       return;
     }
 
     if (!lastName.trim()) {
-      alert("El apellido es obligatorio");
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta información",
+        title: "Apellido obligatorio",
+        message: "Debes ingresar tu apellido antes de guardar.",
+      });
       return;
     }
 
@@ -76,8 +98,6 @@ const MiPerfil = () => {
         formData.append("avatar", avatar);
       }
 
-      console.log("ROLE QUE ENVÍO:", role);
-
       const updatedUser = await updateMe(formData);
 
       const safeUpdatedUser = {
@@ -91,10 +111,24 @@ const MiPerfil = () => {
       localStorage.setItem("user", JSON.stringify(safeUpdatedUser));
 
       setEditing(false);
-      alert("Perfil actualizado correctamente");
+
+      showFeedback({
+        type: "success",
+        icon: "✅",
+        label: "Cambios guardados",
+        title: "Perfil actualizado",
+        message: "Tu información se guardó correctamente.",
+      });
     } catch (error) {
       console.error(error);
-      alert("Error al actualizar perfil");
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudo actualizar",
+        message: "Revisa los datos e intenta nuevamente.",
+      });
     }
   };
 
@@ -114,6 +148,7 @@ const MiPerfil = () => {
             <h1 className="text-4xl md:text-5xl font-bold text-[#4B367C]">
               Mi Perfil
             </h1>
+
             <p className="text-[#6B5A95] mt-2">
               Revisa y actualiza tu información de FloFlo.
             </p>
@@ -150,6 +185,7 @@ const MiPerfil = () => {
 
               <div className="bg-[#FDFBFF] border border-[#E4D8FF] rounded-2xl p-5">
                 <p className="text-gray-500">Rol</p>
+
                 <p
                   className={`inline-block mt-2 px-4 py-2 rounded-full font-bold ${
                     user.role === "parent"
@@ -163,6 +199,7 @@ const MiPerfil = () => {
 
               <div className="bg-[#FDFBFF] border border-[#E4D8FF] rounded-2xl p-5">
                 <p className="text-gray-500">Rut</p>
+
                 <p className="text-xl font-semibold">
                   {user.rut ? formatRut(user.rut) : "No registrado"}
                 </p>
@@ -170,6 +207,7 @@ const MiPerfil = () => {
 
               <div className="bg-[#FDFBFF] border border-[#E4D8FF] rounded-2xl p-5">
                 <p className="text-gray-500">Fecha nacimiento</p>
+
                 <p className="text-xl font-semibold">
                   {user.birth_date
                     ? new Date(user.birth_date).toLocaleDateString()
@@ -179,6 +217,7 @@ const MiPerfil = () => {
 
               <div className="bg-[#FDFBFF] border border-[#E4D8FF] rounded-2xl p-5 md:col-span-2">
                 <p className="text-gray-500">Miembro desde</p>
+
                 <p className="text-xl font-semibold">
                   {new Date(user.created_at).toLocaleDateString()}
                 </p>

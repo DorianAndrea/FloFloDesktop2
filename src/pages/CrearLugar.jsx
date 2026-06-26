@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPlace, createPlaceStep } from "../services/placeService";
 import { generatePlaceSteps } from "../services/aiService";
+import { useFeedback } from "../context/FeedbackContext";
 
 const CrearLugar = () => {
   const [form, setForm] = useState({
@@ -29,6 +30,7 @@ const CrearLugar = () => {
   const [generandoIA, setGenerandoIA] = useState(false);
 
   const navigate = useNavigate();
+  const { showFeedback } = useFeedback();
 
   const handleChange = (e) => {
     setForm({
@@ -62,12 +64,24 @@ const CrearLugar = () => {
 
   const handleGenerateStepsAI = async () => {
     if (!form.nombre.trim()) {
-      alert("Primero ingresa el nombre del lugar");
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta información",
+        title: "Ingresa el nombre del lugar",
+        message: "Félix necesita saber el nombre para generar los pasos.",
+      });
       return;
     }
 
     if (!form.actividad.trim()) {
-      alert("Primero ingresa qué se hará en ese lugar");
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta información",
+        title: "Describe la actividad",
+        message: "Indica qué se hará en ese lugar para que Félix pueda ayudarte.",
+      });
       return;
     }
 
@@ -83,15 +97,35 @@ const CrearLugar = () => {
       });
 
       if (!data.steps || !Array.isArray(data.steps)) {
-        alert("La IA no devolvió pasos válidos");
+        showFeedback({
+          type: "error",
+          icon: "❌",
+          label: "Algo salió mal",
+          title: "No se generaron pasos",
+          message: "Félix no pudo generar pasos válidos. Intenta nuevamente.",
+        });
         return;
       }
 
       setSteps(data.steps);
-      alert("Félix generó los pasos correctamente");
+
+      showFeedback({
+        type: "success",
+        icon: "✨",
+        label: "Pasos generados",
+        title: "Félix creó los pasos",
+        message: "Puedes revisarlos, editarlos o agregar nuevos pasos antes de guardar.",
+      });
     } catch (error) {
       console.error(error);
-      alert("Error al generar pasos con Félix");
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudo generar",
+        message: "Intenta nuevamente en unos segundos.",
+      });
     } finally {
       setGenerandoIA(false);
     }
@@ -101,12 +135,24 @@ const CrearLugar = () => {
     e.preventDefault();
 
     if (!form.nombre.trim()) {
-      alert("Debes ingresar el nombre del lugar");
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta información",
+        title: "Nombre obligatorio",
+        message: "Debes ingresar el nombre del lugar antes de guardar.",
+      });
       return;
     }
 
     if (!form.descripcion.trim()) {
-      alert("Debes ingresar una descripción");
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta información",
+        title: "Descripción obligatoria",
+        message: "Agrega una descripción simple del lugar antes de guardar.",
+      });
       return;
     }
 
@@ -128,7 +174,9 @@ const CrearLugar = () => {
 
       const lugarCreado = await createPlace(formData);
 
-      const pasosValidos = steps.filter((step) => step.trim() !== "");
+      const pasosValidos = steps
+        .map((step) => String(step || "").trim())
+        .filter((step) => step !== "");
 
       for (let i = 0; i < pasosValidos.length; i++) {
         await createPlaceStep(lugarCreado.id, {
@@ -138,11 +186,25 @@ const CrearLugar = () => {
         });
       }
 
-      alert("Lugar creado correctamente");
+      showFeedback({
+        type: "success",
+        icon: "✅",
+        label: "Lugar creado",
+        title: "Guardado correctamente",
+        message: "El lugar fue creado y ya está disponible en FloFlo.",
+      });
+
       navigate("/lugares");
     } catch (error) {
       console.error(error);
-      alert("Error al crear lugar");
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudo crear el lugar",
+        message: "Revisa los datos e intenta nuevamente.",
+      });
     }
   };
 
@@ -264,7 +326,7 @@ const CrearLugar = () => {
 
             <div className="space-y-4">
               {steps.map((step, index) => (
-                <div key={index} className="flex gap-3">
+                <div key={`step-${index}`} className="flex gap-3">
                   <input
                     value={step}
                     onChange={(e) => handleStepChange(index, e.target.value)}

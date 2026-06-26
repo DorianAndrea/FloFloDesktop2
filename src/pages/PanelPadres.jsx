@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { useFloFlo } from "../context/FloFloContext";
+import { useFeedback } from "../context/FeedbackContext";
 import api from "../services/api";
 import { getChildSensoryProfile } from "../services/sensoryProfileService";
 import {
@@ -10,7 +11,7 @@ import {
 
 const PanelPadres = () => {
   const { user } = useFloFlo();
-
+  const { showFeedback } = useFeedback();
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
   const [children, setChildren] = useState([]);
@@ -211,7 +212,9 @@ const PanelPadres = () => {
 
     try {
       const dashboardData = await getChildDashboard(child.id);
+
       setDashboard(dashboardData);
+
       await loadChildSensoryProfile(child.id);
       await loadWeeklyPlanHistory(child.id);
       await loadEvolutionDashboard(child.id);
@@ -220,7 +223,14 @@ const PanelPadres = () => {
         "Error cargando dashboard del niño:",
         error.response?.data || error,
       );
-      alert("No fue posible cargar el dashboard del niño");
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudo cargar el dashboard",
+        message: "No fue posible cargar la información del niño seleccionado.",
+      });
     } finally {
       setLoading(false);
     }
@@ -229,14 +239,26 @@ const PanelPadres = () => {
   const handleLinkChild = async () => {
     try {
       if (!childEmail.trim()) {
-        alert("Ingresa el correo del niño");
+        showFeedback({
+          type: "warning",
+          icon: "⚠️",
+          label: "Falta información",
+          title: "Ingresa el correo del niño",
+          message: "Debes escribir el correo del niño para asociarlo.",
+        });
         return;
       }
 
       const result = await linkChildToMe(childEmail.trim());
       const linkedChild = result.child;
 
-      alert(`${getChildFirstName(linkedChild)} fue asociado correctamente`);
+      showFeedback({
+        type: "success",
+        icon: "✅",
+        label: "Niño asociado",
+        title: "Asociado correctamente",
+        message: `${getChildFirstName(linkedChild)} fue asociado correctamente a tu cuenta.`,
+      });
 
       const updatedChildren = await getMyChildren();
       setChildren(updatedChildren);
@@ -251,7 +273,9 @@ const PanelPadres = () => {
         saveSelectedChild(childToSelect);
 
         const dashboardData = await getChildDashboard(childToSelect.id);
+
         setDashboard(dashboardData);
+
         await loadChildSensoryProfile(childToSelect.id);
         await loadWeeklyPlanHistory(childToSelect.id);
         await loadEvolutionDashboard(childToSelect.id);
@@ -260,7 +284,16 @@ const PanelPadres = () => {
       setChildEmail("");
     } catch (error) {
       console.error("ERROR ASOCIANDO:", error.response?.data || error);
-      alert(error.response?.data?.message || "No fue posible asociar al niño");
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "No se pudo asociar",
+        title: "Revisa el correo",
+        message:
+          error.response?.data?.message ||
+          "No fue posible asociar al niño. Intenta nuevamente.",
+      });
     }
   };
 
@@ -285,9 +318,24 @@ const PanelPadres = () => {
       link.remove();
 
       window.URL.revokeObjectURL(url);
+
+      showFeedback({
+        type: "success",
+        icon: "📄",
+        label: "Reporte descargado",
+        title: "PDF generado correctamente",
+        message: "El reporte de FloFlo fue descargado en tu computador.",
+      });
     } catch (error) {
       console.error("Error descargando PDF:", error);
-      alert("No se pudo descargar el PDF. Inténtalo nuevamente.");
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudo descargar el PDF",
+        message: "Inténtalo nuevamente en unos segundos.",
+      });
     } finally {
       setIsDownloadingPdf(false);
     }

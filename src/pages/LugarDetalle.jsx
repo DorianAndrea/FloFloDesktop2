@@ -11,6 +11,7 @@ import {
 } from "../services/placeService";
 
 import { generatePlaceSteps } from "../services/aiService";
+import { useFeedback } from "../context/FeedbackContext";
 import felix from "../assets/webp/felix_respirando.webp";
 
 const lugaresDemo = [
@@ -92,6 +93,8 @@ const LugarDetalle = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const esDemo = id.startsWith("demo");
+
+  const { showFeedback, showConfirm } = useFeedback();
 
   const [lugar, setLugar] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -186,12 +189,24 @@ const LugarDetalle = () => {
 
   const handleGenerateStepsAI = async () => {
     if (!form.nombre.trim()) {
-      alert("Primero ingresa el nombre del lugar");
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta información",
+        title: "Ingresa el nombre del lugar",
+        message: "Félix necesita saber el nombre para regenerar los pasos.",
+      });
       return;
     }
 
     if (!form.actividad.trim()) {
-      alert("Primero ingresa qué se hará en ese lugar");
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta información",
+        title: "Describe la actividad",
+        message: "Indica qué se hará en ese lugar para que Félix pueda ayudarte.",
+      });
       return;
     }
 
@@ -207,15 +222,35 @@ const LugarDetalle = () => {
       });
 
       if (!data.steps || !Array.isArray(data.steps)) {
-        alert("La IA no devolvió pasos válidos");
+        showFeedback({
+          type: "error",
+          icon: "❌",
+          label: "Algo salió mal",
+          title: "No se generaron pasos",
+          message: "Félix no pudo generar pasos válidos. Intenta nuevamente.",
+        });
         return;
       }
 
       setEditingSteps(data.steps);
-      alert("Félix regeneró los pasos correctamente");
+
+      showFeedback({
+        type: "success",
+        icon: "✨",
+        label: "Pasos regenerados",
+        title: "Félix actualizó los pasos",
+        message: "Puedes revisarlos y guardar los cambios del lugar.",
+      });
     } catch (error) {
       console.error(error);
-      alert("Error al regenerar pasos con Félix");
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudo regenerar",
+        message: "Intenta nuevamente en unos segundos.",
+      });
     } finally {
       setGenerandoIA(false);
     }
@@ -239,12 +274,24 @@ const LugarDetalle = () => {
     e.preventDefault();
 
     if (!form.nombre.trim()) {
-      alert("Debes ingresar el nombre del lugar");
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta información",
+        title: "Nombre obligatorio",
+        message: "Debes ingresar el nombre del lugar antes de guardar.",
+      });
       return;
     }
 
     if (!form.descripcion.trim()) {
-      alert("Debes ingresar una descripción");
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta información",
+        title: "Descripción obligatoria",
+        message: "Agrega una descripción simple del lugar antes de guardar.",
+      });
       return;
     }
 
@@ -283,27 +330,62 @@ const LugarDetalle = () => {
       });
 
       setEditing(false);
-      alert("Lugar actualizado correctamente");
+
+      showFeedback({
+        type: "success",
+        icon: "✅",
+        label: "Cambios guardados",
+        title: "Lugar actualizado",
+        message: "Los cambios del lugar se guardaron correctamente.",
+      });
     } catch (error) {
       console.error(error);
-      alert("Error al actualizar lugar");
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudo actualizar",
+        message: "Intenta nuevamente en unos segundos.",
+      });
     }
   };
 
   const handleDeleteLugar = async () => {
-    const confirmDelete = window.confirm(
-      "¿Seguro que quieres eliminar este lugar?",
-    );
+    const confirmed = await showConfirm({
+      type: "danger",
+      icon: "🗑️",
+      label: "Eliminar lugar",
+      title: "¿Eliminar este lugar?",
+      message: "Esta acción no se puede deshacer.",
+      confirmText: "Sí, eliminar",
+      cancelText: "Cancelar",
+    });
 
-    if (!confirmDelete) return;
+    if (!confirmed) return;
 
     try {
       await deletePlace(id);
-      alert("Lugar eliminado correctamente");
+
+      showFeedback({
+        type: "success",
+        icon: "✅",
+        label: "Lugar eliminado",
+        title: "Eliminado correctamente",
+        message: "El lugar fue eliminado de FloFlo.",
+      });
+
       navigate("/lugares");
     } catch (error) {
       console.error(error);
-      alert("Error al eliminar lugar");
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudo eliminar",
+        message: "Intenta nuevamente en unos segundos.",
+      });
     }
   };
 
@@ -325,11 +407,25 @@ const LugarDetalle = () => {
         await completePlace(id);
       }
 
-      alert("🎉 ¡Muy bien! Félix te ayudó a prepararte. Ganaste una estrella.");
+      showFeedback({
+        type: "success",
+        icon: "⭐",
+        label: "Preparación completada",
+        title: "¡Muy bien!",
+        message: "Félix te ayudó a prepararte. Ganaste una estrella.",
+      });
+
       setModoPreparacion(false);
     } catch (error) {
       console.error(error);
-      alert("Error al guardar la preparación del lugar");
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudo guardar",
+        message: "No se pudo guardar la preparación del lugar.",
+      });
     }
   };
 
@@ -575,7 +671,7 @@ const LugarDetalle = () => {
 
                 <div className="space-y-4">
                   {editingSteps.map((step, index) => (
-                    <div key={`${index}-${step}`} className="flex gap-3">
+                    <div key={`step-${index}`} className="flex gap-3">
                       <input
                         value={step}
                         onChange={(e) =>
@@ -692,3 +788,4 @@ const InfoCard = ({ icono, titulo, texto }) => {
 };
 
 export default LugarDetalle;
+

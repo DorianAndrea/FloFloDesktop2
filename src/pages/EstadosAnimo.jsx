@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import useSound from "use-sound";
 import { useFloFlo } from "../context/FloFloContext";
-import { createMood } from "../services/moodService";
-import { getMoods } from "../services/moodService";
+import { useFeedback } from "../context/FeedbackContext";
+import { createMood, getMoods } from "../services/moodService";
 
 import feliz from "../assets/webp/felix_cara_sonriendo.webp";
 import sorprendido from "../assets/webp/felix_cara_sorprendido.webp";
@@ -11,13 +11,15 @@ import triste from "../assets/webp/felix_cara_triste_animado.webp";
 import enojado from "../assets/webp/felix_enojado_animado.webp";
 import felixRespirando from "../assets/webp/felix_respirando.webp";
 import felix_asustado from "../assets/webp/felix_asustado_animado_real.webp";
-import felixFeliz from "../assets/svg/felix_feliz.svg"; // NO CAMBIAR
+import felixFeliz from "../assets/svg/felix_feliz.svg";
 import sparkle from "../assets/sounds/sparkle.mp3";
 
 import AchievementPopup from "../components/AchievementPopup";
 
 const EstadosAnimo = () => {
-  const { mood, setMood, user } = useFloFlo();
+  const { setMood, user } = useFloFlo();
+  const { showFeedback } = useFeedback();
+
   const [estadoSeleccionado, setEstadoSeleccionado] = useState(null);
   const [moods, setMoods] = useState([]);
   const [newAchievement, setNewAchievement] = useState(null);
@@ -33,6 +35,7 @@ const EstadosAnimo = () => {
     "felix_respirando.svg": felixRespirando,
     "felix_asustado_animado_real.svg": felix_asustado,
   };
+
   const estados = [
     {
       id: 1,
@@ -48,7 +51,6 @@ const EstadosAnimo = () => {
       valor: "asustado",
       imagen: felix_asustado,
       mensaje: "¡Vaya! Parece que algo te asustó.",
-      //sonido: playAsustado,
     },
     {
       id: 2,
@@ -56,7 +58,6 @@ const EstadosAnimo = () => {
       valor: "triste",
       imagen: triste,
       mensaje: "Veo que estás triste. ¿Quieres respirar conmigo?",
-      //sonido: playTriste,
     },
     {
       id: 3,
@@ -64,34 +65,51 @@ const EstadosAnimo = () => {
       valor: "enojado",
       imagen: enojado,
       mensaje: "Respiremos juntos para calmarnos.",
-      //sonido: playEnojado,
     },
   ];
+
+  const loadMoods = async () => {
+    try {
+      if (!user) return;
+
+      const data = await getMoods();
+      setMoods(data);
+    } catch (error) {
+      console.error(error);
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudo cargar el historial",
+        message: "Intenta nuevamente en unos segundos.",
+      });
+    }
+  };
 
   useEffect(() => {
     loadMoods();
   }, [user]);
 
-  const loadMoods = async () => {
-    try {
-      if (!user) return;
-      const data = await getMoods();
-      setMoods(data);
-    } catch (error) {
-      console.error(error);
-    }
-  };
-
   const seleccionarEstado = async (estado) => {
     if (!user) {
-      alert("Debes iniciar sesión primero");
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Sesión requerida",
+        title: "Debes iniciar sesión",
+        message: "Inicia sesión para guardar cómo te sientes hoy.",
+      });
       return;
     }
+
     setEstadoSeleccionado(estado.valor);
     setMood(estado.valor);
+
     if (estado.sonido) {
       estado.sonido();
     }
+
     try {
       const response = await createMood({
         mood_type_id: estado.id,
@@ -112,11 +130,18 @@ const EstadosAnimo = () => {
       setTimeout(() => {
         setNewAchievement(null);
       }, 5000);
+
       await loadMoods();
-      console.log("Estado guardado");
     } catch (error) {
       console.error(error);
-      alert("Error al guardar estado de ánimo");
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudo guardar",
+        message: "No se pudo guardar tu estado de ánimo. Intenta nuevamente.",
+      });
     }
   };
 
@@ -130,6 +155,7 @@ const EstadosAnimo = () => {
   return (
     <main className="min-h-screen bg-[#F3ECFF] flex flex-col items-center px-6 py-10">
       <AchievementPopup achievement={newAchievement} />
+
       <section className="w-full max-w-6xl text-center pt-6">
         <div className="mb-20">
           <h1 className="text-5xl md:text-7xl font-extrabold text-[#4B367C] mb-6 drop-shadow-sm">
@@ -209,6 +235,7 @@ const EstadosAnimo = () => {
             </motion.div>
           </div>
         )}
+
         <div className="w-full max-w-3xl bg-white rounded-[2rem] shadow-md p-8 mt-16 mx-auto">
           <h2 className="text-3xl font-bold text-[#4B367C] mb-6">
             Historial de emociones
@@ -227,6 +254,7 @@ const EstadosAnimo = () => {
                   alt={mood.mood_name}
                   className="w-20 h-20 object-contain mx-auto mb-3"
                 />
+
                 <h3 className="text-xl font-bold text-[#4B367C]">
                   {mood.mood_name}
                 </h3>

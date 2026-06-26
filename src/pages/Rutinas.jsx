@@ -8,6 +8,7 @@ import {
   completeRoutine,
 } from "../services/routineService";
 import { useFloFlo } from "../context/FloFloContext";
+import { useFeedback } from "../context/FeedbackContext";
 import AchievementPopup from "../components/AchievementPopup";
 
 const Rutinas = () => {
@@ -19,10 +20,8 @@ const Rutinas = () => {
   const [editingId, setEditingId] = useState(null);
   const [newAchievement, setNewAchievement] = useState(null);
 
-  const [routineToDelete, setRoutineToDelete] = useState(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-
   const { user } = useFloFlo();
+  const { showFeedback, showConfirm } = useFeedback();
 
   const loadRoutines = async () => {
     try {
@@ -37,6 +36,14 @@ const Rutinas = () => {
       setRoutines(rutinasUsuario);
     } catch (error) {
       console.error("Error cargando rutinas:", error);
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudieron cargar las rutinas",
+        message: "Intenta nuevamente en unos segundos.",
+      });
     }
   };
 
@@ -56,22 +63,46 @@ const Rutinas = () => {
     e.preventDefault();
 
     if (!user) {
-      alert("Debes iniciar sesión primero");
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Sesión requerida",
+        title: "Debes iniciar sesión",
+        message: "Inicia sesión para crear o editar tus rutinas.",
+      });
       return;
     }
 
     if (!name.trim()) {
-      alert("Debes ingresar el nombre de la rutina");
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta información",
+        title: "Nombre obligatorio",
+        message: "Debes ingresar el nombre de la rutina.",
+      });
       return;
     }
 
     if (!startTime || !endTime) {
-      alert("Debes ingresar hora de inicio y hora de término");
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta información",
+        title: "Faltan horarios",
+        message: "Debes ingresar hora de inicio y hora de término.",
+      });
       return;
     }
 
     if (endTime <= startTime) {
-      alert("La hora de término debe ser posterior a la hora de inicio");
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Revisa el horario",
+        title: "Horario inválido",
+        message: "La hora de término debe ser posterior a la hora de inicio.",
+      });
       return;
     }
 
@@ -85,47 +116,77 @@ const Rutinas = () => {
       };
 
       if (editingId) {
-        const rutinaActualizada = await updateRoutine(editingId, rutina);
-        console.log("Rutina actualizada:", rutinaActualizada);
-        alert("Rutina actualizada correctamente");
+        await updateRoutine(editingId, rutina);
+
+        showFeedback({
+          type: "success",
+          icon: "✅",
+          label: "Cambios guardados",
+          title: "Rutina actualizada",
+          message: "Los cambios de la rutina se guardaron correctamente.",
+        });
       } else {
-        const nuevaRutina = await createRoutine(rutina);
-        console.log("Rutina creada:", nuevaRutina);
-        alert("Rutina creada correctamente");
+        await createRoutine(rutina);
+
+        showFeedback({
+          type: "success",
+          icon: "✅",
+          label: "Rutina creada",
+          title: "Guardada correctamente",
+          message: "La rutina fue creada y ya está disponible en FloFlo.",
+        });
       }
 
       resetForm();
       await loadRoutines();
     } catch (error) {
       console.error(error);
-      alert("Error al guardar rutina");
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudo guardar",
+        message: "Revisa los datos e intenta nuevamente.",
+      });
     }
   };
 
-  const openDeleteModal = (routine) => {
-    setRoutineToDelete(routine);
-  };
+  const handleDeleteRoutine = async (routine) => {
+    const confirmed = await showConfirm({
+      type: "danger",
+      icon: "🗑️",
+      label: "Eliminar rutina",
+      title: "¿Eliminar esta rutina?",
+      message: `Estás por eliminar "${routine.name}". Esta acción no se puede deshacer.`,
+      confirmText: "Sí, eliminar",
+      cancelText: "Cancelar",
+    });
 
-  const closeDeleteModal = () => {
-    if (isDeleting) return;
-    setRoutineToDelete(null);
-  };
-
-  const confirmDeleteRoutine = async () => {
-    if (!routineToDelete) return;
+    if (!confirmed) return;
 
     try {
-      setIsDeleting(true);
+      await deleteRoutine(routine.id);
 
-      await deleteRoutine(routineToDelete.id);
+      showFeedback({
+        type: "success",
+        icon: "✅",
+        label: "Rutina eliminada",
+        title: "Eliminada correctamente",
+        message: "La rutina fue eliminada de FloFlo.",
+      });
 
-      setRoutineToDelete(null);
       await loadRoutines();
     } catch (error) {
       console.error(error);
-      alert("Error al eliminar la rutina");
-    } finally {
-      setIsDeleting(false);
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudo eliminar",
+        message: "Intenta nuevamente en unos segundos.",
+      });
     }
   };
 
@@ -135,22 +196,31 @@ const Rutinas = () => {
 
       if (response.unlockedAchievements?.length > 0) {
         setNewAchievement(response.unlockedAchievements[0]);
+
+        setTimeout(() => {
+          setNewAchievement(null);
+        }, 5000);
       } else {
-        setNewAchievement({
+        showFeedback({
+          type: "success",
           icon: "⭐",
-          name: "¡Muy bien!",
-          description: "Ganaste una estrella por realizar tu rutina.",
+          label: "Rutina realizada",
+          title: "¡Muy bien!",
+          message: "Ganaste una estrella por realizar tu rutina.",
         });
       }
-
-      setTimeout(() => {
-        setNewAchievement(null);
-      }, 5000);
 
       await loadRoutines();
     } catch (error) {
       console.error(error);
-      alert("Error al completar rutina");
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudo completar",
+        message: "No se pudo marcar la rutina como realizada.",
+      });
     }
   };
 
@@ -165,66 +235,6 @@ const Rutinas = () => {
   return (
     <div className="relative min-h-screen bg-[#F3ECFF] px-6 py-10 overflow-hidden">
       <AchievementPopup achievement={newAchievement} />
-
-      {newAchievement && (
-        <div className="fixed top-24 right-8 z-50 bg-white rounded-3xl shadow-xl p-6 border-4 border-yellow-300 max-w-sm">
-          <div className="text-5xl mb-3">{newAchievement.icon}</div>
-
-          <p className="text-[#9B7BE8] font-bold mb-1">
-            Nuevo logro desbloqueado
-          </p>
-
-          <h3 className="font-extrabold text-2xl text-[#4B367C]">
-            {newAchievement.name}
-          </h3>
-
-          <p className="text-[#6B5A95] mt-2">{newAchievement.description}</p>
-        </div>
-      )}
-
-      {routineToDelete && (
-        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center px-6">
-          <div className="bg-white rounded-[2rem] shadow-2xl p-8 max-w-md w-full border-4 border-red-100">
-            <div className="text-5xl mb-4 text-center">🗑️</div>
-
-            <h2 className="text-3xl font-extrabold text-[#4B367C] text-center mb-3">
-              ¿Eliminar esta rutina?
-            </h2>
-
-            <p className="text-[#6B5A95] text-center mb-2">
-              Estás por eliminar:
-            </p>
-
-            <p className="text-xl font-bold text-center text-red-500 mb-5">
-              {routineToDelete.name}
-            </p>
-
-            <p className="text-[#6B5A95] text-center mb-8">
-              Esta acción no se puede deshacer.
-            </p>
-
-            <div className="flex flex-col sm:flex-row gap-4">
-              <button
-                type="button"
-                onClick={closeDeleteModal}
-                disabled={isDeleting}
-                className="w-full bg-[#E8DDFF] hover:bg-[#D8C7FF] text-[#4B367C] font-bold py-3 rounded-2xl transition disabled:opacity-60"
-              >
-                Cancelar
-              </button>
-
-              <button
-                type="button"
-                onClick={confirmDeleteRoutine}
-                disabled={isDeleting}
-                className="w-full bg-red-500 hover:bg-red-600 text-white font-bold py-3 rounded-2xl transition disabled:opacity-60"
-              >
-                {isDeleting ? "Eliminando..." : "Sí, eliminar"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <img
         src={felix}
@@ -359,7 +369,7 @@ const Rutinas = () => {
 
               <button
                 type="button"
-                onClick={() => openDeleteModal(routine)}
+                onClick={() => handleDeleteRoutine(routine)}
                 className="mt-4 bg-red-400 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-xl"
               >
                 Eliminar
@@ -373,4 +383,3 @@ const Rutinas = () => {
 };
 
 export default Rutinas;
-

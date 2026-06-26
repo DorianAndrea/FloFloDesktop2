@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import useSound from "use-sound";
 import { useFloFlo } from "../context/FloFloContext";
+import { useFeedback } from "../context/FeedbackContext";
 import { generateConversation } from "../services/aiService";
 import {
   createConversation,
@@ -182,6 +183,8 @@ const Conversaciones = () => {
     setSoundEnabled,
   } = useFloFlo();
 
+  const { showFeedback, showConfirm } = useFeedback();
+
   const [conversaciones, setConversaciones] = useState([]);
   const [conversacionSeleccionada, setConversacionSeleccionada] =
     useState(null);
@@ -193,8 +196,6 @@ const Conversaciones = () => {
   const [paginaActual, setPaginaActual] = useState(1);
   const [totalPaginas, setTotalPaginas] = useState(1);
   const [totalConversaciones, setTotalConversaciones] = useState(0);
-  const [modalEliminar, setModalEliminar] = useState(false);
-  const [conversacionAEliminar, setConversacionAEliminar] = useState(null);
 
   const conversacionesPorPagina = 6;
 
@@ -342,6 +343,14 @@ const Conversaciones = () => {
       }
     } catch (error) {
       console.error(error);
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudieron cargar las conversaciones",
+        message: "Intenta nuevamente en unos segundos.",
+      });
     }
   };
 
@@ -432,7 +441,15 @@ const Conversaciones = () => {
 
     if (!idNumerico) {
       console.error("Conversación sin ID válido:", conversacionSeleccionada);
-      alert("Esta conversación no tiene ID válido. Recarga la página.");
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "Conversación inválida",
+        message: "Esta conversación no tiene un ID válido. Recarga la página.",
+      });
+
       return;
     }
 
@@ -467,6 +484,14 @@ const Conversaciones = () => {
       await cargarUserProgress();
     } catch (error) {
       console.error(error);
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudo completar",
+        message: "No se pudo guardar el avance de esta conversación.",
+      });
     }
   };
 
@@ -476,7 +501,13 @@ const Conversaciones = () => {
 
   const handleGenerateConversationIA = async () => {
     if (!formIA.topic.trim() || !formIA.situation.trim()) {
-      alert("Debes ingresar tema y situación");
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta información",
+        title: "Tema y situación obligatorios",
+        message: "Debes ingresar un tema y una situación para que Félix genere la conversación.",
+      });
       return;
     }
 
@@ -530,10 +561,23 @@ const Conversaciones = () => {
         emotion: "",
       });
 
-      alert("Félix generó una conversación correctamente");
+      showFeedback({
+        type: "success",
+        icon: "✨",
+        label: "Conversación generada",
+        title: "Félix creó una conversación",
+        message: "Ya puedes practicarla o editarla si quieres ajustarla.",
+      });
     } catch (error) {
       console.error(error);
-      alert("Error al generar conversación con IA");
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudo generar",
+        message: "Félix no pudo generar la conversación. Intenta nuevamente.",
+      });
     } finally {
       setGenerandoIA(false);
     }
@@ -551,34 +595,80 @@ const Conversaciones = () => {
     conversacionSeleccionada?.ejercicio?.opciones || []
   ).filter((op) => op.texto && op.texto.trim() !== "");
 
-  const handleDeleteConversation = async () => {
-    if (!conversacionAEliminar) return;
+  const handleDeleteConversation = async (conversation) => {
+    if (!conversation) return;
+
+    if (conversation.tipo === "contacto") {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Conversación de contacto",
+        title: "Elimínala desde Amigos",
+        message: "Esta conversación pertenece a un contacto. Puedes eliminarla o editarla desde el módulo Amigos.",
+      });
+      return;
+    }
+
+    const confirmed = await showConfirm({
+      type: "danger",
+      icon: "🗑️",
+      label: "Eliminar conversación",
+      title: "¿Eliminar conversación?",
+      message: `Esta acción eliminará "${conversation.titulo}" y no se podrá recuperar.`,
+      confirmText: "Sí, eliminar",
+      cancelText: "Cancelar",
+    });
+
+    if (!confirmed) return;
 
     try {
-      await deleteConversation(conversacionAEliminar.conversationId);
+      await deleteConversation(conversation.conversationId);
 
       setConversaciones((prev) =>
-        prev.filter((item) => item.id !== conversacionAEliminar.id),
+        prev.filter((item) => item.id !== conversation.id),
       );
 
-      if (conversacionSeleccionada?.id === conversacionAEliminar.id) {
+      if (conversacionSeleccionada?.id === conversation.id) {
         setConversacionSeleccionada(null);
         setRespuestaSeleccionada(null);
       }
 
-      setModalEliminar(false);
-      setConversacionAEliminar(null);
+      showFeedback({
+        type: "success",
+        icon: "✅",
+        label: "Conversación eliminada",
+        title: "Eliminada correctamente",
+        message: "La conversación fue eliminada de FloFlo.",
+      });
 
       await loadConversations();
       await cargarProgreso();
       await cargarUserProgress();
     } catch (error) {
       console.error(error);
-      alert("Error al eliminar conversación");
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudo eliminar",
+        message: "Intenta nuevamente en unos segundos.",
+      });
     }
   };
 
   const abrirEditor = (conversation) => {
+    if (conversation.tipo === "contacto") {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Conversación de contacto",
+        title: "Edítala desde Amigos",
+        message: "Esta conversación pertenece a un contacto. Puedes editarla desde el módulo Amigos.",
+      });
+      return;
+    }
+
     const mensajeFelix =
       conversation.what_to_say ||
       conversation.dialogo?.find((msg) => msg.personaje === "Félix")?.texto ||
@@ -640,7 +730,13 @@ const Conversaciones = () => {
     e.preventDefault();
 
     if (!conversacionSeleccionada?.conversationId) {
-      alert("No hay conversación seleccionada");
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta selección",
+        title: "No hay conversación seleccionada",
+        message: "Selecciona una conversación antes de guardar cambios.",
+      });
       return;
     }
 
@@ -675,60 +771,34 @@ const Conversaciones = () => {
         },
       };
 
-      await updateConversation(
-        conversacionSeleccionada.conversationId,
-        payload,
-      );
+      await updateConversation(conversacionSeleccionada.conversationId, payload);
 
       setEditando(false);
       await loadConversations();
 
-      alert("Conversación actualizada correctamente");
+      showFeedback({
+        type: "success",
+        icon: "✅",
+        label: "Cambios guardados",
+        title: "Conversación actualizada",
+        message: "Los cambios de la conversación se guardaron correctamente.",
+      });
     } catch (error) {
       console.error(error);
-      alert("Error al actualizar conversación");
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudo actualizar",
+        message: "Intenta nuevamente en unos segundos.",
+      });
     }
   };
 
   return (
     <main className="min-h-screen bg-[#F3ECFF] px-6 py-10">
       <AchievementPopup achievement={newAchievement} />
-
-      {modalEliminar && (
-        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center px-4">
-          <div className="bg-white rounded-[2rem] p-8 max-w-md w-full shadow-xl">
-            <h2 className="text-2xl font-bold text-[#4B367C] mb-3">
-              ¿Eliminar conversación?
-            </h2>
-
-            <p className="text-[#6B5A95] mb-6">
-              Esta acción eliminará "{conversacionAEliminar?.titulo}" y no se
-              podrá recuperar.
-            </p>
-
-            <div className="flex gap-3 justify-end">
-              <button
-                type="button"
-                onClick={() => {
-                  setModalEliminar(false);
-                  setConversacionAEliminar(null);
-                }}
-                className="bg-white text-[#4B367C] border-2 border-[#DCCCF8] font-bold px-5 py-3 rounded-xl"
-              >
-                Cancelar
-              </button>
-
-              <button
-                type="button"
-                onClick={handleDeleteConversation}
-                className="bg-red-500 text-white font-bold px-5 py-3 rounded-xl hover:bg-red-600"
-              >
-                Sí, eliminar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       <section className="max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-10">
@@ -935,8 +1005,7 @@ const Conversaciones = () => {
                           type="button"
                           onClick={(e) => {
                             e.stopPropagation();
-                            setConversacionAEliminar(item);
-                            setModalEliminar(true);
+                            handleDeleteConversation(item);
                           }}
                           className="bg-red-100 text-red-600 font-bold px-4 py-3 rounded-xl hover:bg-red-200"
                         >
@@ -948,17 +1017,30 @@ const Conversaciones = () => {
                         type="button"
                         onClick={async (e) => {
                           e.stopPropagation();
-                          if (item.tipo === "contacto") {
-                            await toggleFavoriteContactConversation(
-                              item.conversationId,
-                            );
-                          } else {
-                            await toggleFavoriteConversation(
-                              item.conversationId,
-                            );
-                          }
 
-                          await loadConversations();
+                          try {
+                            if (item.tipo === "contacto") {
+                              await toggleFavoriteContactConversation(
+                                item.conversationId,
+                              );
+                            } else {
+                              await toggleFavoriteConversation(
+                                item.conversationId,
+                              );
+                            }
+
+                            await loadConversations();
+                          } catch (error) {
+                            console.error(error);
+
+                            showFeedback({
+                              type: "error",
+                              icon: "❌",
+                              label: "Algo salió mal",
+                              title: "No se pudo actualizar favorito",
+                              message: "Intenta nuevamente en unos segundos.",
+                            });
+                          }
                         }}
                         className={`font-bold px-4 py-3 rounded-xl w-full ${
                           item.is_favorite

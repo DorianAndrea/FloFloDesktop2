@@ -2,54 +2,93 @@ import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { resetPassword } from "../services/authService";
+import { useFeedback } from "../context/FeedbackContext";
 import felix from "../assets/webp/felix_cara_sonriendo.webp";
 
 const ResetPassword = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { showFeedback } = useFeedback();
 
   const token = searchParams.get("token") || "";
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleResetPassword = async (e) => {
     e.preventDefault();
 
+    if (!token) {
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Enlace inválido",
+        title: "No se puede restablecer",
+        message: "El enlace de recuperación no es válido o está incompleto.",
+      });
+      return;
+    }
+
+    if (!newPassword.trim() || !confirmPassword.trim()) {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta información",
+        title: "Completa ambas contraseñas",
+        message: "Debes ingresar y confirmar tu nueva contraseña.",
+      });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Contraseña muy corta",
+        title: "Usa al menos 6 caracteres",
+        message: "La nueva contraseña debe tener al menos 6 caracteres.",
+      });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Revisa la contraseña",
+        title: "Las contraseñas no coinciden",
+        message: "Ambas contraseñas deben ser iguales para continuar.",
+      });
+      return;
+    }
+
     try {
-      setMessage("");
-
-      if (!token) {
-        setMessage("El enlace de recuperación no es válido.");
-        return;
-      }
-
-      if (!newPassword || !confirmPassword) {
-        setMessage("Debes completar ambas contraseñas.");
-        return;
-      }
-
-      if (newPassword.length < 6) {
-        setMessage("La contraseña debe tener al menos 6 caracteres.");
-        return;
-      }
-
-      if (newPassword !== confirmPassword) {
-        setMessage("Las contraseñas no coinciden.");
-        return;
-      }
-
       setLoading(true);
 
       await resetPassword(token, newPassword);
 
-      alert("Contraseña actualizada correctamente");
+      showFeedback({
+        type: "success",
+        icon: "✅",
+        label: "Contraseña actualizada",
+        title: "Clave guardada correctamente",
+        message: "Ya puedes iniciar sesión con tu nueva contraseña.",
+      });
+
       navigate("/login");
     } catch (error) {
       console.error(error);
-      setMessage(error.message || "No fue posible restablecer la contraseña.");
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudo restablecer",
+        message:
+          error.message ||
+          "No fue posible restablecer la contraseña. Intenta nuevamente.",
+      });
     } finally {
       setLoading(false);
     }
@@ -122,12 +161,6 @@ const ResetPassword = () => {
             {loading ? "Guardando..." : "Guardar nueva contraseña"}
           </button>
         </form>
-
-        {message && (
-          <div className="mt-6 bg-red-50 border border-red-100 rounded-2xl p-4">
-            <p className="text-red-600 font-semibold">{message}</p>
-          </div>
-        )}
 
         <div className="text-center mt-6">
           <Link

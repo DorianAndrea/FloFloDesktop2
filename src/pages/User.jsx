@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { register } from "../services/authService";
 import { useFloFlo } from "../context/FloFloContext";
+import { useFeedback } from "../context/FeedbackContext";
 import { formatRut } from "../utils/formatRut";
 
 const User = () => {
@@ -18,6 +19,7 @@ const User = () => {
 
   const navigate = useNavigate();
   const { setUser } = useFloFlo();
+  const { showFeedback } = useFeedback();
 
   const cleanRut = (value) => {
     return value.replace(/\./g, "").replace(/-/g, "");
@@ -26,28 +28,113 @@ const User = () => {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
 
-    setAvatar(file);
+    setAvatar(file || null);
 
     if (file) {
       setPreview(URL.createObjectURL(file));
+    } else {
+      setPreview(null);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (!firstName.trim()) {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta información",
+        title: "Nombre obligatorio",
+        message: "Debes ingresar el nombre antes de registrarte.",
+      });
+      return;
+    }
+
+    if (!lastName.trim()) {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta información",
+        title: "Apellido obligatorio",
+        message: "Debes ingresar el apellido antes de registrarte.",
+      });
+      return;
+    }
+
+    if (!rut.trim()) {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta información",
+        title: "RUT obligatorio",
+        message: "Debes ingresar el RUT antes de registrarte.",
+      });
+      return;
+    }
+
+    if (!birthDate) {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta información",
+        title: "Fecha de nacimiento obligatoria",
+        message: "Debes ingresar la fecha de nacimiento.",
+      });
+      return;
+    }
+
+    if (!email.trim()) {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta información",
+        title: "Correo obligatorio",
+        message: "Debes ingresar un correo electrónico.",
+      });
+      return;
+    }
+
+    if (!password.trim()) {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta información",
+        title: "Contraseña obligatoria",
+        message: "Debes ingresar una contraseña.",
+      });
+      return;
+    }
+
+    if (password.length < 6) {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Contraseña muy corta",
+        title: "Usa al menos 6 caracteres",
+        message: "La contraseña debe tener al menos 6 caracteres.",
+      });
+      return;
+    }
+
     if (password !== confirmPassword) {
-      alert("Las contraseñas no coinciden");
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Revisa la contraseña",
+        title: "Las contraseñas no coinciden",
+        message: "Ambas contraseñas deben ser iguales para crear la cuenta.",
+      });
       return;
     }
 
     try {
       const userData = {
-        firstName,
-        lastName,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
         rut: cleanRut(rut),
         birth_date: birthDate,
-        email,
+        email: email.trim(),
         avatar: avatar ? avatar.name : null,
         password,
         role,
@@ -60,7 +147,14 @@ const User = () => {
 
       setUser(data.user);
 
-      alert("Usuario registrado correctamente");
+      showFeedback({
+        type: "success",
+        icon: "✅",
+        label: "Cuenta creada",
+        title: "Usuario registrado correctamente",
+        message: "La cuenta fue creada y ya puedes usar FloFlo.",
+      });
+
       navigate("/");
     } catch (error) {
       console.error(error);
@@ -70,7 +164,13 @@ const User = () => {
         error.message ||
         "Ocurrió un problema al registrar el usuario.";
 
-      alert(mensaje);
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudo registrar",
+        message: mensaje,
+      });
     }
   };
 

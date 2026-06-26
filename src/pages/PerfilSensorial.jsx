@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useFloFlo } from "../context/FloFloContext";
+import { useFeedback } from "../context/FeedbackContext";
 import {
   getMySensoryProfile,
   saveMySensoryProfile,
@@ -72,7 +73,7 @@ const fields = [
 
 const PerfilSensorial = () => {
   const { user } = useFloFlo();
-
+  const { showFeedback } = useFeedback();
   const [profile, setProfile] = useState(emptyProfile);
   const [history, setHistory] = useState([]);
   const [selectedChild, setSelectedChild] = useState(null);
@@ -149,7 +150,15 @@ const PerfilSensorial = () => {
       setHistory(Array.isArray(historyData) ? historyData : []);
     } catch (error) {
       console.error("Error cargando perfil sensorial:", error);
-      alert("No fue posible cargar el perfil sensorial");
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudo cargar el perfil",
+        message:
+          "No fue posible cargar el perfil sensorial. Intenta nuevamente.",
+      });
     } finally {
       setLoading(false);
     }
@@ -191,16 +200,32 @@ const PerfilSensorial = () => {
 
       await saveMySensoryProfile(profile);
 
-      alert("Perfil sensorial guardado correctamente");
+      showFeedback({
+        type: "success",
+        icon: "✅",
+        label: "Cambios guardados",
+        title: "Perfil sensorial actualizado",
+        message: "La información sensorial fue guardada correctamente.",
+      });
+
       setIsEditing(false);
       await loadProfile();
     } catch (error) {
       console.error("Error guardando perfil sensorial:", error);
-      alert("No fue posible guardar el perfil sensorial");
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudo guardar",
+        message:
+          "No fue posible guardar el perfil sensorial. Intenta nuevamente.",
+      });
     } finally {
       setSaving(false);
     }
   };
+  
   const previousProfile = history?.[1] || null;
   if (loading) {
     return <p className="text-center mt-10">Cargando perfil sensorial...</p>;

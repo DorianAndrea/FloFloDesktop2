@@ -3,11 +3,13 @@ import { Link, useNavigate } from "react-router-dom";
 
 import { login } from "../services/authService";
 import { useFloFlo } from "../context/FloFloContext";
+import { useFeedback } from "../context/FeedbackContext";
 import felix from "../assets/webp/felix_cara_sonriendo.webp";
 
 const Login = () => {
   const navigate = useNavigate();
   const { setUser } = useFloFlo();
+  const { showFeedback } = useFeedback();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -15,20 +17,57 @@ const Login = () => {
   const handleLogin = async (e) => {
     e.preventDefault();
 
+    if (!email.trim()) {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta información",
+        title: "Ingresa tu correo",
+        message: "Debes ingresar tu correo electrónico para iniciar sesión.",
+      });
+      return;
+    }
+
+    if (!password.trim()) {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta información",
+        title: "Ingresa tu contraseña",
+        message: "Debes ingresar tu contraseña para continuar.",
+      });
+      return;
+    }
+
     try {
-      const data = await login(email, password);
+      const data = await login(email.trim(), password);
 
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
 
       setUser(data.user);
 
-      alert(`Bienvenido ${data.user.firstName}`);
+      showFeedback({
+        type: "success",
+        icon: "💜",
+        label: "Sesión iniciada",
+        title: `Bienvenido ${data.user.firstName}`,
+        message: "Entraste correctamente a FloFlo.",
+      });
 
       navigate("/");
     } catch (error) {
       console.error(error);
-      alert(error.message || "Correo o contraseña incorrectos");
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "No se pudo iniciar sesión",
+        title: "Correo o contraseña incorrectos",
+        message:
+          error.message ||
+          "Revisa tus datos e intenta nuevamente.",
+      });
     }
   };
 

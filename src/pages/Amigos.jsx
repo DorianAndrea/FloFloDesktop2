@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useFloFlo } from "../context/FloFloContext";
+import { useFeedback } from "../context/FeedbackContext";
 import {
   getContacts,
   createContact,
@@ -17,6 +18,7 @@ const Amigos = () => {
   const [preview, setPreview] = useState("");
 
   const { user } = useFloFlo();
+  const { showFeedback, showConfirm } = useFeedback();
 
   const [contacts, setContacts] = useState([]);
   const [relationshipTypes, setRelationshipTypes] = useState([]);
@@ -35,6 +37,14 @@ const Amigos = () => {
       setRelationshipTypes(data);
     } catch (error) {
       console.error(error);
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudieron cargar las relaciones",
+        message: "Intenta nuevamente en unos segundos.",
+      });
     }
   };
 
@@ -51,6 +61,14 @@ const Amigos = () => {
       setContacts(contactosUsuario);
     } catch (error) {
       console.error(error);
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudieron cargar las personas",
+        message: "Intenta nuevamente en unos segundos.",
+      });
     }
   };
 
@@ -67,6 +85,20 @@ const Amigos = () => {
     return () => clearTimeout(timer);
   }, [busqueda]);
 
+  const resetForm = () => {
+    setName("");
+    setRelationshipTypeId("");
+    setWhereMet("");
+    setMemoryNote("");
+    setImage("");
+    setPreview("");
+    setEditingContactId(null);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   const handleImageChange = (e) => {
     const file = e.target.files[0];
 
@@ -82,24 +114,53 @@ const Amigos = () => {
 
   const handleEdit = (contact) => {
     setEditingContactId(contact.id);
-    setName(contact.name);
-    setRelationshipTypeId(contact.relationship_type_id);
-    setWhereMet(contact.where_met);
+    setName(contact.name || "");
+    setRelationshipTypeId(contact.relationship_type_id || "");
+    setWhereMet(contact.where_met || "");
     setMemoryNote(contact.memory_note || "");
     setImage(contact.image || "");
-    setPreview("");
+    setPreview(contact.image || "");
   };
 
-  const handleDelete = async (id) => {
-    const confirmDelete = confirm("¿Seguro que quieres eliminar esta persona?");
-    if (!confirmDelete) return;
+  const handleDelete = async (contact) => {
+    const confirmed = await showConfirm({
+      type: "danger",
+      icon: "🗑️",
+      label: "Eliminar persona",
+      title: "¿Eliminar esta persona?",
+      message: `Estás por eliminar a "${contact.name}". Esta acción no se puede deshacer.`,
+      confirmText: "Sí, eliminar",
+      cancelText: "Cancelar",
+    });
+
+    if (!confirmed) return;
 
     try {
-      await deleteContact(id);
+      await deleteContact(contact.id);
+
+      showFeedback({
+        type: "success",
+        icon: "✅",
+        label: "Persona eliminada",
+        title: "Eliminada correctamente",
+        message: "La persona fue eliminada de FloFlo.",
+      });
+
+      if (editingContactId === contact.id) {
+        resetForm();
+      }
+
       await loadContacts();
     } catch (error) {
       console.error(error);
-      alert("Error al eliminar persona");
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudo eliminar",
+        message: "Intenta nuevamente en unos segundos.",
+      });
     }
   };
 
@@ -107,31 +168,63 @@ const Amigos = () => {
     e.preventDefault();
 
     if (!user) {
-      alert("Debes iniciar sesión primero");
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Sesión requerida",
+        title: "Debes iniciar sesión",
+        message: "Inicia sesión para guardar personas importantes.",
+      });
       return;
     }
 
     if (!name.trim()) {
-      alert("Debes ingresar un nombre");
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta información",
+        title: "Nombre obligatorio",
+        message: "Debes ingresar el nombre de la persona.",
+      });
       return;
     }
 
     if (!relationshipTypeId) {
-      alert("Debes seleccionar quién es la persona");
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta información",
+        title: "Selecciona quién es",
+        message: "Debes seleccionar la relación que tienes con esta persona.",
+      });
       return;
     }
 
     if (!whereMet.trim()) {
-      alert("Debes indicar dónde conociste a la persona");
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta información",
+        title: "Indica dónde la conociste",
+        message: "Esto ayuda a Félix a recordar mejor a la persona.",
+      });
       return;
     }
 
     if (!memoryNote.trim()) {
-      alert("Debes indicar cómo puedes recordar a esta persona");
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta información",
+        title: "Agrega una pista para recordarla",
+        message: "Escribe cómo puedes recordar a esta persona.",
+      });
       return;
     }
 
     try {
+      const wasEditing = Boolean(editingContactId);
+
       const formData = new FormData();
 
       formData.append("name", name.trim());
@@ -150,27 +243,29 @@ const Amigos = () => {
       }
 
       await loadContacts();
+      resetForm();
 
-      setName("");
-      setRelationshipTypeId("");
-      setWhereMet("");
-      setMemoryNote("");
-      setImage("");
-      setPreview("");
-      setEditingContactId(null);
-
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-
-      alert(
-        editingContactId
-          ? "Persona actualizada correctamente"
-          : "Persona guardada correctamente",
-      );
+      showFeedback({
+        type: "success",
+        icon: "✅",
+        label: wasEditing ? "Cambios guardados" : "Persona guardada",
+        title: wasEditing
+          ? "Persona actualizada"
+          : "Guardada correctamente",
+        message: wasEditing
+          ? "Los datos de la persona se actualizaron correctamente."
+          : "La persona fue guardada y ya está disponible en FloFlo.",
+      });
     } catch (error) {
       console.error(error);
-      alert("Error al guardar persona");
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudo guardar",
+        message: "Revisa los datos e intenta nuevamente.",
+      });
     }
   };
 
@@ -235,6 +330,16 @@ const Amigos = () => {
               >
                 {editingContactId ? "Actualizar" : "Enviar"}
               </button>
+
+              {editingContactId && (
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="w-full py-3 text-[#4B367C] font-medium border border-[#DCCCF8] hover:bg-[#F3ECFF] transition-all duration-300"
+                >
+                  Cancelar edición
+                </button>
+              )}
             </form>
           </div>
 
@@ -334,6 +439,7 @@ const Amigos = () => {
 
                   <div className="flex flex-wrap gap-3 mt-6">
                     <button
+                      type="button"
                       onClick={() => handleEdit(contact)}
                       className="bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600"
                     >
@@ -341,7 +447,8 @@ const Amigos = () => {
                     </button>
 
                     <button
-                      onClick={() => handleDelete(contact.id)}
+                      type="button"
+                      onClick={() => handleDelete(contact)}
                       className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
                     >
                       Eliminar
