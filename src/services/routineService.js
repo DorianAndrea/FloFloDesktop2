@@ -5,6 +5,16 @@ export const getRoutines = async () => {
   return response.data;
 };
 
+export const getTodayRoutines = async () => {
+  const response = await api.get("/routines/today");
+  return response.data;
+};
+
+export const getRoutineHistory = async () => {
+  const response = await api.get("/routines/history");
+  return response.data;
+};
+
 export const createRoutine = async (routine) => {
   const response = await api.post("/routines", routine);
   return response.data;

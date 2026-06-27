@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import felix from "../assets/webp/felix_cara_sonriendo.webp";
 import {
   createRoutine,
   getRoutines,
+  getTodayRoutines,
+  getRoutineHistory,
   deleteRoutine,
   updateRoutine,
   completeRoutine,
@@ -11,29 +13,106 @@ import { useFloFlo } from "../context/FloFloContext";
 import { useFeedback } from "../context/FeedbackContext";
 import AchievementPopup from "../components/AchievementPopup";
 
+const DAYS = [
+  { key: "monday", label: "Lun", fullLabel: "Lunes" },
+  { key: "tuesday", label: "Mar", fullLabel: "Martes" },
+  { key: "wednesday", label: "Mié", fullLabel: "Miércoles" },
+  { key: "thursday", label: "Jue", fullLabel: "Jueves" },
+  { key: "friday", label: "Vie", fullLabel: "Viernes" },
+  { key: "saturday", label: "Sáb", fullLabel: "Sábado" },
+  { key: "sunday", label: "Dom", fullLabel: "Domingo" },
+];
+
+const ALL_DAYS = DAYS.map((day) => day.key);
+
+const dayNames = {
+  monday: "lunes",
+  tuesday: "martes",
+  wednesday: "miércoles",
+  thursday: "jueves",
+  friday: "viernes",
+  saturday: "sábado",
+  sunday: "domingo",
+};
+
+const formatTime = (time) => {
+  if (!time) return "";
+  return String(time).slice(0, 5);
+};
+
+const formatDays = (days = []) => {
+  if (!Array.isArray(days) || days.length === 0) {
+    return "Todos los días";
+  }
+
+  const normalizedDays = [...new Set(days)];
+
+  if (normalizedDays.length === 7) {
+    return "Todos los días";
+  }
+
+  const weekdays = ["monday", "tuesday", "wednesday", "thursday", "friday"];
+  const isWeekdays =
+    normalizedDays.length === 5 &&
+    weekdays.every((day) => normalizedDays.includes(day));
+
+  if (isWeekdays) {
+    return "Lunes a viernes";
+  }
+
+  return normalizedDays
+    .map((day) => DAYS.find((item) => item.key === day)?.fullLabel || day)
+    .join(", ");
+};
+
 const Rutinas = () => {
   const [name, setName] = useState("");
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [description, setDescription] = useState("");
-  const [routines, setRoutines] = useState([]);
+  const [selectedDays, setSelectedDays] = useState(ALL_DAYS);
+
+  const [allRoutines, setAllRoutines] = useState([]);
+  const [todayRoutines, setTodayRoutines] = useState([]);
+  const [todayInfo, setTodayInfo] = useState(null);
+  const [history, setHistory] = useState([]);
+
   const [editingId, setEditingId] = useState(null);
   const [newAchievement, setNewAchievement] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   const { user } = useFloFlo();
   const { showFeedback, showConfirm } = useFeedback();
+
+  const pendingToday = useMemo(
+    () => todayRoutines.filter((routine) => !routine.completed_today),
+    [todayRoutines],
+  );
+
+  const completedToday = useMemo(
+    () => todayRoutines.filter((routine) => routine.completed_today),
+    [todayRoutines],
+  );
 
   const loadRoutines = async () => {
     try {
       if (!user) return;
 
-      const data = await getRoutines();
+      setLoading(true);
 
-      const rutinasUsuario = data.filter(
-        (routine) => Number(routine.user_id) === Number(user.id),
+      const [allData, todayData, historyData] = await Promise.all([
+        getRoutines(),
+        getTodayRoutines(),
+        getRoutineHistory(),
+      ]);
+
+      setAllRoutines(Array.isArray(allData) ? allData : []);
+      setTodayRoutines(
+        Array.isArray(todayData?.routines) ? todayData.routines : [],
       );
-
-      setRoutines(rutinasUsuario);
+      setTodayInfo(todayData || null);
+      setHistory(Array.isArray(historyData) ? historyData : []);
     } catch (error) {
       console.error("Error cargando rutinas:", error);
 
@@ -44,6 +123,8 @@ const Rutinas = () => {
         title: "No se pudieron cargar las rutinas",
         message: "Intenta nuevamente en unos segundos.",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -56,7 +137,26 @@ const Rutinas = () => {
     setStartTime("");
     setEndTime("");
     setDescription("");
+    setSelectedDays(ALL_DAYS);
     setEditingId(null);
+  };
+
+  const toggleDay = (dayKey) => {
+    setSelectedDays((currentDays) => {
+      if (currentDays.includes(dayKey)) {
+        return currentDays.filter((day) => day !== dayKey);
+      }
+
+      return [...currentDays, dayKey];
+    });
+  };
+
+  const selectAllDays = () => {
+    setSelectedDays(ALL_DAYS);
+  };
+
+  const selectWeekDays = () => {
+    setSelectedDays(["monday", "tuesday", "wednesday", "thursday", "friday"]);
   };
 
   const handleSubmit = async (e) => {
@@ -106,17 +206,30 @@ const Rutinas = () => {
       return;
     }
 
+    if (selectedDays.length === 0) {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Faltan días",
+        title: "Selecciona al menos un día",
+        message: "Debes elegir qué días se repetirá esta rutina.",
+      });
+      return;
+    }
+
     try {
-      const rutina = {
+      setSaving(true);
+
+      const routineData = {
         name: name.trim(),
         start_time: startTime,
         end_time: endTime,
         description: description.trim(),
-        user_id: user.id,
+        days_of_week: selectedDays,
       };
 
       if (editingId) {
-        await updateRoutine(editingId, rutina);
+        await updateRoutine(editingId, routineData);
 
         showFeedback({
           type: "success",
@@ -126,7 +239,7 @@ const Rutinas = () => {
           message: "Los cambios de la rutina se guardaron correctamente.",
         });
       } else {
-        await createRoutine(rutina);
+        await createRoutine(routineData);
 
         showFeedback({
           type: "success",
@@ -147,8 +260,12 @@ const Rutinas = () => {
         icon: "❌",
         label: "Algo salió mal",
         title: "No se pudo guardar",
-        message: "Revisa los datos e intenta nuevamente.",
+        message:
+          error.response?.data?.message ||
+          "Revisa los datos e intenta nuevamente.",
       });
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -158,7 +275,7 @@ const Rutinas = () => {
       icon: "🗑️",
       label: "Eliminar rutina",
       title: "¿Eliminar esta rutina?",
-      message: `Estás por eliminar "${routine.name}". Esta acción no se puede deshacer.`,
+      message: `Estás por eliminar "${routine.name}". Su historial se conservará, pero ya no aparecerá como rutina activa.`,
       confirmText: "Sí, eliminar",
       cancelText: "Cancelar",
     });
@@ -176,6 +293,10 @@ const Rutinas = () => {
         message: "La rutina fue eliminada de FloFlo.",
       });
 
+      if (Number(editingId) === Number(routine.id)) {
+        resetForm();
+      }
+
       await loadRoutines();
     } catch (error) {
       console.error(error);
@@ -190,11 +311,30 @@ const Rutinas = () => {
     }
   };
 
-  const handleCompleteRoutine = async (id) => {
-    try {
-      const response = await completeRoutine(id);
+  const handleCompleteRoutine = async (routine) => {
+    if (routine.completed_today) {
+      showFeedback({
+        type: "info",
+        icon: "💜",
+        label: "Ya realizada",
+        title: "Esta rutina ya fue completada hoy",
+        message: "Mañana podrás volver a marcarla como realizada.",
+      });
+      return;
+    }
 
-      if (response.unlockedAchievements?.length > 0) {
+    try {
+      const response = await completeRoutine(routine.id);
+
+      if (response.alreadyCompleted) {
+        showFeedback({
+          type: "info",
+          icon: "💜",
+          label: "Ya realizada",
+          title: "Esta rutina ya estaba completada hoy",
+          message: "Mañana podrás volver a completarla.",
+        });
+      } else if (response.unlockedAchievements?.length > 0) {
         setNewAchievement(response.unlockedAchievements[0]);
 
         setTimeout(() => {
@@ -219,7 +359,9 @@ const Rutinas = () => {
         icon: "❌",
         label: "Algo salió mal",
         title: "No se pudo completar",
-        message: "No se pudo marcar la rutina como realizada.",
+        message:
+          error.response?.data?.message ||
+          "No se pudo marcar la rutina como realizada.",
       });
     }
   };
@@ -227,156 +369,470 @@ const Rutinas = () => {
   const handleEdit = (routine) => {
     setEditingId(routine.id);
     setName(routine.name || "");
-    setStartTime(routine.start_time || "");
-    setEndTime(routine.end_time || "");
+    setStartTime(formatTime(routine.start_time));
+    setEndTime(formatTime(routine.end_time));
     setDescription(routine.description || "");
+    setSelectedDays(
+      Array.isArray(routine.days_of_week) && routine.days_of_week.length > 0
+        ? routine.days_of_week
+        : ALL_DAYS,
+    );
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
+  };
+
+  const isScheduledToday = (routine) => {
+    if (!todayInfo?.day) return false;
+    if (!Array.isArray(routine.days_of_week)) return true;
+    return routine.days_of_week.includes(todayInfo.day);
+  };
+
+  const renderRoutineCard = (routine, options = {}) => {
+    const { showCompleteButton = false, compact = false } = options;
+
+    return (
+      <div
+        key={routine.id}
+        className={`border-2 rounded-3xl p-5 transition ${
+          routine.completed_today
+            ? "border-green-200 bg-green-50"
+            : "border-[#DCCCF8] bg-white"
+        }`}
+      >
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="text-xl font-bold text-[#4B367C]">
+                {routine.name}
+              </h3>
+
+              {routine.completed_today && (
+                <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">
+                  Hecha hoy
+                </span>
+              )}
+
+              {!routine.completed_today && isScheduledToday(routine) && (
+                <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold text-yellow-700">
+                  Pendiente hoy
+                </span>
+              )}
+
+              {!isScheduledToday(routine) && (
+                <span className="rounded-full bg-[#F3ECFF] px-3 py-1 text-xs font-bold text-[#6B5A95]">
+                  No toca hoy
+                </span>
+              )}
+            </div>
+
+            <p className="mt-2 text-[#6B5A95]">
+              {formatTime(routine.start_time)} - {formatTime(routine.end_time)}
+            </p>
+
+            <p className="mt-1 text-sm font-semibold text-[#9B7BE8]">
+              {formatDays(routine.days_of_week)}
+            </p>
+
+            {routine.description && !compact && (
+              <p className="mt-3 text-[#6B5A95]">{routine.description}</p>
+            )}
+
+            {routine.today_completed_at && (
+              <p className="mt-3 text-sm font-semibold text-green-700">
+                Completada hoy a las{" "}
+                {new Date(routine.today_completed_at).toLocaleTimeString(
+                  "es-CL",
+                  {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  },
+                )}
+              </p>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-2 md:justify-end">
+            {showCompleteButton && (
+              <button
+                type="button"
+                onClick={() => handleCompleteRoutine(routine)}
+                disabled={routine.completed_today}
+                className={`rounded-2xl px-4 py-2 font-bold text-white transition ${
+                  routine.completed_today
+                    ? "cursor-not-allowed bg-green-300"
+                    : "bg-green-500 hover:bg-green-600"
+                }`}
+              >
+                {routine.completed_today ? "✅ Lista" : "⭐ Realizada"}
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => handleEdit(routine)}
+              className="rounded-2xl bg-[#9B7BE8] px-4 py-2 font-bold text-white transition hover:bg-[#8B6FD6]"
+            >
+              Editar
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleDeleteRoutine(routine)}
+              className="rounded-2xl bg-red-400 px-4 py-2 font-bold text-white transition hover:bg-red-500"
+            >
+              Eliminar
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
-    <div className="relative min-h-screen bg-[#F3ECFF] px-6 py-10 overflow-hidden">
+    <div className="relative min-h-screen overflow-hidden bg-[#F3ECFF] px-4 py-10 md:px-6">
       <AchievementPopup achievement={newAchievement} />
 
       <img
         src={felix}
         alt="Félix"
-        className="hidden xl:block absolute right-28 top-32 w-60 h-60 object-contain"
+        className="pointer-events-none absolute right-10 top-28 hidden h-52 w-52 object-contain opacity-95 xl:block"
       />
 
-      <div className="w-full max-w-2xl bg-white rounded-[2rem] shadow-lg p-10 mx-auto">
-        <h1 className="text-4xl md:text-5xl font-bold text-[#4B367C] text-center mb-4">
-          Nueva Rutina
-        </h1>
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-8 text-center">
+          <p className="mb-3 text-lg font-bold text-[#9B7BE8]">
+            Rutinas de FloFlo
+          </p>
 
-        <p className="text-center text-[#6B5A95] text-lg mb-10">
-          Crea una actividad para acompañar el día de Félix.
-        </p>
+          <h1 className="text-4xl font-extrabold text-[#4B367C] md:text-6xl">
+            Organiza tu día
+          </h1>
 
-        <form onSubmit={handleSubmit} className="space-y-8">
-          <div>
-            <label className="block text-[#4B367C] font-semibold mb-2">
-              Nombre de la rutina
-            </label>
+          <p className="mx-auto mt-4 max-w-2xl text-lg text-[#6B5A95]">
+            Crea rutinas por día, marca las actividades realizadas y revisa tu
+            avance diario.
+          </p>
+        </div>
 
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Ej: Lavarse los dientes"
-              className="w-full p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8] transition"
-            />
+        <div className="mb-8 grid gap-4 md:grid-cols-3">
+          <div className="rounded-[2rem] bg-white p-6 shadow-lg">
+            <p className="text-sm font-bold uppercase tracking-wide text-[#9B7BE8]">
+              Hoy
+            </p>
+            <p className="mt-2 text-4xl font-extrabold text-[#4B367C]">
+              {todayRoutines.length}
+            </p>
+            <p className="mt-1 text-[#6B5A95]">
+              rutinas para{" "}
+              {todayInfo?.day ? dayNames[todayInfo.day] : "hoy"}
+            </p>
           </div>
 
-          <div>
-            <label className="block text-[#4B367C] font-semibold mb-2">
-              Hora de inicio
-            </label>
-
-            <input
-              type="time"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-              className="w-full p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8] transition"
-            />
+          <div className="rounded-[2rem] bg-white p-6 shadow-lg">
+            <p className="text-sm font-bold uppercase tracking-wide text-yellow-600">
+              Pendientes
+            </p>
+            <p className="mt-2 text-4xl font-extrabold text-[#4B367C]">
+              {pendingToday.length}
+            </p>
+            <p className="mt-1 text-[#6B5A95]">por completar hoy</p>
           </div>
 
-          <div>
-            <label className="block text-[#4B367C] font-semibold mb-2">
-              Hora de término
-            </label>
-
-            <input
-              type="time"
-              value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
-              className="w-full p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8] transition"
-            />
+          <div className="rounded-[2rem] bg-white p-6 shadow-lg">
+            <p className="text-sm font-bold uppercase tracking-wide text-green-600">
+              Completadas
+            </p>
+            <p className="mt-2 text-4xl font-extrabold text-[#4B367C]">
+              {completedToday.length}
+            </p>
+            <p className="mt-1 text-[#6B5A95]">realizadas hoy</p>
           </div>
+        </div>
 
-          <div>
-            <label className="block text-[#4B367C] font-semibold mb-2">
-              Descripción{" "}
-              <span className="text-[#9B7BE8] font-normal">(opcional)</span>
-            </label>
+        <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr]">
+          <section className="rounded-[2rem] bg-white p-6 shadow-lg md:p-8">
+            <h2 className="text-3xl font-extrabold text-[#4B367C]">
+              {editingId ? "Editar rutina" : "Nueva rutina"}
+            </h2>
 
-            <textarea
-              rows="4"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Describe la actividad, instrucciones o detalles opcionales..."
-              className="w-full p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8] transition resize-none"
-            />
-          </div>
+            <p className="mt-2 text-[#6B5A95]">
+              Elige el horario y los días en que se repetirá.
+            </p>
 
-          <button
-            type="submit"
-            className="w-full bg-[#9B7BE8] hover:bg-[#8B6FD6] text-white font-bold py-4 rounded-2xl transition-all duration-300 hover:scale-[1.02]"
-          >
-            {editingId ? "Actualizar Rutina" : "Guardar Rutina"}
-          </button>
+            <form onSubmit={handleSubmit} className="mt-8 space-y-6">
+              <div>
+                <label className="mb-2 block font-semibold text-[#4B367C]">
+                  Nombre de la rutina
+                </label>
 
-          {editingId && (
-            <button
-              type="button"
-              onClick={resetForm}
-              className="w-full bg-[#E8DDFF] hover:bg-[#D8C7FF] text-[#4B367C] font-bold py-4 rounded-2xl transition"
-            >
-              Cancelar edición
-            </button>
-          )}
-        </form>
-      </div>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Ej: Lavarse los dientes"
+                  className="w-full rounded-2xl border-2 border-[#DCCCF8] p-4 transition focus:border-[#9B7BE8] focus:outline-none"
+                />
+              </div>
 
-      <div className="w-full max-w-2xl bg-white rounded-[2rem] shadow-lg p-8 mx-auto mt-8">
-        <h2 className="text-3xl font-bold text-[#4B367C] mb-6">
-          Mis Rutinas
-        </h2>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div>
+                  <label className="mb-2 block font-semibold text-[#4B367C]">
+                    Hora de inicio
+                  </label>
 
-        {routines.length === 0 ? (
-          <p className="text-[#6B5A95]">No hay rutinas creadas todavía.</p>
-        ) : (
-          routines.map((routine) => (
-            <div
-              key={routine.id}
-              className="border-2 border-[#DCCCF8] rounded-2xl p-4 mb-4"
-            >
-              <h3 className="text-xl font-bold text-[#4B367C]">
-                {routine.name}
-              </h3>
+                  <input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    className="w-full rounded-2xl border-2 border-[#DCCCF8] p-4 transition focus:border-[#9B7BE8] focus:outline-none"
+                  />
+                </div>
 
-              <p className="text-[#6B5A95]">
-                {routine.start_time} - {routine.end_time}
+                <div>
+                  <label className="mb-2 block font-semibold text-[#4B367C]">
+                    Hora de término
+                  </label>
+
+                  <input
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    className="w-full rounded-2xl border-2 border-[#DCCCF8] p-4 transition focus:border-[#9B7BE8] focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <label className="font-semibold text-[#4B367C]">
+                    Días de la semana
+                  </label>
+
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={selectAllDays}
+                      className="rounded-full bg-[#F3ECFF] px-3 py-1 text-sm font-bold text-[#6B5A95] transition hover:bg-[#E8DDFF]"
+                    >
+                      Todos
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={selectWeekDays}
+                      className="rounded-full bg-[#F3ECFF] px-3 py-1 text-sm font-bold text-[#6B5A95] transition hover:bg-[#E8DDFF]"
+                    >
+                      Lun a vie
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
+                  {DAYS.map((day) => {
+                    const isSelected = selectedDays.includes(day.key);
+
+                    return (
+                      <button
+                        key={day.key}
+                        type="button"
+                        onClick={() => toggleDay(day.key)}
+                        className={`rounded-2xl border-2 px-3 py-3 text-sm font-extrabold transition ${
+                          isSelected
+                            ? "border-[#9B7BE8] bg-[#9B7BE8] text-white"
+                            : "border-[#DCCCF8] bg-white text-[#6B5A95] hover:bg-[#F3ECFF]"
+                        }`}
+                      >
+                        {day.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 block font-semibold text-[#4B367C]">
+                  Descripción{" "}
+                  <span className="font-normal text-[#9B7BE8]">
+                    (opcional)
+                  </span>
+                </label>
+
+                <textarea
+                  rows="4"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Describe la actividad, instrucciones o detalles opcionales..."
+                  className="w-full resize-none rounded-2xl border-2 border-[#DCCCF8] p-4 transition focus:border-[#9B7BE8] focus:outline-none"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={saving}
+                className="w-full rounded-2xl bg-[#9B7BE8] py-4 font-bold text-white transition-all duration-300 hover:scale-[1.02] hover:bg-[#8B6FD6] disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {saving
+                  ? "Guardando..."
+                  : editingId
+                    ? "Actualizar rutina"
+                    : "Guardar rutina"}
+              </button>
+
+              {editingId && (
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="w-full rounded-2xl bg-[#E8DDFF] py-4 font-bold text-[#4B367C] transition hover:bg-[#D8C7FF]"
+                >
+                  Cancelar edición
+                </button>
+              )}
+            </form>
+          </section>
+
+          <section className="space-y-8">
+            <div className="rounded-[2rem] bg-white p-6 shadow-lg md:p-8">
+              <h2 className="text-3xl font-extrabold text-[#4B367C]">
+                Rutinas de hoy
+              </h2>
+
+              <p className="mt-2 text-[#6B5A95]">
+                {todayInfo?.date
+                  ? `Hoy es ${dayNames[todayInfo.day] || todayInfo.day}.`
+                  : "Estas son las actividades programadas para hoy."}
               </p>
 
-              {routine.description && (
-                <p className="text-[#6B5A95] mt-2">{routine.description}</p>
+              {loading ? (
+                <p className="mt-6 text-[#6B5A95]">Cargando rutinas...</p>
+              ) : todayRoutines.length === 0 ? (
+                <div className="mt-6 rounded-3xl border-2 border-dashed border-[#DCCCF8] p-6 text-center">
+                  <p className="text-lg font-bold text-[#4B367C]">
+                    No hay rutinas para hoy
+                  </p>
+                  <p className="mt-2 text-[#6B5A95]">
+                    Puedes crear una rutina nueva o editar sus días.
+                  </p>
+                </div>
+              ) : (
+                <div className="mt-6 space-y-4">
+                  {pendingToday.length > 0 && (
+                    <div>
+                      <h3 className="mb-3 text-xl font-bold text-[#4B367C]">
+                        Pendientes
+                      </h3>
+
+                      <div className="space-y-4">
+                        {pendingToday.map((routine) =>
+                          renderRoutineCard(routine, {
+                            showCompleteButton: true,
+                          }),
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {completedToday.length > 0 && (
+                    <div>
+                      <h3 className="mb-3 mt-6 text-xl font-bold text-green-700">
+                        Completadas
+                      </h3>
+
+                      <div className="space-y-4">
+                        {completedToday.map((routine) =>
+                          renderRoutineCard(routine, {
+                            showCompleteButton: true,
+                          }),
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
-
-              <button
-                type="button"
-                onClick={() => handleEdit(routine)}
-                className="mt-4 mr-3 bg-[#9B7BE8] hover:bg-[#8B6FD6] text-white font-bold py-2 px-4 rounded-xl"
-              >
-                Editar
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleCompleteRoutine(routine.id)}
-                className="mt-4 mr-3 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-xl"
-              >
-                ✅ Rutina realizada
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleDeleteRoutine(routine)}
-                className="mt-4 bg-red-400 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-xl"
-              >
-                Eliminar
-              </button>
             </div>
-          ))
-        )}
+
+            <div className="rounded-[2rem] bg-white p-6 shadow-lg md:p-8">
+              <h2 className="text-3xl font-extrabold text-[#4B367C]">
+                Todas mis rutinas
+              </h2>
+
+              <p className="mt-2 text-[#6B5A95]">
+                Administra tus rutinas activas y sus días.
+              </p>
+
+              {loading ? (
+                <p className="mt-6 text-[#6B5A95]">Cargando...</p>
+              ) : allRoutines.length === 0 ? (
+                <p className="mt-6 text-[#6B5A95]">
+                  No hay rutinas creadas todavía.
+                </p>
+              ) : (
+                <div className="mt-6 space-y-4">
+                  {allRoutines.map((routine) =>
+                    renderRoutineCard(routine, {
+                      compact: true,
+                    }),
+                  )}
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+
+        <section className="mt-8 rounded-[2rem] bg-white p-6 shadow-lg md:p-8">
+          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <div>
+              <h2 className="text-3xl font-extrabold text-[#4B367C]">
+                Historial reciente
+              </h2>
+
+              <p className="mt-2 text-[#6B5A95]">
+                Últimas rutinas marcadas como realizadas.
+              </p>
+            </div>
+
+            <p className="text-sm font-bold text-[#9B7BE8]">
+              Se guarda por fecha, no solo una vez.
+            </p>
+          </div>
+
+          {history.length === 0 ? (
+            <div className="mt-6 rounded-3xl border-2 border-dashed border-[#DCCCF8] p-6 text-center">
+              <p className="font-bold text-[#4B367C]">
+                Aún no hay historial de rutinas.
+              </p>
+              <p className="mt-2 text-[#6B5A95]">
+                Cuando marques una rutina como realizada, aparecerá aquí.
+              </p>
+            </div>
+          ) : (
+            <div className="mt-6 grid gap-4 md:grid-cols-2">
+              {history.slice(0, 8).map((item) => (
+                <div
+                  key={`${item.routine_id}-${item.completion_date}-${item.id}`}
+                  className="rounded-3xl border-2 border-[#DCCCF8] p-5"
+                >
+                  <p className="text-lg font-extrabold text-[#4B367C]">
+                    {item.name}
+                  </p>
+
+                  <p className="mt-1 text-[#6B5A95]">
+                    {formatTime(item.start_time)} - {formatTime(item.end_time)}
+                  </p>
+
+                  <p className="mt-2 text-sm font-bold text-green-700">
+                    Realizada el{" "}
+                    {new Date(item.completion_date).toLocaleDateString(
+                      "es-CL",
+                    )}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
       </div>
     </div>
   );
