@@ -1,5 +1,10 @@
 import api from "./api";
 
+/*
+  Rutinas propias del usuario conectado.
+  Esto lo usa el niño/a cuando entra a Rutinas.
+*/
+
 export const getRoutines = async () => {
   const response = await api.get("/routines");
   return response.data;
@@ -32,5 +37,45 @@ export const updateRoutine = async (id, routine) => {
 
 export const completeRoutine = async (id) => {
   const response = await api.post(`/routines/${id}/complete`);
+  return response.data;
+};
+
+/*
+  Rutinas de un hijo/a asociado.
+  Esto lo usa el padre/cuidador cuando está viendo un niño activo.
+*/
+
+export const getChildRoutines = async (childId) => {
+  const response = await api.get(`/routines/children/${childId}`);
+  return response.data;
+};
+
+export const getChildTodayRoutines = async (childId) => {
+  const response = await api.get(`/routines/children/${childId}/today`);
+  return response.data;
+};
+
+export const getChildRoutineHistory = async (childId) => {
+  const response = await api.get(`/routines/children/${childId}/history`);
+  return response.data;
+};
+
+export const createChildRoutine = async (childId, routine) => {
+  const response = await api.post(`/routines/children/${childId}`, routine);
+  return response.data;
+};
+
+export const updateChildRoutine = async (childId, id, routine) => {
+  const response = await api.put(`/routines/children/${childId}/${id}`, routine);
+  return response.data;
+};
+
+export const deleteChildRoutine = async (childId, id) => {
+  const response = await api.delete(`/routines/children/${childId}/${id}`);
+  return response.data;
+};
+
+export const completeChildRoutine = async (childId, id) => {
+  const response = await api.post(`/routines/children/${childId}/${id}/complete`);
   return response.data;
 };

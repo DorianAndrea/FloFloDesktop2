@@ -23,6 +23,7 @@ import PerfilSensorial from "./pages/PerfilSensorial";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import { FeedbackProvider } from "./context/FeedbackContext";
+import { SelectedChildProvider } from "./context/SelectedChildContext";
 
 const ProtectedParentRoute = ({ children }) => {
   const { user } = useFloFlo();
@@ -42,138 +43,138 @@ function App() {
   return (
     <BrowserRouter>
       <FeedbackProvider>
-        <div className="min-h-screen flex flex-col bg-[#F7F0FF]">
-          <Navbar />
+        <SelectedChildProvider>
+          <div className="min-h-screen flex flex-col bg-[#F7F0FF]">
+            <Navbar />
 
-          <main className="flex-1">
-            <Routes>
-              <Route path="/" element={<Home />} />
+            <main className="flex-1">
+              <Routes>
+                <Route path="/" element={<Home />} />
 
-              <Route path="/registro" element={<User />} />
+                <Route path="/registro" element={<User />} />
 
-              <Route path="/login" element={<Login />} />
+                <Route path="/login" element={<Login />} />
 
-              <Route path="/forgot-password" element={<ForgotPassword />} />
+                <Route path="/forgot-password" element={<ForgotPassword />} />
 
-              <Route path="/reset-password" element={<ResetPassword />} />
+                <Route path="/reset-password" element={<ResetPassword />} />
 
-              <Route
-                path="/mi-perfil"
-                element={
-                  <ProtectedRoute>
-                    <MiPerfil />
-                  </ProtectedRoute>
-                }
-              />
+                <Route
+                  path="/mi-perfil"
+                  element={
+                    <ProtectedRoute>
+                      <MiPerfil />
+                    </ProtectedRoute>
+                  }
+                />
 
-              <Route
-                path="/emociones"
-                element={
-                  <ProtectedRoute>
-                    <EstadosAnimo />
-                  </ProtectedRoute>
-                }
-              />
+                <Route
+                  path="/emociones"
+                  element={
+                    <ProtectedRoute>
+                      <EstadosAnimo />
+                    </ProtectedRoute>
+                  }
+                />
 
-              <Route
-                path="/rutinas"
-                element={
-                  <ProtectedRoute>
-                    <Rutinas />
-                  </ProtectedRoute>
-                }
-              />
+                <Route
+                  path="/rutinas"
+                  element={
+                    <ProtectedRoute>
+                      <Rutinas />
+                    </ProtectedRoute>
+                  }
+                />
 
-              <Route
-                path="/amigos"
-                element={
-                  <ProtectedRoute>
-                    <Amigos />
-                  </ProtectedRoute>
-                }
-              />
+                <Route
+                  path="/amigos"
+                  element={
+                    <ProtectedRoute>
+                      <Amigos />
+                    </ProtectedRoute>
+                  }
+                />
 
-              <Route
-                path="/amigos/:id"
-                element={
-                  <ProtectedRoute>
-                    <PersonaDetalle />
-                  </ProtectedRoute>
-                }
-              />
+                <Route
+                  path="/amigos/:id"
+                  element={
+                    <ProtectedRoute>
+                      <PersonaDetalle />
+                    </ProtectedRoute>
+                  }
+                />
 
-              <Route
-                path="/conversaciones"
-                element={
-                  <ProtectedRoute>
-                    <Conversaciones />
-                  </ProtectedRoute>
-                }
-              />
+                <Route
+                  path="/conversaciones"
+                  element={
+                    <ProtectedRoute>
+                      <Conversaciones />
+                    </ProtectedRoute>
+                  }
+                />
 
-              <Route
-                path="/lugares"
-                element={
-                  <ProtectedRoute>
-                    <Lugares />
-                  </ProtectedRoute>
-                }
-              />
+                <Route
+                  path="/lugares"
+                  element={
+                    <ProtectedRoute>
+                      <Lugares />
+                    </ProtectedRoute>
+                  }
+                />
 
-              <Route
-                path="/lugares/crear"
-                element={
-                  <ProtectedRoute>
-                    <CrearLugar />
-                  </ProtectedRoute>
-                }
-              />
+                <Route
+                  path="/lugares/crear"
+                  element={
+                    <ProtectedRoute>
+                      <CrearLugar />
+                    </ProtectedRoute>
+                  }
+                />
 
-              <Route
-                path="/lugares/:id"
-                element={
-                  <ProtectedRoute>
-                    <LugarDetalle />
-                  </ProtectedRoute>
-                }
-              />
+                <Route
+                  path="/lugares/:id"
+                  element={
+                    <ProtectedRoute>
+                      <LugarDetalle />
+                    </ProtectedRoute>
+                  }
+                />
 
-              <Route
-                path="/logros"
-                element={
-                  <ProtectedRoute>
-                    <Logros />
-                  </ProtectedRoute>
-                }
-              />
+                <Route
+                  path="/logros"
+                  element={
+                    <ProtectedRoute>
+                      <Logros />
+                    </ProtectedRoute>
+                  }
+                />
 
-              <Route
-                path="/panel-padres"
-                element={
-                  <ProtectedParentRoute>
-                    <PanelPadres />
-                  </ProtectedParentRoute>
-                }
-              />
+                <Route
+                  path="/panel-padres"
+                  element={
+                    <ProtectedParentRoute>
+                      <PanelPadres />
+                    </ProtectedParentRoute>
+                  }
+                />
 
-              <Route
-                path="/perfil-sensorial"
-                element={
-                  <ProtectedRoute>
-                    <PerfilSensorial />
-                  </ProtectedRoute>
-                }
-              />
-            </Routes>
-          </main>
+                <Route
+                  path="/perfil-sensorial"
+                  element={
+                    <ProtectedRoute>
+                      <PerfilSensorial />
+                    </ProtectedRoute>
+                  }
+                />
+              </Routes>
+            </main>
 
-          <Footer />
-        </div>
+            <Footer />
+          </div>
+        </SelectedChildProvider>
       </FeedbackProvider>
     </BrowserRouter>
   );
 }
 
 export default App;
-
-

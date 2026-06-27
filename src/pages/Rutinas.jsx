@@ -8,8 +8,16 @@ import {
   deleteRoutine,
   updateRoutine,
   completeRoutine,
+  getChildRoutines,
+  getChildTodayRoutines,
+  getChildRoutineHistory,
+  createChildRoutine,
+  updateChildRoutine,
+  deleteChildRoutine,
+  completeChildRoutine,
 } from "../services/routineService";
 import { useFloFlo } from "../context/FloFloContext";
+import { useSelectedChild } from "../context/SelectedChildContext";
 import { useFeedback } from "../context/FeedbackContext";
 import AchievementPopup from "../components/AchievementPopup";
 
@@ -83,7 +91,23 @@ const Rutinas = () => {
   const [saving, setSaving] = useState(false);
 
   const { user } = useFloFlo();
+
+  const {
+    isParent,
+    selectedChild,
+    selectedChildId,
+    loadingChildren,
+    getChildDisplayName,
+  } = useSelectedChild();
+
   const { showFeedback, showConfirm } = useFeedback();
+
+  const isParentMode = isParent && Boolean(selectedChildId);
+  const isParentWithoutChild = isParent && !selectedChildId;
+
+  const childName = selectedChild
+    ? getChildDisplayName(selectedChild)
+    : "el niño/a seleccionado";
 
   const pendingToday = useMemo(
     () => todayRoutines.filter((routine) => !routine.completed_today),
@@ -99,12 +123,28 @@ const Rutinas = () => {
     try {
       if (!user) return;
 
+      if (isParent && loadingChildren) {
+        return;
+      }
+
       setLoading(true);
 
+      if (isParentWithoutChild) {
+        setAllRoutines([]);
+        setTodayRoutines([]);
+        setTodayInfo(null);
+        setHistory([]);
+        return;
+      }
+
       const [allData, todayData, historyData] = await Promise.all([
-        getRoutines(),
-        getTodayRoutines(),
-        getRoutineHistory(),
+        isParentMode ? getChildRoutines(selectedChildId) : getRoutines(),
+        isParentMode
+          ? getChildTodayRoutines(selectedChildId)
+          : getTodayRoutines(),
+        isParentMode
+          ? getChildRoutineHistory(selectedChildId)
+          : getRoutineHistory(),
       ]);
 
       setAllRoutines(Array.isArray(allData) ? allData : []);
@@ -121,7 +161,9 @@ const Rutinas = () => {
         icon: "❌",
         label: "Algo salió mal",
         title: "No se pudieron cargar las rutinas",
-        message: "Intenta nuevamente en unos segundos.",
+        message:
+          error.response?.data?.message ||
+          "Intenta nuevamente en unos segundos.",
       });
     } finally {
       setLoading(false);
@@ -130,7 +172,7 @@ const Rutinas = () => {
 
   useEffect(() => {
     loadRoutines();
-  }, [user]);
+  }, [user?.id, user?.role, selectedChildId, loadingChildren]);
 
   const resetForm = () => {
     setName("");
@@ -159,6 +201,25 @@ const Rutinas = () => {
     setSelectedDays(["monday", "tuesday", "wednesday", "thursday", "friday"]);
   };
 
+  const validateParentChildSelection = () => {
+    if (!isParent) return true;
+
+    if (!selectedChildId) {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta niño/a activo",
+        title: "Selecciona un niño/a",
+        message:
+          "Para gestionar rutinas como cuidador, primero debes tener un niño/a asociado y seleccionado.",
+      });
+
+      return false;
+    }
+
+    return true;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -172,6 +233,8 @@ const Rutinas = () => {
       });
       return;
     }
+
+    if (!validateParentChildSelection()) return;
 
     if (!name.trim()) {
       showFeedback({
@@ -229,24 +292,36 @@ const Rutinas = () => {
       };
 
       if (editingId) {
-        await updateRoutine(editingId, routineData);
+        if (isParentMode) {
+          await updateChildRoutine(selectedChildId, editingId, routineData);
+        } else {
+          await updateRoutine(editingId, routineData);
+        }
 
         showFeedback({
           type: "success",
           icon: "✅",
           label: "Cambios guardados",
           title: "Rutina actualizada",
-          message: "Los cambios de la rutina se guardaron correctamente.",
+          message: isParentMode
+            ? `Los cambios de la rutina de ${childName} se guardaron correctamente.`
+            : "Los cambios de la rutina se guardaron correctamente.",
         });
       } else {
-        await createRoutine(routineData);
+        if (isParentMode) {
+          await createChildRoutine(selectedChildId, routineData);
+        } else {
+          await createRoutine(routineData);
+        }
 
         showFeedback({
           type: "success",
           icon: "✅",
           label: "Rutina creada",
           title: "Guardada correctamente",
-          message: "La rutina fue creada y ya está disponible en FloFlo.",
+          message: isParentMode
+            ? `La rutina fue creada para ${childName}.`
+            : "La rutina fue creada y ya está disponible en FloFlo.",
         });
       }
 
@@ -270,6 +345,8 @@ const Rutinas = () => {
   };
 
   const handleDeleteRoutine = async (routine) => {
+    if (!validateParentChildSelection()) return;
+
     const confirmed = await showConfirm({
       type: "danger",
       icon: "🗑️",
@@ -283,14 +360,20 @@ const Rutinas = () => {
     if (!confirmed) return;
 
     try {
-      await deleteRoutine(routine.id);
+      if (isParentMode) {
+        await deleteChildRoutine(selectedChildId, routine.id);
+      } else {
+        await deleteRoutine(routine.id);
+      }
 
       showFeedback({
         type: "success",
         icon: "✅",
         label: "Rutina eliminada",
         title: "Eliminada correctamente",
-        message: "La rutina fue eliminada de FloFlo.",
+        message: isParentMode
+          ? `La rutina fue eliminada para ${childName}.`
+          : "La rutina fue eliminada de FloFlo.",
       });
 
       if (Number(editingId) === Number(routine.id)) {
@@ -306,12 +389,16 @@ const Rutinas = () => {
         icon: "❌",
         label: "Algo salió mal",
         title: "No se pudo eliminar",
-        message: "Intenta nuevamente en unos segundos.",
+        message:
+          error.response?.data?.message ||
+          "Intenta nuevamente en unos segundos.",
       });
     }
   };
 
   const handleCompleteRoutine = async (routine) => {
+    if (!validateParentChildSelection()) return;
+
     if (routine.completed_today) {
       showFeedback({
         type: "info",
@@ -324,7 +411,9 @@ const Rutinas = () => {
     }
 
     try {
-      const response = await completeRoutine(routine.id);
+      const response = isParentMode
+        ? await completeChildRoutine(selectedChildId, routine.id)
+        : await completeRoutine(routine.id);
 
       if (response.alreadyCompleted) {
         showFeedback({
@@ -346,7 +435,9 @@ const Rutinas = () => {
           icon: "⭐",
           label: "Rutina realizada",
           title: "¡Muy bien!",
-          message: "Ganaste una estrella por realizar tu rutina.",
+          message: isParentMode
+            ? `La rutina de ${childName} quedó marcada como realizada.`
+            : "Ganaste una estrella por realizar tu rutina.",
         });
       }
 
@@ -508,14 +599,27 @@ const Rutinas = () => {
           </p>
 
           <h1 className="text-4xl font-extrabold text-[#4B367C] md:text-6xl">
-            Organiza tu día
+            {isParentMode ? `Rutinas de ${childName}` : "Organiza tu día"}
           </h1>
 
           <p className="mx-auto mt-4 max-w-2xl text-lg text-[#6B5A95]">
-            Crea rutinas por día, marca las actividades realizadas y revisa tu
-            avance diario.
+            {isParentMode
+              ? "Gestiona las rutinas del niño/a seleccionado desde el modo cuidador."
+              : "Crea rutinas por día, marca las actividades realizadas y revisa tu avance diario."}
           </p>
         </div>
+
+        {isParent && (
+          <div className="mb-8 rounded-[2rem] border-2 border-[#9ED5B3] bg-[#EAF8EF] p-5 text-center shadow-sm">
+            <p className="font-bold text-[#2F6B4F]">Modo cuidador activo</p>
+
+            <p className="mt-1 text-[#2F6B4F]">
+              {selectedChild
+                ? `Estás viendo y gestionando rutinas de ${childName}.`
+                : "No hay un niño/a activo seleccionado."}
+            </p>
+          </div>
+        )}
 
         <div className="mb-8 grid gap-4 md:grid-cols-3">
           <div className="rounded-[2rem] bg-white p-6 shadow-lg">
@@ -559,7 +663,9 @@ const Rutinas = () => {
             </h2>
 
             <p className="mt-2 text-[#6B5A95]">
-              Elige el horario y los días en que se repetirá.
+              {isParentMode
+                ? `Esta rutina se guardará para ${childName}.`
+                : "Elige el horario y los días en que se repetirá."}
             </p>
 
             <form onSubmit={handleSubmit} className="mt-8 space-y-6">
@@ -671,14 +777,16 @@ const Rutinas = () => {
 
               <button
                 type="submit"
-                disabled={saving}
+                disabled={saving || isParentWithoutChild}
                 className="w-full rounded-2xl bg-[#9B7BE8] py-4 font-bold text-white transition-all duration-300 hover:scale-[1.02] hover:bg-[#8B6FD6] disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {saving
                   ? "Guardando..."
                   : editingId
                     ? "Actualizar rutina"
-                    : "Guardar rutina"}
+                    : isParentMode
+                      ? "Guardar rutina para niño/a"
+                      : "Guardar rutina"}
               </button>
 
               {editingId && (
@@ -759,7 +867,9 @@ const Rutinas = () => {
               </h2>
 
               <p className="mt-2 text-[#6B5A95]">
-                Administra tus rutinas activas y sus días.
+                {isParentMode
+                  ? `Administra las rutinas activas de ${childName}.`
+                  : "Administra tus rutinas activas y sus días."}
               </p>
 
               {loading ? (
@@ -789,7 +899,9 @@ const Rutinas = () => {
               </h2>
 
               <p className="mt-2 text-[#6B5A95]">
-                Últimas rutinas marcadas como realizadas.
+                {isParentMode
+                  ? `Últimas rutinas realizadas por ${childName}.`
+                  : "Últimas rutinas marcadas como realizadas."}
               </p>
             </div>
 

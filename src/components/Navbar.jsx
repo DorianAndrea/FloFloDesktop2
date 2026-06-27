@@ -3,6 +3,7 @@ import { NavLink } from "react-router-dom";
 import { FaBars, FaTimes, FaChevronDown } from "react-icons/fa";
 
 import { useFloFlo } from "../context/FloFloContext";
+import { useSelectedChild } from "../context/SelectedChildContext";
 import { getMyDashboard } from "../services/parentDashboardService";
 import felixLogo from "../assets/webp/felix_cara_sonriendo.webp";
 
@@ -10,9 +11,18 @@ const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [activitiesOpen, setActivitiesOpen] = useState(false);
   const [achievementCount, setAchievementCount] = useState(0);
-  const [selectedChild, setSelectedChild] = useState(null);
 
   const { user, logout, soundEnabled, setSoundEnabled } = useFloFlo();
+
+  const {
+    parentChildren,
+    selectedChild,
+    selectedChildId,
+    loadingChildren,
+    selectChild,
+    getChildDisplayName,
+  } = useSelectedChild();
+
   const isParent = user?.role === "parent";
 
   const activityLinks = [
@@ -42,20 +52,6 @@ const Navbar = () => {
     loadNavbarAchievements();
   }, [user]);
 
-  useEffect(() => {
-    const loadSelectedChild = () => {
-      const storedChild = localStorage.getItem("selectedChild");
-      setSelectedChild(storedChild ? JSON.parse(storedChild) : null);
-    };
-
-    loadSelectedChild();
-    window.addEventListener("selectedChildChanged", loadSelectedChild);
-
-    return () => {
-      window.removeEventListener("selectedChildChanged", loadSelectedChild);
-    };
-  }, []);
-
   const linkClass = ({ isActive }) =>
     `font-semibold transition ${
       isActive ? "text-[#9B7BE8]" : "text-[#5B4B8A] hover:text-[#8B6FD6]"
@@ -68,9 +64,80 @@ const Navbar = () => {
 
   const handleLogout = () => {
     localStorage.removeItem("selectedChild");
+    localStorage.removeItem("floflo_selected_child_id");
     logout();
     setAchievementCount(0);
     closeMenus();
+  };
+
+  const renderSelectedChildDesktop = () => {
+    if (!isParent) return null;
+
+    return (
+      <div className="mt-1 bg-[#CFEFD9] border border-[#9ED5B3] rounded-xl px-3 py-2">
+        <p className="text-xs font-semibold text-[#2F6B4F]">Niño activo</p>
+
+        {loadingChildren ? (
+          <p className="text-sm font-bold text-[#1F4F39]">Cargando...</p>
+        ) : parentChildren.length === 0 ? (
+          <p className="text-sm font-bold text-[#1F4F39]">
+            Sin niño/a asociado
+          </p>
+        ) : parentChildren.length > 1 ? (
+          <select
+            value={selectedChildId}
+            onChange={(e) => selectChild(e.target.value)}
+            className="mt-1 max-w-[150px] rounded-xl border border-[#9ED5B3] bg-white px-2 py-1 text-sm font-bold text-[#1F4F39] focus:outline-none"
+          >
+            {parentChildren.map((child) => (
+              <option key={child.id} value={child.id}>
+                {getChildDisplayName(child)}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <p className="text-sm font-bold text-[#1F4F39]">
+            👧 {getChildDisplayName(selectedChild)}
+          </p>
+        )}
+      </div>
+    );
+  };
+
+  const renderSelectedChildMobile = () => {
+    if (!isParent) return null;
+
+    return (
+      <div className="mt-3 bg-[#CFEFD9] border border-[#9ED5B3] rounded-2xl px-4 py-3">
+        <p className="text-xs font-semibold text-[#2F6B4F] uppercase tracking-wide">
+          Niño activo
+        </p>
+
+        {loadingChildren ? (
+          <p className="text-lg font-bold text-[#1F4F39] mt-1">Cargando...</p>
+        ) : parentChildren.length === 0 ? (
+          <p className="text-lg font-bold text-[#1F4F39] mt-1">
+            Sin niño/a asociado
+          </p>
+        ) : parentChildren.length > 1 ? (
+          <select
+            value={selectedChildId}
+            onChange={(e) => selectChild(e.target.value)}
+            className="mt-2 w-full rounded-xl border border-[#9ED5B3] bg-white px-3 py-2 text-[#1F4F39] font-bold focus:outline-none"
+          >
+            {parentChildren.map((child) => (
+              <option key={child.id} value={child.id}>
+                {getChildDisplayName(child)}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <p className="text-lg font-bold text-[#1F4F39] mt-1">
+            👧 {getChildDisplayName(selectedChild)}
+          </p>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -172,17 +239,7 @@ const Navbar = () => {
                   Hola, {user.firstName}
                 </span>
 
-                {isParent && selectedChild && (
-                  <div className="mt-1 bg-[#CFEFD9] border border-[#9ED5B3] rounded-xl px-3 py-2">
-                    <p className="text-xs font-semibold text-[#2F6B4F]">
-                      Niño activo
-                    </p>
-
-                    <p className="text-sm font-bold text-[#1F4F39]">
-                      👧 {selectedChild.firstName}
-                    </p>
-                  </div>
-                )}
+                {renderSelectedChildDesktop()}
 
                 <span
                   className={`text-xs font-bold px-2 py-1 rounded-full w-fit mt-1 ${
@@ -239,7 +296,7 @@ const Navbar = () => {
       </div>
 
       {menuOpen && (
-        <div className="lg:hidden bg-white border-t border-[#E3D9FF] px-6 py-5">
+        <div className="lg:hidden bg-white border-t border-[#E3D9FF] px-6 py-5 max-h-[calc(100vh-90px)] overflow-y-auto">
           <div className="flex flex-col gap-5">
             <NavLink to="/" className={linkClass} onClick={closeMenus}>
               Home
@@ -252,17 +309,7 @@ const Navbar = () => {
                     Hola, {user.firstName}
                   </p>
 
-                  {isParent && selectedChild && (
-                    <div className="mt-3 bg-[#CFEFD9] border border-[#9ED5B3] rounded-2xl px-4 py-3">
-                      <p className="text-xs font-semibold text-[#2F6B4F] uppercase tracking-wide">
-                        Niño activo
-                      </p>
-
-                      <p className="text-lg font-bold text-[#1F4F39] mt-1">
-                        👧 {selectedChild.firstName} {selectedChild.lastName}
-                      </p>
-                    </div>
-                  )}
+                  {renderSelectedChildMobile()}
 
                   <p
                     className={`text-sm font-bold px-3 py-2 rounded-full w-fit mt-2 ${
@@ -329,7 +376,7 @@ const Navbar = () => {
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="text-left text-red-500 font-semibold"
+                  className="bg-red-50 border-2 border-red-200 text-red-600 font-bold px-5 py-3 rounded-full text-center hover:bg-red-100 transition"
                 >
                   Cerrar sesión
                 </button>
