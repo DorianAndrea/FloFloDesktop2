@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import useSound from "use-sound";
 import { useFloFlo } from "../context/FloFloContext";
+import { useSelectedChild } from "../context/SelectedChildContext";
 import { useFeedback } from "../context/FeedbackContext";
 import { generateConversation } from "../services/aiService";
 import {
@@ -12,6 +13,13 @@ import {
   deleteConversation,
   updateConversation,
   toggleFavoriteConversation,
+  createChildConversation,
+  completeChildConversation,
+  getChildConversationProgress,
+  getChildPaginatedConversations,
+  deleteChildConversation,
+  updateChildConversation,
+  toggleFavoriteChildConversation,
 } from "../services/conversationService";
 
 import { getUserProgress } from "../services/progressService";
@@ -20,6 +28,9 @@ import {
   completeContactConversation,
   getContactConversationProgress,
   toggleFavoriteContactConversation,
+  completeChildContactConversation,
+  getChildContactConversationProgress,
+  toggleFavoriteChildContactConversation,
 } from "../services/contactConversationService";
 
 import felix from "../assets/webp/felix_cara_sonriendo.webp";
@@ -165,6 +176,7 @@ Responde SOLO con JSON válido, sin texto adicional, sin backticks:
     const data = await response.json();
     const text = data.content?.[0]?.text || "";
     const parsed = JSON.parse(text.trim());
+
     return [parsed.wrong_1, parsed.wrong_2];
   } catch (e) {
     return ["Me quedo en silencio.", "Me alejo sin responder."];
@@ -173,6 +185,7 @@ Responde SOLO con JSON válido, sin texto adicional, sin backticks:
 
 const Conversaciones = () => {
   const {
+    user,
     points,
     setPoints,
     level,
@@ -183,7 +196,22 @@ const Conversaciones = () => {
     setSoundEnabled,
   } = useFloFlo();
 
+  const {
+    isParent,
+    selectedChild,
+    selectedChildId,
+    loadingChildren,
+    getChildDisplayName,
+  } = useSelectedChild();
+
   const { showFeedback, showConfirm } = useFeedback();
+
+  const isParentMode = isParent && Boolean(selectedChildId);
+  const isParentWithoutChild = isParent && !selectedChildId;
+
+  const childName = selectedChild
+    ? getChildDisplayName(selectedChild)
+    : "el niño/a seleccionado";
 
   const [conversaciones, setConversaciones] = useState([]);
   const [conversacionSeleccionada, setConversacionSeleccionada] =
@@ -192,6 +220,7 @@ const Conversaciones = () => {
   const [generandoIA, setGenerandoIA] = useState(false);
   const [newAchievement, setNewAchievement] = useState(null);
   const [cargandoOpciones, setCargandoOpciones] = useState(false);
+  const [cargandoPagina, setCargandoPagina] = useState(true);
 
   const [paginaActual, setPaginaActual] = useState(1);
   const [totalPaginas, setTotalPaginas] = useState(1);
@@ -229,35 +258,76 @@ const Conversaciones = () => {
   const [playWrongSound] = useSound(wrongSound, { volume: 0.35 });
 
   const cargarUserProgress = async () => {
+    if (isParentMode) return;
+
     const progress = await getUserProgress();
+
     setPoints(Number(progress.points || 0));
     setLevel(Number(progress.level || 1));
   };
 
   const cargarProgreso = async () => {
-    const normalProgress = await getConversationProgress();
-    const contactProgress = await getContactConversationProgress();
+    if (!user) return;
+
+    if (isParent && loadingChildren) return;
+
+    if (isParentWithoutChild) {
+      setCompletedConversations([]);
+      return;
+    }
+
+    const normalProgress = isParentMode
+      ? await getChildConversationProgress(selectedChildId)
+      : await getConversationProgress();
+
+    const contactProgress = isParentMode
+      ? await getChildContactConversationProgress(selectedChildId)
+      : await getContactConversationProgress();
 
     const normalIds = normalProgress.map(
       (item) => `normal-${Number(item.conversation_id)}`,
     );
 
-    const contactIds = contactProgress.map(
-      (item) => `contact-${Number(item.contact_conversation_id)}`,
-    );
+    const contactIds = contactProgress.map((item) => {
+      const progressId =
+        item.contact_conversation_id || item.conversation_id || item.id;
+
+      return `contact-${Number(progressId)}`;
+    });
 
     setCompletedConversations([...normalIds, ...contactIds]);
   };
 
   const loadConversations = async () => {
     try {
-      const data = await getPaginatedConversations(
-        paginaActual,
-        conversacionesPorPagina,
-        busqueda,
-        busquedaDebounce,
-        orden,
-      );
+      if (!user) return;
+
+      if (isParent && loadingChildren) return;
+
+      setCargandoPagina(true);
+
+      if (isParentWithoutChild) {
+        setConversaciones([]);
+        setConversacionSeleccionada(null);
+        setTotalPaginas(1);
+        setTotalConversaciones(0);
+        return;
+      }
+
+      const data = isParentMode
+        ? await getChildPaginatedConversations(
+            selectedChildId,
+            paginaActual,
+            conversacionesPorPagina,
+            busquedaDebounce,
+            orden,
+          )
+        : await getPaginatedConversations(
+            paginaActual,
+            conversacionesPorPagina,
+            busquedaDebounce,
+            orden,
+          );
 
       const conversacionesMapeadas = data.conversations.map((item) => {
         const base = contenidoBasePorTitulo[item.title];
@@ -306,6 +376,8 @@ const Conversaciones = () => {
           id: esContacto ? `contact-${item.id}` : `normal-${item.id}`,
           conversationId: Number(item.id),
           tipo: esContacto ? "contacto" : "normal",
+          user_id: item.user_id,
+          user_contact_id: item.user_contact_id,
           titulo: item.title,
           emoji: esContacto ? "✨" : getEmojiByTitle(item.title),
           escenario: item.situation,
@@ -315,6 +387,7 @@ const Conversaciones = () => {
           wrong_answer_1: item.wrong_answer_1,
           wrong_answer_2: item.wrong_answer_2,
           is_favorite: item.is_favorite || false,
+          managed_by_parent: item.managed_by_parent || false,
           dialogo,
           ejercicio: {
             pregunta:
@@ -327,8 +400,8 @@ const Conversaciones = () => {
       });
 
       setConversaciones(conversacionesMapeadas);
-      setTotalPaginas(data.totalPages);
-      setTotalConversaciones(data.total);
+      setTotalPaginas(data.totalPages || 1);
+      setTotalConversaciones(data.total || 0);
 
       if (conversacionesMapeadas.length > 0) {
         setConversacionSeleccionada((prev) => {
@@ -340,6 +413,8 @@ const Conversaciones = () => {
 
           return actualizada || conversacionesMapeadas[0];
         });
+      } else {
+        setConversacionSeleccionada(null);
       }
     } catch (error) {
       console.error(error);
@@ -349,8 +424,12 @@ const Conversaciones = () => {
         icon: "❌",
         label: "Algo salió mal",
         title: "No se pudieron cargar las conversaciones",
-        message: "Intenta nuevamente en unos segundos.",
+        message:
+          error.response?.data?.message ||
+          "Intenta nuevamente en unos segundos.",
       });
+    } finally {
+      setCargandoPagina(false);
     }
   };
 
@@ -358,11 +437,20 @@ const Conversaciones = () => {
     loadConversations();
     cargarProgreso();
     cargarUserProgress();
-  }, [paginaActual, busquedaDebounce, orden]);
+  }, [
+    user?.id,
+    user?.role,
+    paginaActual,
+    busquedaDebounce,
+    orden,
+    selectedChildId,
+    loadingChildren,
+  ]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
       setBusquedaDebounce(busqueda);
+      setPaginaActual(1);
     }, 500);
 
     return () => clearTimeout(timer);
@@ -412,8 +500,8 @@ const Conversaciones = () => {
   }, [conversacionSeleccionada?.id]);
 
   const progreso =
-    conversaciones.length > 0
-      ? (completedConversations.length / conversaciones.length) * 100
+    totalConversaciones > 0
+      ? Math.min((completedConversations.length / totalConversaciones) * 100, 100)
       : 0;
 
   const seleccionarConversacion = (conversacion) => {
@@ -463,8 +551,12 @@ const Conversaciones = () => {
     try {
       const response =
         conversacionSeleccionada.tipo === "contacto"
-          ? await completeContactConversation(idNumerico)
-          : await completeConversation(idNumerico);
+          ? isParentMode
+            ? await completeChildContactConversation(selectedChildId, idNumerico)
+            : await completeContactConversation(idNumerico)
+          : isParentMode
+            ? await completeChildConversation(selectedChildId, idNumerico)
+            : await completeConversation(idNumerico);
 
       setNewAchievement(
         response.unlockedAchievements?.[0] || {
@@ -481,6 +573,7 @@ const Conversaciones = () => {
 
       setTimeout(() => setNewAchievement(null), 5000);
 
+      await cargarProgreso();
       await cargarUserProgress();
     } catch (error) {
       console.error(error);
@@ -490,7 +583,9 @@ const Conversaciones = () => {
         icon: "❌",
         label: "Algo salió mal",
         title: "No se pudo completar",
-        message: "No se pudo guardar el avance de esta conversación.",
+        message:
+          error.response?.data?.message ||
+          "No se pudo guardar el avance de esta conversación.",
       });
     }
   };
@@ -506,7 +601,8 @@ const Conversaciones = () => {
         icon: "⚠️",
         label: "Falta información",
         title: "Tema y situación obligatorios",
-        message: "Debes ingresar un tema y una situación para que Félix genere la conversación.",
+        message:
+          "Debes ingresar un tema y una situación para que Félix genere la conversación.",
       });
       return;
     }
@@ -516,7 +612,7 @@ const Conversaciones = () => {
 
       const data = await generateConversation(formIA);
 
-      const savedConversation = await createConversation({
+      const payload = {
         title: data.title || formIA.topic,
         situation: formIA.situation,
         what_to_say:
@@ -524,7 +620,11 @@ const Conversaciones = () => {
         reminder: `Conversación generada con IA sobre ${formIA.topic}`,
         messages: data.messages,
         exercise: data.exercise,
-      });
+      };
+
+      const savedConversation = isParentMode
+        ? await createChildConversation(selectedChildId, payload)
+        : await createConversation(payload);
 
       const savedId = Number(savedConversation.conversation.id);
 
@@ -532,10 +632,12 @@ const Conversaciones = () => {
         id: `normal-${savedId}`,
         conversationId: savedId,
         tipo: "normal",
+        user_id: savedConversation.conversation.user_id,
         titulo: data.title || formIA.topic,
         emoji: "✨",
         escenario: formIA.situation,
         habilidad: `Conversación generada con IA sobre ${formIA.topic}`,
+        managed_by_parent: isParentMode,
         dialogo: data.messages.map((msg) => ({
           personaje: msg.speaker,
           texto: msg.text,
@@ -566,8 +668,12 @@ const Conversaciones = () => {
         icon: "✨",
         label: "Conversación generada",
         title: "Félix creó una conversación",
-        message: "Ya puedes practicarla o editarla si quieres ajustarla.",
+        message: isParentMode
+          ? `La conversación fue guardada para ${childName}.`
+          : "Ya puedes practicarla o editarla si quieres ajustarla.",
       });
+
+      await loadConversations();
     } catch (error) {
       console.error(error);
 
@@ -576,7 +682,9 @@ const Conversaciones = () => {
         icon: "❌",
         label: "Algo salió mal",
         title: "No se pudo generar",
-        message: "Félix no pudo generar la conversación. Intenta nuevamente.",
+        message:
+          error.response?.data?.message ||
+          "Félix no pudo generar la conversación. Intenta nuevamente.",
       });
     } finally {
       setGenerandoIA(false);
@@ -604,7 +712,8 @@ const Conversaciones = () => {
         icon: "⚠️",
         label: "Conversación de contacto",
         title: "Elimínala desde Amigos",
-        message: "Esta conversación pertenece a un contacto. Puedes eliminarla o editarla desde el módulo Amigos.",
+        message:
+          "Esta conversación pertenece a un contacto. Puedes eliminarla o editarla desde el módulo Amigos.",
       });
       return;
     }
@@ -614,7 +723,9 @@ const Conversaciones = () => {
       icon: "🗑️",
       label: "Eliminar conversación",
       title: "¿Eliminar conversación?",
-      message: `Esta acción eliminará "${conversation.titulo}" y no se podrá recuperar.`,
+      message: isParentMode
+        ? `Esta acción eliminará "${conversation.titulo}" del perfil de ${childName} y no se podrá recuperar.`
+        : `Esta acción eliminará "${conversation.titulo}" y no se podrá recuperar.`,
       confirmText: "Sí, eliminar",
       cancelText: "Cancelar",
     });
@@ -622,7 +733,11 @@ const Conversaciones = () => {
     if (!confirmed) return;
 
     try {
-      await deleteConversation(conversation.conversationId);
+      if (isParentMode) {
+        await deleteChildConversation(selectedChildId, conversation.conversationId);
+      } else {
+        await deleteConversation(conversation.conversationId);
+      }
 
       setConversaciones((prev) =>
         prev.filter((item) => item.id !== conversation.id),
@@ -638,7 +753,9 @@ const Conversaciones = () => {
         icon: "✅",
         label: "Conversación eliminada",
         title: "Eliminada correctamente",
-        message: "La conversación fue eliminada de FloFlo.",
+        message: isParentMode
+          ? `La conversación fue eliminada para ${childName}.`
+          : "La conversación fue eliminada de FloFlo.",
       });
 
       await loadConversations();
@@ -652,7 +769,9 @@ const Conversaciones = () => {
         icon: "❌",
         label: "Algo salió mal",
         title: "No se pudo eliminar",
-        message: "Intenta nuevamente en unos segundos.",
+        message:
+          error.response?.data?.message ||
+          "Intenta nuevamente en unos segundos.",
       });
     }
   };
@@ -664,7 +783,8 @@ const Conversaciones = () => {
         icon: "⚠️",
         label: "Conversación de contacto",
         title: "Edítala desde Amigos",
-        message: "Esta conversación pertenece a un contacto. Puedes editarla desde el módulo Amigos.",
+        message:
+          "Esta conversación pertenece a un contacto. Puedes editarla desde el módulo Amigos.",
       });
       return;
     }
@@ -771,7 +891,15 @@ const Conversaciones = () => {
         },
       };
 
-      await updateConversation(conversacionSeleccionada.conversationId, payload);
+      if (isParentMode) {
+        await updateChildConversation(
+          selectedChildId,
+          conversacionSeleccionada.conversationId,
+          payload,
+        );
+      } else {
+        await updateConversation(conversacionSeleccionada.conversationId, payload);
+      }
 
       setEditando(false);
       await loadConversations();
@@ -781,7 +909,9 @@ const Conversaciones = () => {
         icon: "✅",
         label: "Cambios guardados",
         title: "Conversación actualizada",
-        message: "Los cambios de la conversación se guardaron correctamente.",
+        message: isParentMode
+          ? `Los cambios de la conversación de ${childName} se guardaron correctamente.`
+          : "Los cambios de la conversación se guardaron correctamente.",
       });
     } catch (error) {
       console.error(error);
@@ -791,82 +921,165 @@ const Conversaciones = () => {
         icon: "❌",
         label: "Algo salió mal",
         title: "No se pudo actualizar",
-        message: "Intenta nuevamente en unos segundos.",
+        message:
+          error.response?.data?.message ||
+          "Intenta nuevamente en unos segundos.",
       });
     }
   };
+
+  const handleToggleFavorite = async (item) => {
+    try {
+      if (item.tipo === "contacto") {
+        if (isParentMode) {
+          await toggleFavoriteChildContactConversation(
+            selectedChildId,
+            item.conversationId,
+          );
+        } else {
+          await toggleFavoriteContactConversation(item.conversationId);
+        }
+      } else if (isParentMode) {
+        await toggleFavoriteChildConversation(selectedChildId, item.conversationId);
+      } else {
+        await toggleFavoriteConversation(item.conversationId);
+      }
+
+      await loadConversations();
+    } catch (error) {
+      console.error(error);
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudo actualizar favorito",
+        message:
+          error.response?.data?.message ||
+          "Intenta nuevamente en unos segundos.",
+      });
+    }
+  };
+
+  if (loadingChildren || cargandoPagina) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#F3ECFF] px-6 py-10">
+        <p className="text-2xl font-bold text-[#4B367C]">
+          Cargando conversaciones...
+        </p>
+      </main>
+    );
+  }
+
+  if (isParentWithoutChild) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#F3ECFF] px-6 py-10">
+        <section className="max-w-xl rounded-[2rem] bg-white p-8 text-center shadow-lg">
+          <h1 className="text-3xl font-extrabold text-[#4B367C]">
+            No hay niño/a seleccionado
+          </h1>
+
+          <p className="mt-4 text-[#6B5A95]">
+            Para gestionar conversaciones como cuidador, primero debes
+            seleccionar un niño/a activo.
+          </p>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-[#F3ECFF] px-6 py-10">
       <AchievementPopup achievement={newAchievement} />
 
-      <section className="max-w-7xl mx-auto">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-6 mb-10">
+      <section className="mx-auto max-w-7xl">
+        <div className="mb-10 flex flex-col items-center justify-between gap-6 md:flex-row">
           <div className="text-center md:text-left">
-            <h1 className="text-4xl md:text-6xl font-extrabold text-[#4B367C] mb-3">
+            <h1 className="mb-3 text-4xl font-extrabold text-[#4B367C] md:text-6xl">
               Conversaciones
             </h1>
-            <p className="text-lg md:text-xl text-[#6B5A95]">
-              Practica situaciones simples con Félix.
+
+            <p className="text-lg text-[#6B5A95] md:text-xl">
+              {isParentMode
+                ? `Practica y gestiona situaciones simples para ${childName}.`
+                : "Practica situaciones simples con Félix."}
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="bg-[#FFF3C4] text-[#5C4A00] font-bold px-5 py-3 rounded-full shadow-sm">
-              <div className="flex gap-4">
-                <div className="bg-yellow-100 px-6 py-3 rounded-full shadow">
-                  ⭐ {points} Estrellas
-                </div>
-                <div className="bg-purple-100 px-6 py-3 rounded-full shadow">
-                  🏆 Nivel {level}
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            {isParentMode ? (
+              <div className="rounded-full bg-[#EAF8EF] px-6 py-3 font-bold text-[#2F6B4F] shadow-sm">
+                👨‍👩‍👧 Modo cuidador · {childName}
+              </div>
+            ) : (
+              <div className="rounded-full bg-[#FFF3C4] px-5 py-3 font-bold text-[#5C4A00] shadow-sm">
+                <div className="flex gap-4">
+                  <div className="rounded-full bg-yellow-100 px-6 py-3 shadow">
+                    ⭐ {points} Estrellas
+                  </div>
+
+                  <div className="rounded-full bg-purple-100 px-6 py-3 shadow">
+                    🏆 Nivel {level}
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
 
             <button
               type="button"
               onClick={() => setSoundEnabled(!soundEnabled)}
-              className="bg-white text-[#4B367C] font-bold px-5 py-3 rounded-full shadow-sm"
+              className="rounded-full bg-white px-5 py-3 font-bold text-[#4B367C] shadow-sm"
             >
               {soundEnabled ? "🔊 Sonido" : "🔇 Silencio"}
             </button>
           </div>
         </div>
 
-        <div className="bg-white rounded-[2rem] p-5 shadow-sm mb-10">
-          <div className="flex justify-between mb-3">
+        {isParentMode && (
+          <div className="mb-10 rounded-[2rem] border-2 border-[#9ED5B3] bg-[#EAF8EF] p-5 text-center shadow-sm">
+            <p className="font-bold text-[#2F6B4F]">Modo cuidador activo</p>
+            <p className="mt-1 text-[#2F6B4F]">
+              Estás viendo, creando y editando conversaciones del niño/a
+              seleccionado: {childName}.
+            </p>
+          </div>
+        )}
+
+        <div className="mb-10 rounded-[2rem] bg-white p-5 shadow-sm">
+          <div className="mb-3 flex justify-between">
             <p className="font-bold text-[#4B367C]">Progreso</p>
             <p className="text-[#6B5A95]">
               {completedConversations.length} de {totalConversaciones}
             </p>
           </div>
 
-          <div className="h-4 bg-[#E8DDFF] rounded-full overflow-hidden">
+          <div className="h-4 overflow-hidden rounded-full bg-[#E8DDFF]">
             <motion.div
-              className="h-full bg-[#9B7BE8] rounded-full"
+              className="h-full rounded-full bg-[#9B7BE8]"
               animate={{ width: `${progreso}%` }}
               transition={{ duration: 0.5 }}
             />
           </div>
         </div>
 
-        <div className="bg-white rounded-[2rem] p-6 shadow-sm mb-10">
-          <h2 className="text-2xl font-bold text-[#4B367C] mb-2">
+        <div className="mb-10 rounded-[2rem] bg-white p-6 shadow-sm">
+          <h2 className="mb-2 text-2xl font-bold text-[#4B367C]">
             ✨ Crear conversación con Félix
           </h2>
 
-          <p className="text-[#6B5A95] mb-5">
-            Escribe una situación y Félix generará una conversación para
-            practicar.
+          <p className="mb-5 text-[#6B5A95]">
+            {isParentMode
+              ? `Escribe una situación y Félix generará una conversación para ${childName}.`
+              : "Escribe una situación y Félix generará una conversación para practicar."}
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
             <input
               name="topic"
               value={formIA.topic}
               onChange={handleChangeIA}
               placeholder="Tema: Pedir ayuda"
-              className="p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8]"
+              className="rounded-2xl border-2 border-[#DCCCF8] p-4 focus:border-[#9B7BE8] focus:outline-none"
             />
 
             <input
@@ -874,7 +1087,7 @@ const Conversaciones = () => {
               value={formIA.situation}
               onChange={handleChangeIA}
               placeholder="Situación"
-              className="p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8]"
+              className="rounded-2xl border-2 border-[#DCCCF8] p-4 focus:border-[#9B7BE8] focus:outline-none"
             />
 
             <input
@@ -882,7 +1095,7 @@ const Conversaciones = () => {
               value={formIA.person}
               onChange={handleChangeIA}
               placeholder="Persona: Profesora"
-              className="p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8]"
+              className="rounded-2xl border-2 border-[#DCCCF8] p-4 focus:border-[#9B7BE8] focus:outline-none"
             />
 
             <input
@@ -890,7 +1103,7 @@ const Conversaciones = () => {
               value={formIA.emotion}
               onChange={handleChangeIA}
               placeholder="Emoción: Nervioso"
-              className="p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8]"
+              className="rounded-2xl border-2 border-[#DCCCF8] p-4 focus:border-[#9B7BE8] focus:outline-none"
             />
           </div>
 
@@ -898,30 +1111,27 @@ const Conversaciones = () => {
             type="button"
             onClick={handleGenerateConversationIA}
             disabled={generandoIA}
-            className="mt-5 bg-[#4B367C] hover:bg-[#3E2E68] text-white font-bold px-6 py-3 rounded-full disabled:opacity-50"
+            className="mt-5 rounded-full bg-[#4B367C] px-6 py-3 font-bold text-white hover:bg-[#3E2E68] disabled:opacity-50"
           >
             {generandoIA ? "Félix está pensando..." : "✨ Generar conversación"}
           </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[0.9fr_1.4fr] gap-10 items-start">
+        <div className="grid grid-cols-1 items-start gap-10 lg:grid-cols-[0.9fr_1.4fr]">
           <div>
-            <div className="bg-white rounded-[2rem] p-5 shadow-sm mb-6">
+            <div className="mb-6 rounded-[2rem] bg-white p-5 shadow-sm">
               <input
                 id="buscar-conversaciones"
                 name="buscar-conversaciones"
                 type="text"
                 value={busqueda}
-                onChange={(e) => {
-                  setBusqueda(e.target.value);
-                  setPaginaActual(1);
-                }}
+                onChange={(e) => setBusqueda(e.target.value)}
                 placeholder="🔍 Buscar por título, situación o persona..."
-                className="w-full p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8] text-[#4B367C] font-semibold"
+                className="w-full rounded-2xl border-2 border-[#DCCCF8] p-4 font-semibold text-[#4B367C] focus:border-[#9B7BE8] focus:outline-none"
               />
             </div>
 
-            <div className="bg-white rounded-[2rem] p-5 shadow-sm mb-6">
+            <div className="mb-6 rounded-[2rem] bg-white p-5 shadow-sm">
               <select
                 id="orden-conversaciones"
                 name="orden-conversaciones"
@@ -930,7 +1140,7 @@ const Conversaciones = () => {
                   setOrden(e.target.value);
                   setPaginaActual(1);
                 }}
-                className="w-full p-4 rounded-2xl border-2 border-[#DCCCF8] text-[#4B367C] font-semibold focus:outline-none focus:border-[#9B7BE8]"
+                className="w-full rounded-2xl border-2 border-[#DCCCF8] p-4 font-semibold text-[#4B367C] focus:border-[#9B7BE8] focus:outline-none"
               >
                 <option value="recientes">Más recientes</option>
                 <option value="antiguos">Más antiguos</option>
@@ -940,131 +1150,130 @@ const Conversaciones = () => {
             </div>
 
             <div className="grid grid-cols-1 gap-5">
-              {conversaciones.map((item) => {
-                const activo = conversacionSeleccionada?.id === item.id;
+              {conversaciones.length === 0 ? (
+                <div className="rounded-[2rem] bg-white p-8 text-center shadow-md">
+                  <p className="font-bold text-[#4B367C]">
+                    Aún no hay conversaciones.
+                  </p>
+                  <p className="mt-2 text-[#6B5A95]">
+                    Puedes crear una conversación con Félix desde el formulario.
+                  </p>
+                </div>
+              ) : (
+                conversaciones.map((item) => {
+                  const activo = conversacionSeleccionada?.id === item.id;
 
-                const progressKey =
-                  item.tipo === "contacto"
-                    ? `contact-${item.conversationId}`
-                    : `normal-${item.conversationId}`;
+                  const progressKey =
+                    item.tipo === "contacto"
+                      ? `contact-${item.conversationId}`
+                      : `normal-${item.conversationId}`;
 
-                const completada = completedConversations.includes(progressKey);
+                  const completada =
+                    completedConversations.includes(progressKey);
 
-                return (
-                  <motion.div
-                    key={item.id}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => seleccionarConversacion(item)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") seleccionarConversacion(item);
-                    }}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    animate={{ scale: activo ? 1.03 : 1 }}
-                    transition={{ duration: 0.25 }}
-                    className={`
-                      bg-white rounded-[2rem] p-8 text-left shadow-md transition-all cursor-pointer min-h-[360px] flex flex-col justify-between
-                      ${
-                        activo
-                          ? "ring-4 ring-[#9B7BE8]"
-                          : "ring-2 ring-transparent"
-                      }
-                    `}
-                  >
-                    <div className="flex justify-between items-center mb-4">
-                      <span className="text-4xl">{item.emoji}</span>
+                  return (
+                    <motion.div
+                      key={item.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => seleccionarConversacion(item)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") seleccionarConversacion(item);
+                      }}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      animate={{ scale: activo ? 1.03 : 1 }}
+                      transition={{ duration: 0.25 }}
+                      className={`
+                        flex min-h-[360px] cursor-pointer flex-col justify-between rounded-[2rem] bg-white p-8 text-left shadow-md transition-all
+                        ${
+                          activo
+                            ? "ring-4 ring-[#9B7BE8]"
+                            : "ring-2 ring-transparent"
+                        }
+                      `}
+                    >
+                      <div className="mb-4 flex items-center justify-between">
+                        <span className="text-4xl">{item.emoji}</span>
 
-                      {completada && (
-                        <span className="bg-green-100 text-green-700 text-sm font-bold px-3 py-1 rounded-full">
-                          Hecho
-                        </span>
-                      )}
-                    </div>
+                        <div className="flex flex-col items-end gap-2">
+                          {item.tipo === "contacto" && (
+                            <span className="rounded-full bg-[#EAF8EF] px-3 py-1 text-sm font-bold text-[#2F6B4F]">
+                              Contacto
+                            </span>
+                          )}
 
-                    <h2 className="text-2xl font-bold text-[#4B367C] mb-2">
-                      {item.titulo}
-                    </h2>
-
-                    <p className="text-[#6B5A95] text-base">{item.escenario}</p>
-
-                    <div className="grid grid-cols-1 gap-2 mt-6">
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            abrirEditor(item);
-                          }}
-                          className="bg-[#E8DDFF] text-[#4B367C] font-bold px-4 py-3 rounded-xl hover:bg-[#DCCCF8]"
-                        >
-                          Editar
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDeleteConversation(item);
-                          }}
-                          className="bg-red-100 text-red-600 font-bold px-4 py-3 rounded-xl hover:bg-red-200"
-                        >
-                          Eliminar
-                        </button>
+                          {completada && (
+                            <span className="rounded-full bg-green-100 px-3 py-1 text-sm font-bold text-green-700">
+                              Hecho
+                            </span>
+                          )}
+                        </div>
                       </div>
 
-                      <button
-                        type="button"
-                        onClick={async (e) => {
-                          e.stopPropagation();
+                      <h2 className="mb-2 text-2xl font-bold text-[#4B367C]">
+                        {item.titulo}
+                      </h2>
 
-                          try {
-                            if (item.tipo === "contacto") {
-                              await toggleFavoriteContactConversation(
-                                item.conversationId,
-                              );
-                            } else {
-                              await toggleFavoriteConversation(
-                                item.conversationId,
-                              );
-                            }
+                      <p className="text-base text-[#6B5A95]">
+                        {item.escenario}
+                      </p>
 
-                            await loadConversations();
-                          } catch (error) {
-                            console.error(error);
+                      <div className="mt-6 grid grid-cols-1 gap-2">
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              abrirEditor(item);
+                            }}
+                            className="rounded-xl bg-[#E8DDFF] px-4 py-3 font-bold text-[#4B367C] hover:bg-[#DCCCF8]"
+                          >
+                            Editar
+                          </button>
 
-                            showFeedback({
-                              type: "error",
-                              icon: "❌",
-                              label: "Algo salió mal",
-                              title: "No se pudo actualizar favorito",
-                              message: "Intenta nuevamente en unos segundos.",
-                            });
-                          }
-                        }}
-                        className={`font-bold px-4 py-3 rounded-xl w-full ${
-                          item.is_favorite
-                            ? "bg-[#F2E08A] text-[#6A4D00]"
-                            : "bg-[#F7F0B6] text-[#7A5A00] hover:bg-[#F2E08A]"
-                        }`}
-                      >
-                        {item.is_favorite ? "⭐ Favorita" : "☆ Favorita"}
-                      </button>
-                    </div>
-                  </motion.div>
-                );
-              })}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteConversation(item);
+                            }}
+                            className="rounded-xl bg-red-100 px-4 py-3 font-bold text-red-600 hover:bg-red-200"
+                          >
+                            Eliminar
+                          </button>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleFavorite(item);
+                          }}
+                          className={`w-full rounded-xl px-4 py-3 font-bold ${
+                            item.is_favorite
+                              ? "bg-[#F2E08A] text-[#6A4D00]"
+                              : "bg-[#F7F0B6] text-[#7A5A00] hover:bg-[#F2E08A]"
+                          }`}
+                        >
+                          {item.is_favorite ? "⭐ Favorita" : "☆ Favorita"}
+                        </button>
+                      </div>
+                    </motion.div>
+                  );
+                })
+              )}
             </div>
 
             {totalPaginas > 1 && (
-              <div className="flex flex-wrap justify-center items-center gap-3 mt-6">
+              <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
                 <button
                   type="button"
                   onClick={() =>
                     setPaginaActual((prev) => Math.max(prev - 1, 1))
                   }
                   disabled={paginaActual === 1}
-                  className="px-5 py-3 rounded-xl bg-white text-[#4B367C] font-bold border-2 border-[#DCCCF8] disabled:opacity-40"
+                  className="rounded-xl border-2 border-[#DCCCF8] bg-white px-5 py-3 font-bold text-[#4B367C] disabled:opacity-40"
                 >
                   Anterior
                 </button>
@@ -1079,7 +1288,7 @@ const Conversaciones = () => {
                     setPaginaActual((prev) => Math.min(prev + 1, totalPaginas))
                   }
                   disabled={paginaActual === totalPaginas}
-                  className="px-5 py-3 rounded-xl bg-[#9B7BE8] text-white font-bold disabled:opacity-40"
+                  className="rounded-xl bg-[#9B7BE8] px-5 py-3 font-bold text-white disabled:opacity-40"
                 >
                   Siguiente
                 </button>
@@ -1091,9 +1300,9 @@ const Conversaciones = () => {
             {editando && (
               <div
                 ref={editorRef}
-                className="bg-white rounded-[2rem] shadow-lg p-6 mb-8"
+                className="mb-8 rounded-[2rem] bg-white p-6 shadow-lg"
               >
-                <h2 className="text-2xl font-bold text-[#4B367C] mb-5">
+                <h2 className="mb-5 text-2xl font-bold text-[#4B367C]">
                   Editar conversación
                 </h2>
 
@@ -1103,7 +1312,7 @@ const Conversaciones = () => {
                     value={formEditar.title}
                     onChange={handleChangeEditar}
                     placeholder="Título"
-                    className="w-full p-4 rounded-2xl border-2 border-[#DCCCF8]"
+                    className="w-full rounded-2xl border-2 border-[#DCCCF8] p-4"
                   />
 
                   <textarea
@@ -1111,7 +1320,7 @@ const Conversaciones = () => {
                     value={formEditar.situation}
                     onChange={handleChangeEditar}
                     placeholder="Situación"
-                    className="w-full p-4 rounded-2xl border-2 border-[#DCCCF8]"
+                    className="w-full rounded-2xl border-2 border-[#DCCCF8] p-4"
                   />
 
                   <textarea
@@ -1119,7 +1328,7 @@ const Conversaciones = () => {
                     value={formEditar.messageFelix}
                     onChange={handleChangeEditar}
                     placeholder="¿Qué dice Félix?"
-                    className="w-full p-4 rounded-2xl border-2 border-[#DCCCF8]"
+                    className="w-full rounded-2xl border-2 border-[#DCCCF8] p-4"
                   />
 
                   <input
@@ -1127,7 +1336,7 @@ const Conversaciones = () => {
                     value={formEditar.question}
                     onChange={handleChangeEditar}
                     placeholder="Pregunta"
-                    className="w-full p-4 rounded-2xl border-2 border-[#DCCCF8]"
+                    className="w-full rounded-2xl border-2 border-[#DCCCF8] p-4"
                   />
 
                   <input
@@ -1135,7 +1344,7 @@ const Conversaciones = () => {
                     value={formEditar.correctAnswer}
                     onChange={handleChangeEditar}
                     placeholder="Respuesta correcta"
-                    className="w-full p-4 rounded-2xl border-2 border-[#DCCCF8]"
+                    className="w-full rounded-2xl border-2 border-[#DCCCF8] p-4"
                   />
 
                   <input
@@ -1143,7 +1352,7 @@ const Conversaciones = () => {
                     value={formEditar.wrongAnswer1}
                     onChange={handleChangeEditar}
                     placeholder="Respuesta incorrecta 1"
-                    className="w-full p-4 rounded-2xl border-2 border-[#DCCCF8]"
+                    className="w-full rounded-2xl border-2 border-[#DCCCF8] p-4"
                   />
 
                   <input
@@ -1151,13 +1360,13 @@ const Conversaciones = () => {
                     value={formEditar.wrongAnswer2}
                     onChange={handleChangeEditar}
                     placeholder="Respuesta incorrecta 2"
-                    className="w-full p-4 rounded-2xl border-2 border-[#DCCCF8]"
+                    className="w-full rounded-2xl border-2 border-[#DCCCF8] p-4"
                   />
 
                   <div className="flex gap-3">
                     <button
                       type="submit"
-                      className="bg-[#4B367C] text-white font-bold px-6 py-3 rounded-xl"
+                      className="rounded-xl bg-[#4B367C] px-6 py-3 font-bold text-white"
                     >
                       Guardar cambios
                     </button>
@@ -1165,7 +1374,7 @@ const Conversaciones = () => {
                     <button
                       type="button"
                       onClick={cancelarEdicion}
-                      className="bg-white text-[#4B367C] border-2 border-[#DCCCF8] font-bold px-6 py-3 rounded-xl"
+                      className="rounded-xl border-2 border-[#DCCCF8] bg-white px-6 py-3 font-bold text-[#4B367C]"
                     >
                       Cancelar
                     </button>
@@ -1175,13 +1384,13 @@ const Conversaciones = () => {
             )}
 
             {conversacionSeleccionada && (
-              <div className="bg-white rounded-[2.5rem] shadow-lg p-8 md:p-10">
-                <div className="flex flex-col md:flex-row items-center gap-6 mb-8">
+              <div className="rounded-[2.5rem] bg-white p-8 shadow-lg md:p-10">
+                <div className="mb-8 flex flex-col items-center gap-6 md:flex-row">
                   <motion.img
                     key={felixActual}
                     src={felixActual}
                     alt="Félix acompañando"
-                    className="w-36 h-36 md:w-44 md:h-44 object-contain"
+                    className="h-36 w-36 object-contain md:h-44 md:w-44"
                     animate={{ scale: [1, 1.04, 1] }}
                     transition={{
                       duration: 3,
@@ -1191,11 +1400,11 @@ const Conversaciones = () => {
                   />
 
                   <div className="text-center md:text-left">
-                    <h2 className="text-3xl md:text-4xl font-bold text-[#4B367C]">
+                    <h2 className="text-3xl font-bold text-[#4B367C] md:text-4xl">
                       {conversacionSeleccionada.titulo}
                     </h2>
 
-                    <p className="text-[#6B5A95] mt-2">
+                    <p className="mt-2 text-[#6B5A95]">
                       {conversacionSeleccionada.habilidad}
                     </p>
                   </div>
@@ -1227,7 +1436,7 @@ const Conversaciones = () => {
                               }
                             `}
                           >
-                            <p className="font-bold mb-1">{linea.personaje}</p>
+                            <p className="mb-1 font-bold">{linea.personaje}</p>
                             <p className="text-xl">{linea.texto}</p>
                           </div>
                         </motion.div>
@@ -1235,25 +1444,25 @@ const Conversaciones = () => {
                     })}
                 </div>
 
-                <div className="mt-8 bg-[#F3ECFF] rounded-[2rem] p-6">
-                  <p className="text-[#4B367C] font-bold mb-2">Escenario:</p>
+                <div className="mt-8 rounded-[2rem] bg-[#F3ECFF] p-6">
+                  <p className="mb-2 font-bold text-[#4B367C]">Escenario:</p>
                   <p className="text-[#6B5A95]">
                     {conversacionSeleccionada.escenario}
                   </p>
                 </div>
 
-                <div className="mt-8 bg-[#FDFBFF] border-2 border-[#E4D8FF] rounded-[2rem] p-6">
-                  <p className="text-sm font-bold text-[#9B7BE8] mb-2">
+                <div className="mt-8 rounded-[2rem] border-2 border-[#E4D8FF] bg-[#FDFBFF] p-6">
+                  <p className="mb-2 text-sm font-bold text-[#9B7BE8]">
                     Nivel 2 · Elige la respuesta correcta
                   </p>
 
-                  <h3 className="text-2xl font-bold text-[#4B367C] mb-5">
+                  <h3 className="mb-5 text-2xl font-bold text-[#4B367C]">
                     {conversacionSeleccionada.ejercicio.pregunta}
                   </h3>
 
                   <div className="grid grid-cols-1 gap-4">
                     {cargandoOpciones ? (
-                      <div className="flex items-center gap-3 bg-[#F3ECFF] rounded-2xl p-5">
+                      <div className="flex items-center gap-3 rounded-2xl bg-[#F3ECFF] p-5">
                         <motion.div
                           animate={{ rotate: 360 }}
                           transition={{
@@ -1261,15 +1470,15 @@ const Conversaciones = () => {
                             repeat: Infinity,
                             ease: "linear",
                           }}
-                          className="w-6 h-6 border-4 border-[#9B7BE8] border-t-transparent rounded-full"
+                          className="h-6 w-6 rounded-full border-4 border-[#9B7BE8] border-t-transparent"
                         />
 
-                        <p className="text-[#4B367C] font-semibold">
+                        <p className="font-semibold text-[#4B367C]">
                           Félix está preparando las opciones...
                         </p>
                       </div>
                     ) : opcionesNivel2.length === 0 ? (
-                      <p className="text-[#8A3A3A] bg-[#FFE1E1] rounded-2xl p-4 font-bold">
+                      <p className="rounded-2xl bg-[#FFE1E1] p-4 font-bold text-[#8A3A3A]">
                         Esta conversación aún no tiene respuestas preparadas.
                       </p>
                     ) : (
@@ -1286,14 +1495,13 @@ const Conversaciones = () => {
                             whileHover={{ scale: 1.01 }}
                             whileTap={{ scale: 0.98 }}
                             className={`
-                              w-full text-left rounded-2xl px-5 py-4 font-semibold
-                              border-2 transition-all text-lg
+                              w-full rounded-2xl border-2 px-5 py-4 text-left text-lg font-semibold transition-all
                               ${
                                 seleccionada && opcion.correcta
-                                  ? "bg-green-100 border-green-400 text-green-800"
+                                  ? "border-green-400 bg-green-100 text-green-800"
                                   : seleccionada && !opcion.correcta
-                                    ? "bg-[#FFE1E1] border-[#F2A3A3] text-[#8A3A3A]"
-                                    : "bg-white border-[#DCCCF8] text-[#4B367C] hover:border-[#9B7BE8]"
+                                    ? "border-[#F2A3A3] bg-[#FFE1E1] text-[#8A3A3A]"
+                                    : "border-[#DCCCF8] bg-white text-[#4B367C] hover:border-[#9B7BE8]"
                               }
                             `}
                           >
@@ -1311,7 +1519,7 @@ const Conversaciones = () => {
                       initial={{ opacity: 0, y: 8 }}
                       animate={{ opacity: 1, y: 0 }}
                       className={`
-                        mt-6 rounded-2xl p-5 font-bold text-lg
+                        mt-6 rounded-2xl p-5 text-lg font-bold
                         ${
                           respuestaSeleccionada.correcta
                             ? "bg-green-100 text-green-800"
