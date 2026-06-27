@@ -2,8 +2,14 @@ import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import useSound from "use-sound";
 import { useFloFlo } from "../context/FloFloContext";
+import { useSelectedChild } from "../context/SelectedChildContext";
 import { useFeedback } from "../context/FeedbackContext";
-import { createMood, getMoods } from "../services/moodService";
+import {
+  createMood,
+  getMoods,
+  createChildMood,
+  getChildMoods,
+} from "../services/moodService";
 
 import feliz from "../assets/webp/felix_cara_sonriendo.webp";
 import sorprendido from "../assets/webp/felix_cara_sorprendido.webp";
@@ -18,11 +24,28 @@ import AchievementPopup from "../components/AchievementPopup";
 
 const EstadosAnimo = () => {
   const { setMood, user } = useFloFlo();
+
+  const {
+    isParent,
+    selectedChild,
+    selectedChildId,
+    loadingChildren,
+    getChildDisplayName,
+  } = useSelectedChild();
+
   const { showFeedback } = useFeedback();
+
+  const isParentMode = isParent && Boolean(selectedChildId);
+  const isParentWithoutChild = isParent && !selectedChildId;
+
+  const childName = selectedChild
+    ? getChildDisplayName(selectedChild)
+    : "el niño/a seleccionado";
 
   const [estadoSeleccionado, setEstadoSeleccionado] = useState(null);
   const [moods, setMoods] = useState([]);
   const [newAchievement, setNewAchievement] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   const [playSparkle] = useSound(sparkle, { volume: 0.5 });
 
@@ -42,7 +65,9 @@ const EstadosAnimo = () => {
       nombre: "Feliz",
       valor: "feliz",
       imagen: feliz,
-      mensaje: "Qué bueno que te sientes feliz hoy.",
+      mensaje: isParentMode
+        ? `${childName} se mostró feliz.`
+        : "Qué bueno que te sientes feliz hoy.",
       sonido: playSparkle,
     },
     {
@@ -50,21 +75,27 @@ const EstadosAnimo = () => {
       nombre: "Asustado",
       valor: "asustado",
       imagen: felix_asustado,
-      mensaje: "¡Vaya! Parece que algo te asustó.",
+      mensaje: isParentMode
+        ? `${childName} se mostró asustado/a.`
+        : "¡Vaya! Parece que algo te asustó.",
     },
     {
       id: 2,
       nombre: "Triste",
       valor: "triste",
       imagen: triste,
-      mensaje: "Veo que estás triste. ¿Quieres respirar conmigo?",
+      mensaje: isParentMode
+        ? `${childName} se mostró triste.`
+        : "Veo que estás triste. ¿Quieres respirar conmigo?",
     },
     {
       id: 3,
       nombre: "Enojado",
       valor: "enojado",
       imagen: enojado,
-      mensaje: "Respiremos juntos para calmarnos.",
+      mensaje: isParentMode
+        ? `${childName} se mostró enojado/a.`
+        : "Respiremos juntos para calmarnos.",
     },
   ];
 
@@ -72,8 +103,20 @@ const EstadosAnimo = () => {
     try {
       if (!user) return;
 
-      const data = await getMoods();
-      setMoods(data);
+      if (isParent && loadingChildren) return;
+
+      setLoading(true);
+
+      if (isParentWithoutChild) {
+        setMoods([]);
+        return;
+      }
+
+      const data = isParentMode
+        ? await getChildMoods(selectedChildId)
+        : await getMoods();
+
+      setMoods(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error(error);
 
@@ -82,14 +125,18 @@ const EstadosAnimo = () => {
         icon: "❌",
         label: "Algo salió mal",
         title: "No se pudo cargar el historial",
-        message: "Intenta nuevamente en unos segundos.",
+        message:
+          error.response?.data?.message ||
+          "Intenta nuevamente en unos segundos.",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
     loadMoods();
-  }, [user]);
+  }, [user?.id, user?.role, selectedChildId, loadingChildren]);
 
   const seleccionarEstado = async (estado) => {
     if (!user) {
@@ -103,20 +150,49 @@ const EstadosAnimo = () => {
       return;
     }
 
+    if (isParentWithoutChild) {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta niño/a activo",
+        title: "Selecciona un niño/a",
+        message:
+          "Para registrar una observación emocional, primero debes seleccionar un niño/a activo.",
+      });
+      return;
+    }
+
     setEstadoSeleccionado(estado.valor);
-    setMood(estado.valor);
+
+    if (!isParentMode) {
+      setMood(estado.valor);
+    }
 
     if (estado.sonido) {
       estado.sonido();
     }
 
     try {
-      const response = await createMood({
+      const payload = {
         mood_type_id: estado.id,
-        comment: `Hoy me siento ${estado.nombre}`,
-      });
+        comment: isParentMode
+          ? `Hoy ${childName} se mostró ${estado.nombre.toLowerCase()}.`
+          : `Hoy me siento ${estado.nombre}`,
+      };
 
-      if (response.unlockedAchievements?.length > 0) {
+      const response = isParentMode
+        ? await createChildMood(selectedChildId, payload)
+        : await createMood(payload);
+
+      if (isParentMode) {
+        showFeedback({
+          type: "success",
+          icon: "✅",
+          label: "Observación guardada",
+          title: "Estado emocional registrado",
+          message: `La observación emocional fue guardada para ${childName}.`,
+        });
+      } else if (response.unlockedAchievements?.length > 0) {
         setNewAchievement(response.unlockedAchievements[0]);
       } else {
         setNewAchievement({
@@ -140,7 +216,9 @@ const EstadosAnimo = () => {
         icon: "❌",
         label: "Algo salió mal",
         title: "No se pudo guardar",
-        message: "No se pudo guardar tu estado de ánimo. Intenta nuevamente.",
+        message:
+          error.response?.data?.message ||
+          "No se pudo guardar el estado de ánimo. Intenta nuevamente.",
       });
     }
   };
@@ -152,22 +230,64 @@ const EstadosAnimo = () => {
   const felixGuia =
     estadoSeleccionado === "feliz" ? felixFeliz : felixRespirando;
 
-  return (
-    <main className="min-h-screen bg-[#F3ECFF] flex flex-col items-center px-6 py-10">
-      <AchievementPopup achievement={newAchievement} />
+  if (loadingChildren || loading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#F3ECFF] px-6 py-10">
+        <p className="text-2xl font-bold text-[#4B367C]">
+          Cargando emociones...
+        </p>
+      </main>
+    );
+  }
 
-      <section className="w-full max-w-6xl text-center pt-6">
-        <div className="mb-20">
-          <h1 className="text-5xl md:text-7xl font-extrabold text-[#4B367C] mb-6 drop-shadow-sm">
-            ¿Cómo te sientes hoy?
+  if (isParentWithoutChild) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#F3ECFF] px-6 py-10">
+        <section className="max-w-xl rounded-[2rem] bg-white p-8 text-center shadow-lg">
+          <h1 className="text-3xl font-extrabold text-[#4B367C]">
+            No hay niño/a seleccionado
           </h1>
 
-          <p className="text-xl md:text-2xl font-medium text-[#6B5A95]">
-            Elige la carita que más se parece a cómo te sientes.
+          <p className="mt-4 text-[#6B5A95]">
+            Para ver o registrar emociones como cuidador, primero debes
+            seleccionar un niño/a activo.
+          </p>
+        </section>
+      </main>
+    );
+  }
+
+  return (
+    <main className="flex min-h-screen flex-col items-center bg-[#F3ECFF] px-6 py-10">
+      <AchievementPopup achievement={newAchievement} />
+
+      <section className="w-full max-w-6xl pt-6 text-center">
+        <div className="mb-20">
+          <h1 className="mb-6 text-5xl font-extrabold text-[#4B367C] drop-shadow-sm md:text-7xl">
+            {isParentMode
+              ? `¿Cómo se sintió ${childName} hoy?`
+              : "¿Cómo te sientes hoy?"}
+          </h1>
+
+          <p className="text-xl font-medium text-[#6B5A95] md:text-2xl">
+            {isParentMode
+              ? "Elige la emoción que observaste para dejarla registrada."
+              : "Elige la carita que más se parece a cómo te sientes."}
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-14">
+        {isParentMode && (
+          <div className="mx-auto mb-10 max-w-3xl rounded-[2rem] border-2 border-[#9ED5B3] bg-[#EAF8EF] p-5 shadow-sm">
+            <p className="font-bold text-[#2F6B4F]">Modo cuidador activo</p>
+
+            <p className="mt-1 text-[#2F6B4F]">
+              Registrarás una observación emocional para {childName}. Esta
+              observación no suma estrellas al niño/a.
+            </p>
+          </div>
+        )}
+
+        <div className="mb-14 grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {estados.map((estado) => {
             const seleccionado = estadoSeleccionado === estado.valor;
 
@@ -180,12 +300,11 @@ const EstadosAnimo = () => {
                 animate={{ scale: seleccionado ? 1.08 : 1 }}
                 transition={{ duration: 0.3, ease: "easeOut" }}
                 className={`
-                  bg-white rounded-[2rem] p-6 shadow-md
-                  flex flex-col items-center justify-center
+                  flex flex-col items-center justify-center rounded-[2rem] bg-white p-6 shadow-md
                   transition-all duration-300
                   ${
                     seleccionado
-                      ? "ring-4 ring-[#9B7BE8] shadow-xl"
+                      ? "shadow-xl ring-4 ring-[#9B7BE8]"
                       : "ring-2 ring-transparent"
                   }
                 `}
@@ -193,7 +312,7 @@ const EstadosAnimo = () => {
                 <img
                   src={estado.imagen}
                   alt={estado.nombre}
-                  className="w-36 h-36 md:w-44 md:h-44 object-contain"
+                  className="h-36 w-36 object-contain md:h-44 md:w-44"
                 />
 
                 <span className="mt-5 text-2xl font-bold text-[#4B367C]">
@@ -217,7 +336,7 @@ const EstadosAnimo = () => {
               <img
                 src={felixGuia}
                 alt="Félix guía"
-                className="w-56 h-56 md:w-80 md:h-80 object-contain"
+                className="h-56 w-56 object-contain md:h-80 md:w-80"
               />
             </motion.div>
 
@@ -225,47 +344,63 @@ const EstadosAnimo = () => {
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4 }}
-              className="relative bg-white rounded-[2rem] px-8 py-6 max-w-xl shadow-md"
+              className="relative max-w-xl rounded-[2rem] bg-white px-8 py-6 shadow-md"
             >
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 w-6 h-6 bg-white rotate-45" />
+              <div className="absolute -top-3 left-1/2 h-6 w-6 -translate-x-1/2 rotate-45 bg-white" />
 
-              <p className="text-xl md:text-2xl font-semibold text-[#4B367C] leading-relaxed">
+              <p className="text-xl font-semibold leading-relaxed text-[#4B367C] md:text-2xl">
                 {estadoActual.mensaje}
               </p>
             </motion.div>
           </div>
         )}
 
-        <div className="w-full max-w-3xl bg-white rounded-[2rem] shadow-md p-8 mt-16 mx-auto">
-          <h2 className="text-3xl font-bold text-[#4B367C] mb-6">
+        <div className="mx-auto mt-16 w-full max-w-3xl rounded-[2rem] bg-white p-8 shadow-md">
+          <h2 className="mb-6 text-3xl font-bold text-[#4B367C]">
             Historial de emociones
           </h2>
 
           {moods.length === 0 ? (
             <p className="text-[#6B5A95]">Aún no hay emociones registradas.</p>
           ) : (
-            moods.map((mood) => (
-              <div
-                key={mood.id}
-                className="border-2 border-[#DCCCF8] rounded-2xl p-4 mb-4"
-              >
-                <img
-                  src={moodImages[mood.icon]}
-                  alt={mood.mood_name}
-                  className="w-20 h-20 object-contain mx-auto mb-3"
-                />
+            moods.map((mood) => {
+              const isParentObservation = mood.source === "parent";
 
-                <h3 className="text-xl font-bold text-[#4B367C]">
-                  {mood.mood_name}
-                </h3>
+              return (
+                <div
+                  key={mood.id}
+                  className="mb-4 rounded-2xl border-2 border-[#DCCCF8] p-4"
+                >
+                  <img
+                    src={moodImages[mood.icon]}
+                    alt={mood.mood_name}
+                    className="mx-auto mb-3 h-20 w-20 object-contain"
+                  />
 
-                <p className="text-[#6B5A95]">{mood.comment}</p>
+                  <h3 className="text-xl font-bold text-[#4B367C]">
+                    {mood.mood_name}
+                  </h3>
 
-                <p className="text-sm text-[#8A7BB0] mt-2">
-                  {new Date(mood.created_at).toLocaleString()}
-                </p>
-              </div>
-            ))
+                  <div
+                    className={`mx-auto mt-2 inline-flex rounded-full px-3 py-1 text-sm font-bold ${
+                      isParentObservation
+                        ? "bg-[#EAF8EF] text-[#2F6B4F]"
+                        : "bg-[#F3ECFF] text-[#4B367C]"
+                    }`}
+                  >
+                    {isParentObservation
+                      ? "Observación del cuidador"
+                      : "Registro del niño/a"}
+                  </div>
+
+                  <p className="mt-3 text-[#6B5A95]">{mood.comment}</p>
+
+                  <p className="mt-2 text-sm text-[#8A7BB0]">
+                    {new Date(mood.created_at).toLocaleString()}
+                  </p>
+                </div>
+              );
+            })
           )}
         </div>
       </section>
