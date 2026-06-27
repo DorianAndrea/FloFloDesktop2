@@ -1,21 +1,48 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
-import { getContactById } from "../services/contactService";
+import { Link, useParams } from "react-router-dom";
+import {
+  getContactById,
+  getChildContactById,
+} from "../services/contactService";
 import { generateContactConversation } from "../services/aiService";
+import { useFloFlo } from "../context/FloFloContext";
+import { useSelectedChild } from "../context/SelectedChildContext";
 import { useFeedback } from "../context/FeedbackContext";
 import {
   getContactConversationsByContactId,
   createContactConversation,
   updateContactConversation,
   deleteContactConversation,
+  getChildContactConversationsByContactId,
+  createChildContactConversation,
+  updateChildContactConversation,
+  deleteChildContactConversation,
 } from "../services/contactConversationService";
 
 const PersonaDetalle = () => {
   const { id } = useParams();
+  const { user } = useFloFlo();
+
+  const {
+    isParent,
+    selectedChild,
+    selectedChildId,
+    loadingChildren,
+    getChildDisplayName,
+  } = useSelectedChild();
+
   const { showFeedback, showConfirm } = useFeedback();
+
+  const isParentMode = isParent && Boolean(selectedChildId);
+  const isParentWithoutChild = isParent && !selectedChildId;
+
+  const childName = selectedChild
+    ? getChildDisplayName(selectedChild)
+    : "el niño/a seleccionado";
 
   const [contact, setContact] = useState(null);
   const [conversations, setConversations] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   const [title, setTitle] = useState("");
   const [situation, setSituation] = useState("");
@@ -29,44 +56,105 @@ const PersonaDetalle = () => {
 
   const [editingConversationId, setEditingConversationId] = useState(null);
 
+  const validateParentChildSelection = () => {
+    if (!isParent) return true;
+
+    if (!selectedChildId) {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta niño/a activo",
+        title: "Selecciona un niño/a",
+        message:
+          "Para gestionar conversaciones como cuidador, primero debes tener un niño/a asociado y seleccionado.",
+      });
+
+      return false;
+    }
+
+    return true;
+  };
+
   const loadContact = async () => {
     try {
-      const data = await getContactById(id);
+      if (!user) return;
+
+      if (isParent && loadingChildren) {
+        return;
+      }
+
+      if (isParentWithoutChild) {
+        setContact(null);
+        return;
+      }
+
+      const data = isParentMode
+        ? await getChildContactById(selectedChildId, id)
+        : await getContactById(id);
+
       setContact(data);
     } catch (error) {
       console.error(error);
+      setContact(null);
 
       showFeedback({
         type: "error",
         icon: "❌",
         label: "Algo salió mal",
         title: "No se pudo cargar la persona",
-        message: "Intenta nuevamente en unos segundos.",
+        message:
+          error.response?.data?.message ||
+          "La persona no existe o no tienes permiso para verla.",
       });
     }
   };
 
   const loadConversations = async () => {
     try {
-      const data = await getContactConversationsByContactId(id);
-      setConversations(data);
+      if (!user) return;
+
+      if (isParent && loadingChildren) {
+        return;
+      }
+
+      if (isParentWithoutChild) {
+        setConversations([]);
+        return;
+      }
+
+      const data = isParentMode
+        ? await getChildContactConversationsByContactId(selectedChildId, id)
+        : await getContactConversationsByContactId(id);
+
+      setConversations(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error(error);
+      setConversations([]);
 
       showFeedback({
         type: "error",
         icon: "❌",
         label: "Algo salió mal",
         title: "No se pudieron cargar las conversaciones",
-        message: "Intenta nuevamente en unos segundos.",
+        message:
+          error.response?.data?.message ||
+          "Intenta nuevamente en unos segundos.",
       });
     }
   };
 
+  const loadPage = async () => {
+    try {
+      setLoading(true);
+      await Promise.all([loadContact(), loadConversations()]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    loadContact();
-    loadConversations();
-  }, [id]);
+    loadPage();
+  }, [id, user?.id, user?.role, selectedChildId, loadingChildren]);
 
   const resetForm = () => {
     setTitle("");
@@ -97,7 +185,8 @@ const PersonaDetalle = () => {
         icon: "⚠️",
         label: "Falta información",
         title: "Escribe el escenario",
-        message: "Primero escribe la situación para que Félix genere la conversación.",
+        message:
+          "Primero escribe la situación para que Félix genere la conversación.",
       });
       return;
     }
@@ -142,6 +231,8 @@ const PersonaDetalle = () => {
 
   const handleCreateConversation = async (e) => {
     e.preventDefault();
+
+    if (!validateParentChildSelection()) return;
 
     if (!contact) {
       showFeedback({
@@ -235,10 +326,20 @@ const PersonaDetalle = () => {
       };
 
       if (editingConversationId) {
-        await updateContactConversation(
-          editingConversationId,
-          conversationData,
-        );
+        if (isParentMode) {
+          await updateChildContactConversation(
+            selectedChildId,
+            editingConversationId,
+            conversationData,
+          );
+        } else {
+          await updateContactConversation(
+            editingConversationId,
+            conversationData,
+          );
+        }
+      } else if (isParentMode) {
+        await createChildContactConversation(selectedChildId, conversationData);
       } else {
         await createContactConversation(conversationData);
       }
@@ -254,8 +355,12 @@ const PersonaDetalle = () => {
           ? "Conversación actualizada"
           : "Guardada correctamente",
         message: wasEditing
-          ? "Los cambios de la conversación se guardaron correctamente."
-          : "La conversación fue guardada y ya está disponible en FloFlo.",
+          ? isParentMode
+            ? `Los cambios de la conversación de ${childName} se guardaron correctamente.`
+            : "Los cambios de la conversación se guardaron correctamente."
+          : isParentMode
+            ? `La conversación fue guardada para ${childName}.`
+            : "La conversación fue guardada y ya está disponible en FloFlo.",
       });
     } catch (error) {
       console.error(error);
@@ -265,7 +370,9 @@ const PersonaDetalle = () => {
         icon: "❌",
         label: "Algo salió mal",
         title: "No se pudo guardar",
-        message: "Revisa los datos e intenta nuevamente.",
+        message:
+          error.response?.data?.message ||
+          "Revisa los datos e intenta nuevamente.",
       });
     }
   };
@@ -279,15 +386,24 @@ const PersonaDetalle = () => {
     setCorrectAnswer(conversation.correct_answer || "");
     setWrongAnswer1(conversation.wrong_answer_1 || "");
     setWrongAnswer2(conversation.wrong_answer_2 || "");
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
   };
 
   const handleDeleteConversation = async (conversation) => {
+    if (!validateParentChildSelection()) return;
+
     const confirmed = await showConfirm({
       type: "danger",
       icon: "🗑️",
       label: "Eliminar conversación",
       title: "¿Eliminar esta conversación?",
-      message: `Estás por eliminar "${conversation.title}". Esta acción no se puede deshacer.`,
+      message: isParentMode
+        ? `Estás por eliminar "${conversation.title}" del perfil de ${childName}. Esta acción no se puede deshacer.`
+        : `Estás por eliminar "${conversation.title}". Esta acción no se puede deshacer.`,
       confirmText: "Sí, eliminar",
       cancelText: "Cancelar",
     });
@@ -295,17 +411,23 @@ const PersonaDetalle = () => {
     if (!confirmed) return;
 
     try {
-      await deleteContactConversation(conversation.id);
+      if (isParentMode) {
+        await deleteChildContactConversation(selectedChildId, conversation.id);
+      } else {
+        await deleteContactConversation(conversation.id);
+      }
 
       showFeedback({
         type: "success",
         icon: "✅",
         label: "Conversación eliminada",
         title: "Eliminada correctamente",
-        message: "La conversación fue eliminada de FloFlo.",
+        message: isParentMode
+          ? `La conversación fue eliminada para ${childName}.`
+          : "La conversación fue eliminada de FloFlo.",
       });
 
-      if (editingConversationId === conversation.id) {
+      if (Number(editingConversationId) === Number(conversation.id)) {
         resetForm();
       }
 
@@ -318,15 +440,66 @@ const PersonaDetalle = () => {
         icon: "❌",
         label: "Algo salió mal",
         title: "No se pudo eliminar",
-        message: "Intenta nuevamente en unos segundos.",
+        message:
+          error.response?.data?.message ||
+          "Intenta nuevamente en unos segundos.",
       });
     }
   };
 
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#F3ECFF]">
+        <p className="text-2xl font-bold text-[#4B367C]">
+          Cargando persona...
+        </p>
+      </div>
+    );
+  }
+
+  if (isParentWithoutChild) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#F3ECFF] px-8 py-10">
+        <section className="max-w-xl rounded-[2rem] bg-white p-8 text-center shadow-lg">
+          <h1 className="text-3xl font-extrabold text-[#4B367C]">
+            No hay niño/a seleccionado
+          </h1>
+
+          <p className="mt-4 text-[#6B5A95]">
+            Para revisar personas importantes como cuidador, primero debes
+            seleccionar un niño/a activo.
+          </p>
+
+          <Link
+            to="/amigos"
+            className="mt-6 inline-block rounded-full bg-[#9B7BE8] px-6 py-3 font-bold text-white"
+          >
+            Volver a amigos
+          </Link>
+        </section>
+      </div>
+    );
+  }
+
   if (!contact) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        Cargando...
+      <div className="flex min-h-screen items-center justify-center bg-[#F3ECFF] px-8 py-10">
+        <section className="max-w-xl rounded-[2rem] bg-white p-8 text-center shadow-lg">
+          <h1 className="text-3xl font-extrabold text-[#4B367C]">
+            Persona no encontrada
+          </h1>
+
+          <p className="mt-4 text-[#6B5A95]">
+            La persona no existe o no tienes permiso para verla.
+          </p>
+
+          <Link
+            to="/amigos"
+            className="mt-6 inline-block rounded-full bg-[#9B7BE8] px-6 py-3 font-bold text-white"
+          >
+            Volver a amigos
+          </Link>
+        </section>
       </div>
     );
   }
@@ -336,8 +509,25 @@ const PersonaDetalle = () => {
 
   return (
     <div className="min-h-screen bg-[#F3ECFF] px-8 py-10">
-      <div className="max-w-5xl mx-auto bg-white rounded-3xl shadow p-8">
-        <div className="grid md:grid-cols-2 gap-8">
+      <div className="mx-auto max-w-5xl rounded-3xl bg-white p-8 shadow">
+        <Link
+          to="/amigos"
+          className="mb-6 inline-block rounded-full bg-[#F3ECFF] px-5 py-3 font-bold text-[#4B367C] transition hover:bg-[#E8DDFF]"
+        >
+          ← Volver a amigos
+        </Link>
+
+        {isParentMode && (
+          <div className="mb-8 rounded-[2rem] border-2 border-[#9ED5B3] bg-[#EAF8EF] p-5 text-center shadow-sm">
+            <p className="font-bold text-[#2F6B4F]">Modo cuidador activo</p>
+
+            <p className="mt-1 text-[#2F6B4F]">
+              Estás viendo y gestionando conversaciones de {childName}.
+            </p>
+          </div>
+        )}
+
+        <div className="grid gap-8 md:grid-cols-2">
           <div>
             <h1 className="text-5xl font-bold text-[#4B367C]">
               {contact.name}
@@ -349,12 +539,18 @@ const PersonaDetalle = () => {
 
             <p className="mt-6 text-xl">📍 {contact.where_met}</p>
 
-            <div className="mt-8 bg-[#F3ECFF] rounded-2xl p-6">
-              <h3 className="font-bold text-[#4B367C] text-xl mb-2">
+            {contact.managed_by_parent && (
+              <p className="mt-4 inline-flex rounded-full bg-[#EAF8EF] px-3 py-1 text-sm font-bold text-[#2F6B4F]">
+                Persona del niño/a
+              </p>
+            )}
+
+            <div className="mt-8 rounded-2xl bg-[#F3ECFF] p-6">
+              <h3 className="mb-2 text-xl font-bold text-[#4B367C]">
                 ¿Cómo puedo recordarlo?
               </h3>
 
-              <p className="text-gray-700 text-lg">
+              <p className="text-lg text-gray-700">
                 {contact.memory_note || "Sin recordatorio"}
               </p>
             </div>
@@ -365,10 +561,10 @@ const PersonaDetalle = () => {
               <img
                 src={contact.image}
                 alt={contact.name}
-                className="w-80 h-80 object-cover rounded-3xl border"
+                className="h-80 w-80 rounded-3xl border object-cover"
               />
             ) : (
-              <div className="w-80 h-80 bg-gray-200 rounded-3xl flex items-center justify-center text-[#6B5A95] font-bold">
+              <div className="flex h-80 w-80 items-center justify-center rounded-3xl bg-gray-200 font-bold text-[#6B5A95]">
                 Sin foto
               </div>
             )}
@@ -376,26 +572,26 @@ const PersonaDetalle = () => {
         </div>
 
         <div className="mt-12">
-          <h2 className="text-3xl font-bold text-[#4B367C] mb-6">
+          <h2 className="mb-6 text-3xl font-bold text-[#4B367C]">
             Conversaciones de Félix con {contact.name}
           </h2>
 
           <form
             onSubmit={handleCreateConversation}
-            className="bg-[#F3ECFF] rounded-2xl p-6 mb-8 space-y-4"
+            className="mb-8 space-y-4 rounded-2xl bg-[#F3ECFF] p-6"
           >
             <textarea
               value={situation}
               onChange={(e) => setSituation(e.target.value)}
               placeholder="Escribe el escenario. Ej: cuando nos vemos en el colegio"
-              className="w-full p-3 rounded-xl border min-h-28"
+              className="min-h-28 w-full rounded-xl border p-3"
             />
 
             <button
               type="button"
               onClick={handleGenerateConversationAI}
               disabled={generandoIA}
-              className="bg-[#4B367C] text-white px-6 py-3 rounded-xl font-bold disabled:opacity-50"
+              className="rounded-xl bg-[#4B367C] px-6 py-3 font-bold text-white disabled:opacity-50"
             >
               {generandoIA
                 ? "Félix está pensando..."
@@ -403,8 +599,8 @@ const PersonaDetalle = () => {
             </button>
 
             {title && (
-              <div className="bg-white rounded-2xl p-5 border-2 border-[#DCCCF8]">
-                <h3 className="text-2xl font-bold text-[#4B367C] mb-3">
+              <div className="rounded-2xl border-2 border-[#DCCCF8] bg-white p-5">
+                <h3 className="mb-3 text-2xl font-bold text-[#4B367C]">
                   {title}
                 </h3>
 
@@ -412,46 +608,48 @@ const PersonaDetalle = () => {
                   <strong>Situación:</strong> {situation}
                 </p>
 
-                <p className="text-[#6B5A95] mt-2">
+                <p className="mt-2 text-[#6B5A95]">
                   <strong>Qué decir:</strong> {whatToSay}
                 </p>
 
-                <p className="text-green-700 mt-2">
+                <p className="mt-2 text-green-700">
                   <strong>Respuesta correcta:</strong> {correctAnswer}
                 </p>
 
-                <p className="text-red-600 mt-2">
+                <p className="mt-2 text-red-600">
                   <strong>Incorrecta 1:</strong> {wrongAnswer1}
                 </p>
 
-                <p className="text-red-600 mt-2">
+                <p className="mt-2 text-red-600">
                   <strong>Incorrecta 2:</strong> {wrongAnswer2}
                 </p>
 
                 {reminder && (
-                  <p className="text-[#6B5A95] mt-2">
+                  <p className="mt-2 text-[#6B5A95]">
                     <strong>Recordatorio:</strong> {reminder}
                   </p>
                 )}
               </div>
             )}
 
-            <div className="flex gap-3">
+            <div className="flex flex-wrap gap-3">
               <button
                 type="submit"
                 disabled={!title || generandoIA}
-                className="bg-[#9B7BE8] text-white px-6 py-3 rounded-xl font-bold disabled:opacity-50"
+                className="rounded-xl bg-[#9B7BE8] px-6 py-3 font-bold text-white disabled:opacity-50"
               >
                 {editingConversationId
                   ? "Actualizar conversación"
-                  : "Guardar conversación"}
+                  : isParentMode
+                    ? "Guardar conversación para niño/a"
+                    : "Guardar conversación"}
               </button>
 
               {editingConversationId && (
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="bg-white text-[#4B367C] border border-[#DCCCF8] px-6 py-3 rounded-xl font-bold"
+                  className="rounded-xl border border-[#DCCCF8] bg-white px-6 py-3 font-bold text-[#4B367C]"
                 >
                   Cancelar edición
                 </button>
@@ -468,13 +666,23 @@ const PersonaDetalle = () => {
               conversations.map((conversation) => (
                 <div
                   key={conversation.id}
-                  className="bg-white border-2 border-[#DCCCF8] rounded-2xl p-5"
+                  className="rounded-2xl border-2 border-[#DCCCF8] bg-white p-5"
                 >
-                  <h3 className="text-2xl font-bold text-[#4B367C]">
-                    {conversation.title}
-                  </h3>
+                  <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                    <div>
+                      <h3 className="text-2xl font-bold text-[#4B367C]">
+                        {conversation.title}
+                      </h3>
 
-                  <p className="mt-2 text-[#6B5A95]">
+                      {conversation.managed_by_parent && (
+                        <p className="mt-2 inline-flex rounded-full bg-[#EAF8EF] px-3 py-1 text-sm font-bold text-[#2F6B4F]">
+                          Conversación del niño/a
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  <p className="mt-4 text-[#6B5A95]">
                     <strong>Situación:</strong> {conversation.situation}
                   </p>
 
@@ -503,11 +711,11 @@ const PersonaDetalle = () => {
                     </p>
                   )}
 
-                  <div className="flex gap-3 mt-4">
+                  <div className="mt-4 flex gap-3">
                     <button
                       type="button"
                       onClick={() => handleEditConversation(conversation)}
-                      className="bg-[#9B7BE8] text-white px-5 py-2 rounded-xl font-bold"
+                      className="rounded-xl bg-[#9B7BE8] px-5 py-2 font-bold text-white"
                     >
                       Editar
                     </button>
@@ -515,7 +723,7 @@ const PersonaDetalle = () => {
                     <button
                       type="button"
                       onClick={() => handleDeleteConversation(conversation)}
-                      className="bg-red-500 text-white px-5 py-2 rounded-xl font-bold"
+                      className="rounded-xl bg-red-500 px-5 py-2 font-bold text-white"
                     >
                       Eliminar
                     </button>

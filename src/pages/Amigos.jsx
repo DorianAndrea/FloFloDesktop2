@@ -1,12 +1,17 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useFloFlo } from "../context/FloFloContext";
+import { useSelectedChild } from "../context/SelectedChildContext";
 import { useFeedback } from "../context/FeedbackContext";
 import {
   getContacts,
   createContact,
   deleteContact,
   updateContact,
+  getChildContacts,
+  createChildContact,
+  deleteChildContact,
+  updateChildContact,
 } from "../services/contactService";
 import { getRelationshipTypes } from "../services/relationshipTypeService";
 
@@ -18,6 +23,15 @@ const Amigos = () => {
   const [preview, setPreview] = useState("");
 
   const { user } = useFloFlo();
+
+  const {
+    isParent,
+    selectedChild,
+    selectedChildId,
+    loadingChildren,
+    getChildDisplayName,
+  } = useSelectedChild();
+
   const { showFeedback, showConfirm } = useFeedback();
 
   const [contacts, setContacts] = useState([]);
@@ -28,8 +42,17 @@ const Amigos = () => {
   const [busqueda, setBusqueda] = useState("");
   const [busquedaDebounce, setBusquedaDebounce] = useState("");
   const [orden, setOrden] = useState("recientes");
+  const [loadingContacts, setLoadingContacts] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   const fileInputRef = useRef(null);
+
+  const isParentMode = isParent && Boolean(selectedChildId);
+  const isParentWithoutChild = isParent && !selectedChildId;
+
+  const childName = selectedChild
+    ? getChildDisplayName(selectedChild)
+    : "el niño/a seleccionado";
 
   const loadRelationshipTypes = async () => {
     try {
@@ -52,13 +75,22 @@ const Amigos = () => {
     try {
       if (!user) return;
 
-      const data = await getContacts(busquedaDebounce, orden);
+      if (isParent && loadingChildren) {
+        return;
+      }
 
-      const contactosUsuario = data.filter(
-        (contacto) => Number(contacto.user_id) === Number(user.id),
-      );
+      setLoadingContacts(true);
 
-      setContacts(contactosUsuario);
+      if (isParentWithoutChild) {
+        setContacts([]);
+        return;
+      }
+
+      const data = isParentMode
+        ? await getChildContacts(selectedChildId, busquedaDebounce, orden)
+        : await getContacts(busquedaDebounce, orden);
+
+      setContacts(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error(error);
 
@@ -67,15 +99,29 @@ const Amigos = () => {
         icon: "❌",
         label: "Algo salió mal",
         title: "No se pudieron cargar las personas",
-        message: "Intenta nuevamente en unos segundos.",
+        message:
+          error.response?.data?.message ||
+          "Intenta nuevamente en unos segundos.",
       });
+    } finally {
+      setLoadingContacts(false);
     }
   };
 
   useEffect(() => {
-    loadContacts();
     loadRelationshipTypes();
-  }, [user, busquedaDebounce, orden]);
+  }, []);
+
+  useEffect(() => {
+    loadContacts();
+  }, [
+    user?.id,
+    user?.role,
+    selectedChildId,
+    loadingChildren,
+    busquedaDebounce,
+    orden,
+  ]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -99,6 +145,25 @@ const Amigos = () => {
     }
   };
 
+  const validateParentChildSelection = () => {
+    if (!isParent) return true;
+
+    if (!selectedChildId) {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta niño/a activo",
+        title: "Selecciona un niño/a",
+        message:
+          "Para gestionar personas importantes como cuidador, primero debes tener un niño/a asociado y seleccionado.",
+      });
+
+      return false;
+    }
+
+    return true;
+  };
+
   const handleImageChange = (e) => {
     const file = e.target.files[0];
 
@@ -120,15 +185,24 @@ const Amigos = () => {
     setMemoryNote(contact.memory_note || "");
     setImage(contact.image || "");
     setPreview(contact.image || "");
+
+    window.scrollTo({
+      top: 0,
+      behavior: "smooth",
+    });
   };
 
   const handleDelete = async (contact) => {
+    if (!validateParentChildSelection()) return;
+
     const confirmed = await showConfirm({
       type: "danger",
       icon: "🗑️",
       label: "Eliminar persona",
       title: "¿Eliminar esta persona?",
-      message: `Estás por eliminar a "${contact.name}". Esta acción no se puede deshacer.`,
+      message: isParentMode
+        ? `Estás por eliminar a "${contact.name}" del perfil de ${childName}. Esta acción no se puede deshacer.`
+        : `Estás por eliminar a "${contact.name}". Esta acción no se puede deshacer.`,
       confirmText: "Sí, eliminar",
       cancelText: "Cancelar",
     });
@@ -136,17 +210,23 @@ const Amigos = () => {
     if (!confirmed) return;
 
     try {
-      await deleteContact(contact.id);
+      if (isParentMode) {
+        await deleteChildContact(selectedChildId, contact.id);
+      } else {
+        await deleteContact(contact.id);
+      }
 
       showFeedback({
         type: "success",
         icon: "✅",
         label: "Persona eliminada",
         title: "Eliminada correctamente",
-        message: "La persona fue eliminada de FloFlo.",
+        message: isParentMode
+          ? `La persona fue eliminada para ${childName}.`
+          : "La persona fue eliminada de FloFlo.",
       });
 
-      if (editingContactId === contact.id) {
+      if (Number(editingContactId) === Number(contact.id)) {
         resetForm();
       }
 
@@ -159,7 +239,9 @@ const Amigos = () => {
         icon: "❌",
         label: "Algo salió mal",
         title: "No se pudo eliminar",
-        message: "Intenta nuevamente en unos segundos.",
+        message:
+          error.response?.data?.message ||
+          "Intenta nuevamente en unos segundos.",
       });
     }
   };
@@ -177,6 +259,8 @@ const Amigos = () => {
       });
       return;
     }
+
+    if (!validateParentChildSelection()) return;
 
     if (!name.trim()) {
       showFeedback({
@@ -223,6 +307,8 @@ const Amigos = () => {
     }
 
     try {
+      setSaving(true);
+
       const wasEditing = Boolean(editingContactId);
 
       const formData = new FormData();
@@ -237,7 +323,13 @@ const Amigos = () => {
       }
 
       if (editingContactId) {
-        await updateContact(editingContactId, formData);
+        if (isParentMode) {
+          await updateChildContact(selectedChildId, editingContactId, formData);
+        } else {
+          await updateContact(editingContactId, formData);
+        }
+      } else if (isParentMode) {
+        await createChildContact(selectedChildId, formData);
       } else {
         await createContact(formData);
       }
@@ -249,12 +341,14 @@ const Amigos = () => {
         type: "success",
         icon: "✅",
         label: wasEditing ? "Cambios guardados" : "Persona guardada",
-        title: wasEditing
-          ? "Persona actualizada"
-          : "Guardada correctamente",
+        title: wasEditing ? "Persona actualizada" : "Guardada correctamente",
         message: wasEditing
-          ? "Los datos de la persona se actualizaron correctamente."
-          : "La persona fue guardada y ya está disponible en FloFlo.",
+          ? isParentMode
+            ? `Los datos de la persona de ${childName} se actualizaron correctamente.`
+            : "Los datos de la persona se actualizaron correctamente."
+          : isParentMode
+            ? `La persona fue guardada para ${childName}.`
+            : "La persona fue guardada y ya está disponible en FloFlo.",
       });
     } catch (error) {
       console.error(error);
@@ -264,18 +358,55 @@ const Amigos = () => {
         icon: "❌",
         label: "Algo salió mal",
         title: "No se pudo guardar",
-        message: "Revisa los datos e intenta nuevamente.",
+        message:
+          error.response?.data?.message ||
+          "Revisa los datos e intenta nuevamente.",
       });
+    } finally {
+      setSaving(false);
     }
   };
 
+  if (isParentWithoutChild) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-white px-8 py-10">
+        <section className="max-w-xl rounded-[2rem] bg-[#F3ECFF] p-8 text-center shadow-lg">
+          <h1 className="text-3xl font-extrabold text-[#4B367C]">
+            No hay niño/a seleccionado
+          </h1>
+
+          <p className="mt-4 text-[#6B5A95]">
+            Para gestionar personas importantes como cuidador, primero debes
+            seleccionar un niño/a activo.
+          </p>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white px-8 py-10">
-      <div className="w-full max-w-6xl mx-auto">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-          <div className="w-full max-w-md mx-auto">
-            <h1 className="text-4xl font-light text-black-900 mb-10 text-center">
-              Personas importantes que recordar.
+      <div className="mx-auto w-full max-w-6xl">
+        {isParentMode && (
+          <div className="mb-8 rounded-[2rem] border-2 border-[#9ED5B3] bg-[#EAF8EF] p-5 text-center shadow-sm">
+            <p className="font-bold text-[#2F6B4F]">Modo cuidador activo</p>
+
+            <p className="mt-1 text-[#2F6B4F]">
+              Estás viendo y gestionando personas importantes de {childName}.
+            </p>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 items-center gap-12 md:grid-cols-2">
+          <div className="mx-auto w-full max-w-md">
+            <p className="mb-3 text-center text-lg font-bold text-[#9B7BE8]">
+              {isParentMode ? "Personas del niño/a" : "Personas importantes"}
+            </p>
+
+            <h1 className="mb-10 text-center text-4xl font-light text-black">
+              {isParentMode
+                ? `Personas importantes para ${childName}`
+                : "Personas importantes que recordar."}
             </h1>
 
             <form onSubmit={handleSubmit} className="space-y-6">
@@ -284,13 +415,13 @@ const Amigos = () => {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Nombre"
-                className="w-full py-3 text-gray-900 placeholder-black-400 bg-transparent border-b border-gray-300 focus:outline-none focus:border-cyan-700"
+                className="w-full border-b border-gray-300 bg-transparent py-3 text-gray-900 placeholder-black focus:border-cyan-700 focus:outline-none"
               />
 
               <select
                 value={relationshipTypeId}
                 onChange={(e) => setRelationshipTypeId(e.target.value)}
-                className="w-full py-3 text-gray-900 bg-transparent border-b border-gray-300 focus:outline-none focus:border-cyan-700"
+                className="w-full border-b border-gray-300 bg-transparent py-3 text-gray-900 focus:border-cyan-700 focus:outline-none"
               >
                 <option value="">Selecciona quién es</option>
 
@@ -305,15 +436,15 @@ const Amigos = () => {
                 type="text"
                 value={whereMet}
                 onChange={(e) => setWhereMet(e.target.value)}
-                placeholder="Donde lo conocí"
-                className="w-full py-3 text-gray-900 placeholder-gray-400 bg-transparent border-b border-gray-300 focus:outline-none focus:border-cyan-700"
+                placeholder="Dónde lo conocí"
+                className="w-full border-b border-gray-300 bg-transparent py-3 text-gray-900 placeholder-gray-400 focus:border-cyan-700 focus:outline-none"
               />
 
               <textarea
                 value={memoryNote}
                 onChange={(e) => setMemoryNote(e.target.value)}
                 placeholder="¿Cómo puedo recordar a esta persona?"
-                className="w-full py-3 text-gray-900 placeholder-gray-400 bg-transparent border-b border-gray-300 focus:outline-none focus:border-cyan-700"
+                className="w-full border-b border-gray-300 bg-transparent py-3 text-gray-900 placeholder-gray-400 focus:border-cyan-700 focus:outline-none"
               />
 
               <input
@@ -326,16 +457,23 @@ const Amigos = () => {
 
               <button
                 type="submit"
-                className="w-full py-3 text-cyan-700 font-medium border border-cyan-700 hover:bg-cyan-700 hover:text-white transition-all duration-300"
+                disabled={saving}
+                className="w-full border border-cyan-700 py-3 font-medium text-cyan-700 transition-all duration-300 hover:bg-cyan-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {editingContactId ? "Actualizar" : "Enviar"}
+                {saving
+                  ? "Guardando..."
+                  : editingContactId
+                    ? "Actualizar"
+                    : isParentMode
+                      ? "Guardar para niño/a"
+                      : "Enviar"}
               </button>
 
               {editingContactId && (
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="w-full py-3 text-[#4B367C] font-medium border border-[#DCCCF8] hover:bg-[#F3ECFF] transition-all duration-300"
+                  className="w-full border border-[#DCCCF8] py-3 font-medium text-[#4B367C] transition-all duration-300 hover:bg-[#F3ECFF]"
                 >
                   Cancelar edición
                 </button>
@@ -348,10 +486,10 @@ const Amigos = () => {
               <img
                 src={preview}
                 alt="Vista previa"
-                className="w-80 h-80 rounded-full object-cover border-4 border-cyan-700"
+                className="h-80 w-80 rounded-full border-4 border-cyan-700 object-cover"
               />
             ) : (
-              <div className="w-80 h-80 rounded-full bg-gray-300 flex items-center justify-center text-gray-500">
+              <div className="flex h-80 w-80 items-center justify-center rounded-full bg-gray-300 text-gray-500">
                 Sin imagen
               </div>
             )}
@@ -359,7 +497,7 @@ const Amigos = () => {
         </div>
 
         <div className="mt-16 w-full">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2">
             <input
               id="buscar-amigo"
               name="buscar-amigo"
@@ -367,7 +505,7 @@ const Amigos = () => {
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               placeholder="🔍 Buscar por nombre, relación o lugar..."
-              className="w-full p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8]"
+              className="w-full rounded-2xl border-2 border-[#DCCCF8] p-4 focus:border-[#9B7BE8] focus:outline-none"
             />
 
             <select
@@ -375,7 +513,7 @@ const Amigos = () => {
               name="orden-amigos"
               value={orden}
               onChange={(e) => setOrden(e.target.value)}
-              className="w-full p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8]"
+              className="w-full rounded-2xl border-2 border-[#DCCCF8] p-4 focus:border-[#9B7BE8] focus:outline-none"
             >
               <option value="recientes">Más recientes</option>
               <option value="antiguos">Más antiguos</option>
@@ -384,51 +522,61 @@ const Amigos = () => {
             </select>
           </div>
 
-          <h2 className="text-3xl font-bold mb-8 text-center">
-            Personas que conozco
+          <h2 className="mb-8 text-center text-3xl font-bold">
+            {isParentMode
+              ? `Personas que conoce ${childName}`
+              : "Personas que conozco"}
           </h2>
 
-          {contacts.length === 0 ? (
+          {loadingContacts ? (
+            <p className="text-center text-gray-500">Cargando personas...</p>
+          ) : contacts.length === 0 ? (
             <p className="text-center text-gray-500">
               Aún no hay personas registradas.
             </p>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
               {contacts.map((contact) => (
                 <div
                   key={contact.id}
-                  className="border rounded-2xl p-5 bg-white shadow"
+                  className="rounded-2xl border bg-white p-5 shadow"
                 >
-                  <div className="flex justify-between items-start gap-4">
+                  <div className="flex items-start justify-between gap-4">
                     <div className="flex-1">
                       <h3 className="text-2xl font-bold text-[#4B367C]">
                         {contact.name}
                       </h3>
 
-                      <p className="text-[#6B5A95] font-medium mt-1">
+                      <p className="mt-1 font-medium text-[#6B5A95]">
                         {contact.relationship_name}
                       </p>
 
-                      <p className="text-gray-600 mt-2">
+                      <p className="mt-2 text-gray-600">
                         📍 {contact.where_met}
                       </p>
+
+                      {contact.managed_by_parent && (
+                        <p className="mt-3 inline-flex rounded-full bg-[#EAF8EF] px-3 py-1 text-sm font-bold text-[#2F6B4F]">
+                          Personas conocidas del niño/a
+                        </p>
+                      )}
                     </div>
 
                     {contact.image ? (
                       <img
                         src={contact.image}
                         alt={contact.name}
-                        className="w-32 h-32 object-cover rounded-xl border"
+                        className="h-32 w-32 rounded-xl border object-cover"
                       />
                     ) : (
-                      <div className="w-32 h-32 bg-gray-200 rounded-xl flex items-center justify-center text-gray-500 text-sm">
+                      <div className="flex h-32 w-32 items-center justify-center rounded-xl bg-gray-200 text-sm text-gray-500">
                         Sin foto
                       </div>
                     )}
                   </div>
 
-                  <div className="mt-4 bg-[#F3ECFF] rounded-xl p-4">
-                    <p className="text-sm font-semibold text-[#4B367C] mb-1">
+                  <div className="mt-4 rounded-xl bg-[#F3ECFF] p-4">
+                    <p className="mb-1 text-sm font-semibold text-[#4B367C]">
                       ¿Cómo puedo recordarlo?
                     </p>
 
@@ -437,11 +585,11 @@ const Amigos = () => {
                     </p>
                   </div>
 
-                  <div className="flex flex-wrap gap-3 mt-6">
+                  <div className="mt-6 flex flex-wrap gap-3">
                     <button
                       type="button"
                       onClick={() => handleEdit(contact)}
-                      className="bg-purple-500 text-white px-4 py-2 rounded-lg hover:bg-purple-600"
+                      className="rounded-lg bg-purple-500 px-4 py-2 text-white hover:bg-purple-600"
                     >
                       Editar
                     </button>
@@ -449,14 +597,14 @@ const Amigos = () => {
                     <button
                       type="button"
                       onClick={() => handleDelete(contact)}
-                      className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
+                      className="rounded-lg bg-red-500 px-4 py-2 text-white hover:bg-red-600"
                     >
                       Eliminar
                     </button>
 
                     <Link
                       to={`/amigos/${contact.id}`}
-                      className="px-4 py-2 rounded-xl bg-[#9B7BE8] text-white font-semibold"
+                      className="rounded-xl bg-[#9B7BE8] px-4 py-2 font-semibold text-white"
                     >
                       Ver detalle
                     </Link>
