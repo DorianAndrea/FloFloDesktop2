@@ -1,7 +1,14 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { createPlace, createPlaceStep } from "../services/placeService";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  createPlace,
+  createPlaceStep,
+  createChildPlace,
+  createChildPlaceStep,
+} from "../services/placeService";
 import { generatePlaceSteps } from "../services/aiService";
+import { useFloFlo } from "../context/FloFloContext";
+import { useSelectedChild } from "../context/SelectedChildContext";
 import { useFeedback } from "../context/FeedbackContext";
 
 const CrearLugar = () => {
@@ -28,9 +35,26 @@ const CrearLugar = () => {
   const [imagen, setImagen] = useState(null);
   const [preview, setPreview] = useState(null);
   const [generandoIA, setGenerandoIA] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const navigate = useNavigate();
+  const { user } = useFloFlo();
+
+  const {
+    isParent,
+    selectedChild,
+    selectedChildId,
+    getChildDisplayName,
+  } = useSelectedChild();
+
   const { showFeedback } = useFeedback();
+
+  const isParentMode = isParent && Boolean(selectedChildId);
+  const isParentWithoutChild = isParent && !selectedChildId;
+
+  const childName = selectedChild
+    ? getChildDisplayName(selectedChild)
+    : "el niño/a seleccionado";
 
   const handleChange = (e) => {
     setForm({
@@ -62,6 +86,25 @@ const CrearLugar = () => {
     setPreview(URL.createObjectURL(file));
   };
 
+  const validateParentChildSelection = () => {
+    if (!isParent) return true;
+
+    if (!selectedChildId) {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta niño/a activo",
+        title: "Selecciona un niño/a",
+        message:
+          "Para crear un lugar como cuidador, primero debes tener un niño/a asociado y seleccionado.",
+      });
+
+      return false;
+    }
+
+    return true;
+  };
+
   const handleGenerateStepsAI = async () => {
     if (!form.nombre.trim()) {
       showFeedback({
@@ -80,7 +123,8 @@ const CrearLugar = () => {
         icon: "⚠️",
         label: "Falta información",
         title: "Describe la actividad",
-        message: "Indica qué se hará en ese lugar para que Félix pueda ayudarte.",
+        message:
+          "Indica qué se hará en ese lugar para que Félix pueda ayudarte.",
       });
       return;
     }
@@ -114,7 +158,8 @@ const CrearLugar = () => {
         icon: "✨",
         label: "Pasos generados",
         title: "Félix creó los pasos",
-        message: "Puedes revisarlos, editarlos o agregar nuevos pasos antes de guardar.",
+        message:
+          "Puedes revisarlos, editarlos o agregar nuevos pasos antes de guardar.",
       });
     } catch (error) {
       console.error(error);
@@ -133,6 +178,19 @@ const CrearLugar = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!user) {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Sesión requerida",
+        title: "Debes iniciar sesión",
+        message: "Inicia sesión para crear un lugar.",
+      });
+      return;
+    }
+
+    if (!validateParentChildSelection()) return;
 
     if (!form.nombre.trim()) {
       showFeedback({
@@ -157,6 +215,8 @@ const CrearLugar = () => {
     }
 
     try {
+      setSaving(true);
+
       const formData = new FormData();
 
       formData.append("name", form.nombre.trim());
@@ -172,18 +232,30 @@ const CrearLugar = () => {
         formData.append("image", imagen);
       }
 
-      const lugarCreado = await createPlace(formData);
+      const lugarCreado = isParentMode
+        ? await createChildPlace(selectedChildId, formData)
+        : await createPlace(formData);
 
       const pasosValidos = steps
         .map((step) => String(step || "").trim())
         .filter((step) => step !== "");
 
       for (let i = 0; i < pasosValidos.length; i++) {
-        await createPlaceStep(lugarCreado.id, {
+        const stepPayload = {
           step_order: i + 1,
           title: `Paso ${i + 1}`,
           description: pasosValidos[i],
-        });
+        };
+
+        if (isParentMode) {
+          await createChildPlaceStep(
+            selectedChildId,
+            lugarCreado.id,
+            stepPayload,
+          );
+        } else {
+          await createPlaceStep(lugarCreado.id, stepPayload);
+        }
       }
 
       showFeedback({
@@ -191,7 +263,9 @@ const CrearLugar = () => {
         icon: "✅",
         label: "Lugar creado",
         title: "Guardado correctamente",
-        message: "El lugar fue creado y ya está disponible en FloFlo.",
+        message: isParentMode
+          ? `El lugar fue creado para ${childName}.`
+          : "El lugar fue creado y ya está disponible en FloFlo.",
       });
 
       navigate("/lugares");
@@ -203,32 +277,74 @@ const CrearLugar = () => {
         icon: "❌",
         label: "Algo salió mal",
         title: "No se pudo crear el lugar",
-        message: "Revisa los datos e intenta nuevamente.",
+        message:
+          error.response?.data?.message ||
+          "Revisa los datos e intenta nuevamente.",
       });
+    } finally {
+      setSaving(false);
     }
   };
 
+  if (isParentWithoutChild) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#F3ECFF] px-6 py-10">
+        <section className="w-full max-w-xl rounded-[2.5rem] bg-white p-8 text-center shadow-lg">
+          <h1 className="text-3xl font-extrabold text-[#4B367C]">
+            No hay niño/a seleccionado
+          </h1>
+
+          <p className="mt-4 text-[#6B5A95]">
+            Para crear lugares como cuidador, primero debes seleccionar un
+            niño/a activo.
+          </p>
+
+          <Link
+            to="/lugares"
+            className="mt-6 inline-block rounded-full bg-[#9B7BE8] px-6 py-3 font-bold text-white"
+          >
+            Volver a lugares
+          </Link>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="min-h-screen bg-[#F3ECFF] px-6 py-10">
-      <section className="max-w-5xl mx-auto bg-white rounded-[2.5rem] shadow-lg p-8 md:p-10">
-        <h1 className="text-4xl md:text-5xl font-extrabold text-[#4B367C] text-center mb-4">
-          Crear lugar
+      <section className="mx-auto max-w-5xl rounded-[2.5rem] bg-white p-8 shadow-lg md:p-10">
+        <p className="mb-3 text-center text-lg font-bold text-[#9B7BE8]">
+          {isParentMode ? "Modo cuidador" : "Prepárate con Félix"}
+        </p>
+
+        <h1 className="mb-4 text-center text-4xl font-extrabold text-[#4B367C] md:text-5xl">
+          {isParentMode ? `Crear lugar para ${childName}` : "Crear lugar"}
         </h1>
 
-        <p className="text-center text-[#6B5A95] text-lg mb-10">
-          Agrega un lugar para que Félix pueda ayudarte a prepararte.
+        <p className="mb-10 text-center text-lg text-[#6B5A95]">
+          {isParentMode
+            ? "Este lugar se guardará directamente en el perfil del niño/a seleccionado."
+            : "Agrega un lugar para que Félix pueda ayudarte a prepararte."}
         </p>
+
+        {isParentMode && (
+          <div className="mb-8 rounded-[2rem] border-2 border-[#9ED5B3] bg-[#EAF8EF] p-5 text-center shadow-sm">
+            <p className="font-bold text-[#2F6B4F]">
+              El lugar quedará guardado para {childName}
+            </p>
+          </div>
+        )}
 
         <form
           onSubmit={handleSubmit}
-          className="grid grid-cols-1 md:grid-cols-2 gap-6"
+          className="grid grid-cols-1 gap-6 md:grid-cols-2"
         >
           <input
             name="nombre"
             value={form.nombre}
             onChange={handleChange}
             placeholder="Nombre del lugar"
-            className="p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8]"
+            className="rounded-2xl border-2 border-[#DCCCF8] p-4 focus:border-[#9B7BE8] focus:outline-none"
           />
 
           <input
@@ -236,7 +352,7 @@ const CrearLugar = () => {
             value={form.direccion}
             onChange={handleChange}
             placeholder="Dirección"
-            className="p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8]"
+            className="rounded-2xl border-2 border-[#DCCCF8] p-4 focus:border-[#9B7BE8] focus:outline-none"
           />
 
           <textarea
@@ -244,7 +360,7 @@ const CrearLugar = () => {
             value={form.descripcion}
             onChange={handleChange}
             placeholder="Descripción simple del lugar"
-            className="md:col-span-2 p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8] resize-none"
+            className="resize-none rounded-2xl border-2 border-[#DCCCF8] p-4 focus:border-[#9B7BE8] focus:outline-none md:col-span-2"
           />
 
           <input
@@ -252,7 +368,7 @@ const CrearLugar = () => {
             value={form.actividad}
             onChange={handleChange}
             placeholder="¿Qué se hará allí?"
-            className="p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8]"
+            className="rounded-2xl border-2 border-[#DCCCF8] p-4 focus:border-[#9B7BE8] focus:outline-none"
           />
 
           <input
@@ -260,7 +376,7 @@ const CrearLugar = () => {
             value={form.personas}
             onChange={handleChange}
             placeholder="¿Quién estará presente?"
-            className="p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8]"
+            className="rounded-2xl border-2 border-[#DCCCF8] p-4 focus:border-[#9B7BE8] focus:outline-none"
           />
 
           <input
@@ -268,7 +384,7 @@ const CrearLugar = () => {
             value={form.transporte}
             onChange={handleChange}
             placeholder="Medio de transporte"
-            className="p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8]"
+            className="rounded-2xl border-2 border-[#DCCCF8] p-4 focus:border-[#9B7BE8] focus:outline-none"
           />
 
           <input
@@ -276,7 +392,7 @@ const CrearLugar = () => {
             value={form.duracion}
             onChange={handleChange}
             placeholder="Tiempo estimado"
-            className="p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8]"
+            className="rounded-2xl border-2 border-[#DCCCF8] p-4 focus:border-[#9B7BE8] focus:outline-none"
           />
 
           <textarea
@@ -284,28 +400,28 @@ const CrearLugar = () => {
             value={form.consejos}
             onChange={handleChange}
             placeholder="Consejos o recordatorios importantes"
-            className="md:col-span-2 p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8] resize-none"
+            className="resize-none rounded-2xl border-2 border-[#DCCCF8] p-4 focus:border-[#9B7BE8] focus:outline-none md:col-span-2"
           />
 
           <input
             type="file"
             accept="image/*"
             onChange={handleImageChange}
-            className="md:col-span-2 p-4 rounded-2xl bg-[#F3ECFF] text-[#4B367C]"
+            className="rounded-2xl bg-[#F3ECFF] p-4 text-[#4B367C] md:col-span-2"
           />
 
           {preview && (
             <img
               src={preview}
               alt="Vista previa"
-              className="md:col-span-2 w-full max-h-80 object-cover rounded-[2rem]"
+              className="max-h-80 w-full rounded-[2rem] object-cover md:col-span-2"
             />
           )}
 
-          <div className="md:col-span-2 bg-[#F3ECFF] rounded-[2rem] p-6">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-5">
+          <div className="rounded-[2rem] bg-[#F3ECFF] p-6 md:col-span-2">
+            <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
-                <h2 className="text-2xl font-bold text-[#4B367C] mb-2">
+                <h2 className="mb-2 text-2xl font-bold text-[#4B367C]">
                   Pasos para prepararme
                 </h2>
 
@@ -318,7 +434,7 @@ const CrearLugar = () => {
                 type="button"
                 onClick={handleGenerateStepsAI}
                 disabled={generandoIA}
-                className="bg-[#4B367C] hover:bg-[#3E2E68] text-white font-bold px-5 py-3 rounded-full disabled:opacity-50"
+                className="rounded-full bg-[#4B367C] px-5 py-3 font-bold text-white hover:bg-[#3E2E68] disabled:opacity-50"
               >
                 {generandoIA ? "Generando..." : "✨ Generar con Félix"}
               </button>
@@ -331,13 +447,13 @@ const CrearLugar = () => {
                     value={step}
                     onChange={(e) => handleStepChange(index, e.target.value)}
                     placeholder={`Paso ${index + 1}`}
-                    className="flex-1 p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8]"
+                    className="flex-1 rounded-2xl border-2 border-[#DCCCF8] p-4 focus:border-[#9B7BE8] focus:outline-none"
                   />
 
                   <button
                     type="button"
                     onClick={() => removeStep(index)}
-                    className="px-4 rounded-2xl bg-red-100 text-red-600 font-bold"
+                    className="rounded-2xl bg-red-100 px-4 font-bold text-red-600"
                   >
                     ✕
                   </button>
@@ -348,7 +464,7 @@ const CrearLugar = () => {
             <button
               type="button"
               onClick={addStep}
-              className="mt-5 bg-white text-[#4B367C] font-bold px-5 py-3 rounded-full shadow"
+              className="mt-5 rounded-full bg-white px-5 py-3 font-bold text-[#4B367C] shadow"
             >
               + Agregar paso
             </button>
@@ -356,9 +472,14 @@ const CrearLugar = () => {
 
           <button
             type="submit"
-            className="md:col-span-2 bg-[#9B7BE8] hover:bg-[#8B6FD6] text-white font-bold py-4 rounded-2xl transition"
+            disabled={saving}
+            className="rounded-2xl bg-[#9B7BE8] py-4 font-bold text-white transition hover:bg-[#8B6FD6] disabled:cursor-not-allowed disabled:opacity-60 md:col-span-2"
           >
-            Guardar lugar
+            {saving
+              ? "Guardando..."
+              : isParentMode
+                ? "Guardar lugar para niño/a"
+                : "Guardar lugar"}
           </button>
         </form>
       </section>

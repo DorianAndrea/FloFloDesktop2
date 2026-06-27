@@ -8,9 +8,17 @@ import {
   deletePlace,
   completePlace,
   replacePlaceSteps,
+  getChildPlaceById,
+  getChildPlaceSteps,
+  updateChildPlace,
+  deleteChildPlace,
+  completeChildPlace,
+  replaceChildPlaceSteps,
 } from "../services/placeService";
 
 import { generatePlaceSteps } from "../services/aiService";
+import { useFloFlo } from "../context/FloFloContext";
+import { useSelectedChild } from "../context/SelectedChildContext";
 import { useFeedback } from "../context/FeedbackContext";
 import felix from "../assets/webp/felix_respirando.webp";
 
@@ -92,9 +100,26 @@ const defaultSteps = [
 const LugarDetalle = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const esDemo = id.startsWith("demo");
+  const esDemo = String(id).startsWith("demo");
+
+  const { user } = useFloFlo();
+
+  const {
+    isParent,
+    selectedChild,
+    selectedChildId,
+    loadingChildren,
+    getChildDisplayName,
+  } = useSelectedChild();
 
   const { showFeedback, showConfirm } = useFeedback();
+
+  const isParentMode = isParent && Boolean(selectedChildId);
+  const isParentWithoutChild = isParent && !selectedChildId;
+
+  const childName = selectedChild
+    ? getChildDisplayName(selectedChild)
+    : "el niño/a seleccionado";
 
   const [lugar, setLugar] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -115,8 +140,49 @@ const LugarDetalle = () => {
     consejos: "",
   });
 
+  const validateParentChildSelection = () => {
+    if (!isParent) return true;
+
+    if (!selectedChildId) {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta niño/a activo",
+        title: "Selecciona un niño/a",
+        message:
+          "Para gestionar lugares como cuidador, primero debes tener un niño/a asociado y seleccionado.",
+      });
+
+      return false;
+    }
+
+    return true;
+  };
+
+  const formatPlace = (data, pasosFinales) => ({
+    id: data.id,
+    nombre: data.name,
+    imagen: data.image,
+    direccion: data.address,
+    descripcion: data.description,
+    actividad: data.activity,
+    personas: data.people_present,
+    transporte: data.transport,
+    duracion: data.estimated_duration,
+    consejos: data.tips,
+    emoji: "📍",
+    pasos: pasosFinales,
+    managed_by_parent: data.managed_by_parent,
+  });
+
   const loadLugar = async () => {
     try {
+      if (!user) return;
+
+      if (isParent && loadingChildren) {
+        return;
+      }
+
       setLoading(true);
 
       if (esDemo) {
@@ -129,8 +195,18 @@ const LugarDetalle = () => {
         return;
       }
 
-      const data = await getPlaceById(id);
-      const stepsData = await getPlaceSteps(id);
+      if (isParentWithoutChild) {
+        setLugar(null);
+        return;
+      }
+
+      const data = isParentMode
+        ? await getChildPlaceById(selectedChildId, id)
+        : await getPlaceById(id);
+
+      const stepsData = isParentMode
+        ? await getChildPlaceSteps(selectedChildId, id)
+        : await getPlaceSteps(id);
 
       const pasosBD = Array.isArray(stepsData)
         ? stepsData
@@ -139,21 +215,7 @@ const LugarDetalle = () => {
         : [];
 
       const pasosFinales = pasosBD.length > 0 ? pasosBD : defaultSteps;
-
-      const lugarFormateado = {
-        id: data.id,
-        nombre: data.name,
-        imagen: data.image,
-        direccion: data.address,
-        descripcion: data.description,
-        actividad: data.activity,
-        personas: data.people_present,
-        transporte: data.transport,
-        duracion: data.estimated_duration,
-        consejos: data.tips,
-        emoji: "📍",
-        pasos: pasosFinales,
-      };
+      const lugarFormateado = formatPlace(data, pasosFinales);
 
       setLugar(lugarFormateado);
       setEditingSteps(pasosFinales);
@@ -171,6 +233,16 @@ const LugarDetalle = () => {
     } catch (error) {
       console.error(error);
       setLugar(null);
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudo cargar el lugar",
+        message:
+          error.response?.data?.message ||
+          "El lugar no existe o no tienes permiso para verlo.",
+      });
     } finally {
       setLoading(false);
     }
@@ -178,7 +250,7 @@ const LugarDetalle = () => {
 
   useEffect(() => {
     loadLugar();
-  }, [id]);
+  }, [id, user?.id, user?.role, selectedChildId, loadingChildren]);
 
   const handleChange = (e) => {
     setForm({
@@ -205,7 +277,8 @@ const LugarDetalle = () => {
         icon: "⚠️",
         label: "Falta información",
         title: "Describe la actividad",
-        message: "Indica qué se hará en ese lugar para que Félix pueda ayudarte.",
+        message:
+          "Indica qué se hará en ese lugar para que Félix pueda ayudarte.",
       });
       return;
     }
@@ -273,6 +346,8 @@ const LugarDetalle = () => {
   const handleUpdateLugar = async (e) => {
     e.preventDefault();
 
+    if (!validateParentChildSelection()) return;
+
     if (!form.nombre.trim()) {
       showFeedback({
         type: "warning",
@@ -307,13 +382,19 @@ const LugarDetalle = () => {
       formData.append("estimated_duration", form.duracion.trim());
       formData.append("tips", form.consejos.trim());
 
-      const updated = await updatePlace(id, formData);
+      const updated = isParentMode
+        ? await updateChildPlace(selectedChildId, id, formData)
+        : await updatePlace(id, formData);
 
       const pasosValidos = editingSteps
         .map((step) => String(step || "").trim())
         .filter((step) => step !== "");
 
-      await replacePlaceSteps(id, pasosValidos);
+      if (isParentMode) {
+        await replaceChildPlaceSteps(selectedChildId, id, pasosValidos);
+      } else {
+        await replacePlaceSteps(id, pasosValidos);
+      }
 
       setLugar({
         ...lugar,
@@ -327,6 +408,7 @@ const LugarDetalle = () => {
         consejos: updated.tips,
         imagen: updated.image,
         pasos: pasosValidos,
+        managed_by_parent: updated.managed_by_parent,
       });
 
       setEditing(false);
@@ -336,7 +418,9 @@ const LugarDetalle = () => {
         icon: "✅",
         label: "Cambios guardados",
         title: "Lugar actualizado",
-        message: "Los cambios del lugar se guardaron correctamente.",
+        message: isParentMode
+          ? `Los cambios del lugar de ${childName} se guardaron correctamente.`
+          : "Los cambios del lugar se guardaron correctamente.",
       });
     } catch (error) {
       console.error(error);
@@ -346,18 +430,24 @@ const LugarDetalle = () => {
         icon: "❌",
         label: "Algo salió mal",
         title: "No se pudo actualizar",
-        message: "Intenta nuevamente en unos segundos.",
+        message:
+          error.response?.data?.message ||
+          "Intenta nuevamente en unos segundos.",
       });
     }
   };
 
   const handleDeleteLugar = async () => {
+    if (!validateParentChildSelection()) return;
+
     const confirmed = await showConfirm({
       type: "danger",
       icon: "🗑️",
       label: "Eliminar lugar",
       title: "¿Eliminar este lugar?",
-      message: "Esta acción no se puede deshacer.",
+      message: isParentMode
+        ? `Esta acción eliminará el lugar de ${childName}. No se puede deshacer.`
+        : "Esta acción no se puede deshacer.",
       confirmText: "Sí, eliminar",
       cancelText: "Cancelar",
     });
@@ -365,14 +455,20 @@ const LugarDetalle = () => {
     if (!confirmed) return;
 
     try {
-      await deletePlace(id);
+      if (isParentMode) {
+        await deleteChildPlace(selectedChildId, id);
+      } else {
+        await deletePlace(id);
+      }
 
       showFeedback({
         type: "success",
         icon: "✅",
         label: "Lugar eliminado",
         title: "Eliminado correctamente",
-        message: "El lugar fue eliminado de FloFlo.",
+        message: isParentMode
+          ? `El lugar fue eliminado para ${childName}.`
+          : "El lugar fue eliminado de FloFlo.",
       });
 
       navigate("/lugares");
@@ -384,7 +480,9 @@ const LugarDetalle = () => {
         icon: "❌",
         label: "Algo salió mal",
         title: "No se pudo eliminar",
-        message: "Intenta nuevamente en unos segundos.",
+        message:
+          error.response?.data?.message ||
+          "Intenta nuevamente en unos segundos.",
       });
     }
   };
@@ -402,9 +500,15 @@ const LugarDetalle = () => {
   };
 
   const prepararLugar = async () => {
+    if (!validateParentChildSelection()) return;
+
     try {
       if (!esDemo) {
-        await completePlace(id);
+        if (isParentMode) {
+          await completeChildPlace(selectedChildId, id);
+        } else {
+          await completePlace(id);
+        }
       }
 
       showFeedback({
@@ -412,7 +516,9 @@ const LugarDetalle = () => {
         icon: "⭐",
         label: "Preparación completada",
         title: "¡Muy bien!",
-        message: "Félix te ayudó a prepararte. Ganaste una estrella.",
+        message: isParentMode
+          ? `La preparación del lugar quedó registrada para ${childName}.`
+          : "Félix te ayudó a prepararte. Ganaste una estrella.",
       });
 
       setModoPreparacion(false);
@@ -424,7 +530,9 @@ const LugarDetalle = () => {
         icon: "❌",
         label: "Algo salió mal",
         title: "No se pudo guardar",
-        message: "No se pudo guardar la preparación del lugar.",
+        message:
+          error.response?.data?.message ||
+          "No se pudo guardar la preparación del lugar.",
       });
     }
   };
@@ -450,37 +558,76 @@ const LugarDetalle = () => {
 
   if (loading) {
     return (
-      <main className="min-h-screen bg-[#F3ECFF] flex items-center justify-center">
-        <p className="text-[#4B367C] text-2xl font-bold">Cargando lugar...</p>
+      <main className="flex min-h-screen items-center justify-center bg-[#F3ECFF]">
+        <p className="text-2xl font-bold text-[#4B367C]">Cargando lugar...</p>
+      </main>
+    );
+  }
+
+  if (isParentWithoutChild) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#F3ECFF] px-6">
+        <section className="max-w-xl rounded-[2rem] bg-white p-8 text-center shadow-lg">
+          <p className="text-2xl font-extrabold text-[#4B367C]">
+            No hay niño/a seleccionado
+          </p>
+
+          <p className="mt-3 text-[#6B5A95]">
+            Para revisar lugares como cuidador, primero debes seleccionar un
+            niño/a activo.
+          </p>
+
+          <Link
+            to="/lugares"
+            className="mt-6 inline-block rounded-full bg-[#9B7BE8] px-6 py-3 font-bold text-white"
+          >
+            Volver a lugares
+          </Link>
+        </section>
       </main>
     );
   }
 
   if (!lugar) {
     return (
-      <main className="min-h-screen bg-[#F3ECFF] flex items-center justify-center">
-        <p className="text-[#4B367C] text-2xl font-bold">Lugar no encontrado</p>
+      <main className="flex min-h-screen items-center justify-center bg-[#F3ECFF] px-6">
+        <section className="max-w-xl rounded-[2rem] bg-white p-8 text-center shadow-lg">
+          <p className="text-2xl font-extrabold text-[#4B367C]">
+            Lugar no encontrado
+          </p>
+
+          <p className="mt-3 text-[#6B5A95]">
+            El lugar no existe o no tienes permiso para verlo.
+          </p>
+
+          <Link
+            to="/lugares"
+            className="mt-6 inline-block rounded-full bg-[#9B7BE8] px-6 py-3 font-bold text-white"
+          >
+            Volver a lugares
+          </Link>
+        </section>
       </main>
     );
   }
 
   if (modoPreparacion) {
     return (
-      <main className="min-h-screen bg-[#F3ECFF] flex items-center justify-center px-6 py-10">
-        <section className="bg-white rounded-[2.5rem] shadow-lg p-8 max-w-3xl w-full text-center">
-          <p className="text-[#9B7BE8] font-bold mb-4">
+      <main className="flex min-h-screen items-center justify-center bg-[#F3ECFF] px-6 py-10">
+        <section className="w-full max-w-3xl rounded-[2.5rem] bg-white p-8 text-center shadow-lg">
+          <p className="mb-4 font-bold text-[#9B7BE8]">
             Paso {pasoActual + 1} de {lugar.pasos.length}
           </p>
 
           <motion.img
             src={felix}
             alt="Félix respirando"
-            className="w-80 h-80 object-contain mx-auto mb-6"
+            className="mx-auto mb-6 h-80 w-80 object-contain"
             animate={{ scale: [1, 1.04, 1] }}
             transition={{ duration: 3, repeat: Infinity }}
           />
 
-          <h1 className="text-3xl md:text-5xl font-extrabold text-[#4B367C] mb-8">
+          <h1 className="mb-8 text-3xl font-extrabold text-[#4B367C] md:text-5xl">
             {lugar.pasos[pasoActual]}
           </h1>
 
@@ -489,7 +636,7 @@ const LugarDetalle = () => {
               type="button"
               onClick={anteriorPaso}
               disabled={pasoActual === 0}
-              className="px-6 py-3 rounded-full bg-[#E8DDFF] text-[#4B367C] font-bold disabled:opacity-40"
+              className="rounded-full bg-[#E8DDFF] px-6 py-3 font-bold text-[#4B367C] disabled:opacity-40"
             >
               Anterior
             </button>
@@ -498,7 +645,7 @@ const LugarDetalle = () => {
               <button
                 type="button"
                 onClick={prepararLugar}
-                className="px-6 py-3 rounded-full bg-green-500 text-white font-bold"
+                className="rounded-full bg-green-500 px-6 py-3 font-bold text-white"
               >
                 ✅ Ya estoy preparado
               </button>
@@ -506,7 +653,7 @@ const LugarDetalle = () => {
               <button
                 type="button"
                 onClick={siguientePaso}
-                className="px-6 py-3 rounded-full bg-[#9B7BE8] text-white font-bold"
+                className="rounded-full bg-[#9B7BE8] px-6 py-3 font-bold text-white"
               >
                 Siguiente
               </button>
@@ -516,7 +663,7 @@ const LugarDetalle = () => {
           <button
             type="button"
             onClick={() => setModoPreparacion(false)}
-            className="mt-6 text-[#6B5A95] font-semibold"
+            className="mt-6 font-semibold text-[#6B5A95]"
           >
             Volver al lugar
           </button>
@@ -530,29 +677,39 @@ const LugarDetalle = () => {
 
   return (
     <main className="min-h-screen bg-[#F3ECFF] px-6 py-10">
-      <section className="max-w-6xl mx-auto">
+      <section className="mx-auto max-w-6xl">
         <Link
           to="/lugares"
-          className="inline-block mb-6 text-[#4B367C] font-bold bg-white px-5 py-3 rounded-full shadow-sm hover:shadow-md transition"
+          className="mb-6 inline-block rounded-full bg-white px-5 py-3 font-bold text-[#4B367C] shadow-sm transition hover:shadow-md"
         >
           ← Volver a lugares
         </Link>
+
+        {isParentMode && (
+          <div className="mb-6 rounded-[2rem] border-2 border-[#9ED5B3] bg-[#EAF8EF] p-5 text-center shadow-sm">
+            <p className="font-bold text-[#2F6B4F]">Modo cuidador</p>
+
+            <p className="mt-1 text-[#2F6B4F]">
+              Estás viendo y gestionando este lugar de {childName}.
+            </p>
+          </div>
+        )}
 
         {imagenValida ? (
           <img
             src={lugar.imagen}
             alt={lugar.nombre}
-            className="w-full h-72 object-cover rounded-[2.5rem] shadow-md mb-8"
+            className="mb-8 h-72 w-full rounded-[2.5rem] object-cover shadow-md"
           />
         ) : (
-          <div className="w-full h-72 rounded-[2.5rem] bg-[#E8DDFF] flex items-center justify-center text-7xl mb-8">
+          <div className="mb-8 flex h-72 w-full items-center justify-center rounded-[2.5rem] bg-[#E8DDFF] text-7xl">
             {lugar.emoji || "📍"}
           </div>
         )}
 
-        <div className="bg-white rounded-[2.5rem] shadow-lg p-8 md:p-10">
+        <div className="rounded-[2.5rem] bg-white p-8 shadow-lg md:p-10">
           {!esDemo && (
-            <div className="flex justify-end gap-3 mb-6">
+            <div className="mb-6 flex justify-end gap-3">
               <button
                 type="button"
                 onClick={() => {
@@ -562,7 +719,7 @@ const LugarDetalle = () => {
                     setEditing(true);
                   }
                 }}
-                className="bg-[#E8DDFF] text-[#4B367C] font-bold px-5 py-3 rounded-full"
+                className="rounded-full bg-[#E8DDFF] px-5 py-3 font-bold text-[#4B367C]"
               >
                 {editing ? "Cancelar edición" : "Editar lugar"}
               </button>
@@ -570,7 +727,7 @@ const LugarDetalle = () => {
               <button
                 type="button"
                 onClick={handleDeleteLugar}
-                className="bg-red-100 text-red-600 font-bold px-5 py-3 rounded-full"
+                className="rounded-full bg-red-100 px-5 py-3 font-bold text-red-600"
               >
                 Eliminar lugar
               </button>
@@ -580,14 +737,14 @@ const LugarDetalle = () => {
           {editing ? (
             <form
               onSubmit={handleUpdateLugar}
-              className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8"
+              className="mb-8 grid grid-cols-1 gap-6 md:grid-cols-2"
             >
               <input
                 name="nombre"
                 value={form.nombre}
                 onChange={handleChange}
                 placeholder="Nombre"
-                className="p-4 rounded-2xl border-2 border-[#DCCCF8]"
+                className="rounded-2xl border-2 border-[#DCCCF8] p-4"
               />
 
               <input
@@ -595,7 +752,7 @@ const LugarDetalle = () => {
                 value={form.direccion}
                 onChange={handleChange}
                 placeholder="Dirección"
-                className="p-4 rounded-2xl border-2 border-[#DCCCF8]"
+                className="rounded-2xl border-2 border-[#DCCCF8] p-4"
               />
 
               <textarea
@@ -603,7 +760,7 @@ const LugarDetalle = () => {
                 value={form.descripcion}
                 onChange={handleChange}
                 placeholder="Descripción"
-                className="md:col-span-2 p-4 rounded-2xl border-2 border-[#DCCCF8]"
+                className="rounded-2xl border-2 border-[#DCCCF8] p-4 md:col-span-2"
               />
 
               <input
@@ -611,7 +768,7 @@ const LugarDetalle = () => {
                 value={form.actividad}
                 onChange={handleChange}
                 placeholder="¿Qué se hará allí?"
-                className="p-4 rounded-2xl border-2 border-[#DCCCF8]"
+                className="rounded-2xl border-2 border-[#DCCCF8] p-4"
               />
 
               <input
@@ -619,7 +776,7 @@ const LugarDetalle = () => {
                 value={form.personas}
                 onChange={handleChange}
                 placeholder="¿Quién estará presente?"
-                className="p-4 rounded-2xl border-2 border-[#DCCCF8]"
+                className="rounded-2xl border-2 border-[#DCCCF8] p-4"
               />
 
               <input
@@ -627,7 +784,7 @@ const LugarDetalle = () => {
                 value={form.transporte}
                 onChange={handleChange}
                 placeholder="Medio de transporte"
-                className="p-4 rounded-2xl border-2 border-[#DCCCF8]"
+                className="rounded-2xl border-2 border-[#DCCCF8] p-4"
               />
 
               <input
@@ -635,7 +792,7 @@ const LugarDetalle = () => {
                 value={form.duracion}
                 onChange={handleChange}
                 placeholder="Tiempo estimado"
-                className="p-4 rounded-2xl border-2 border-[#DCCCF8]"
+                className="rounded-2xl border-2 border-[#DCCCF8] p-4"
               />
 
               <textarea
@@ -643,13 +800,13 @@ const LugarDetalle = () => {
                 value={form.consejos}
                 onChange={handleChange}
                 placeholder="Consejos o recordatorios importantes"
-                className="md:col-span-2 p-4 rounded-2xl border-2 border-[#DCCCF8]"
+                className="rounded-2xl border-2 border-[#DCCCF8] p-4 md:col-span-2"
               />
 
-              <div className="md:col-span-2 bg-[#F3ECFF] rounded-[2rem] p-6">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-5">
+              <div className="rounded-[2rem] bg-[#F3ECFF] p-6 md:col-span-2">
+                <div className="mb-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                   <div>
-                    <h2 className="text-2xl font-bold text-[#4B367C] mb-2">
+                    <h2 className="mb-2 text-2xl font-bold text-[#4B367C]">
                       Pasos para prepararme
                     </h2>
 
@@ -663,7 +820,7 @@ const LugarDetalle = () => {
                     type="button"
                     onClick={handleGenerateStepsAI}
                     disabled={generandoIA}
-                    className="bg-[#4B367C] hover:bg-[#3E2E68] text-white font-bold px-5 py-3 rounded-full disabled:opacity-50"
+                    className="rounded-full bg-[#4B367C] px-5 py-3 font-bold text-white hover:bg-[#3E2E68] disabled:opacity-50"
                   >
                     {generandoIA ? "Generando..." : "✨ Regenerar con Félix"}
                   </button>
@@ -678,13 +835,13 @@ const LugarDetalle = () => {
                           handleStepChange(index, e.target.value)
                         }
                         placeholder={`Paso ${index + 1}`}
-                        className="flex-1 p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8]"
+                        className="flex-1 rounded-2xl border-2 border-[#DCCCF8] p-4 focus:border-[#9B7BE8] focus:outline-none"
                       />
 
                       <button
                         type="button"
                         onClick={() => removeStep(index)}
-                        className="px-4 rounded-2xl bg-red-100 text-red-600 font-bold"
+                        className="rounded-2xl bg-red-100 px-4 font-bold text-red-600"
                       >
                         ✕
                       </button>
@@ -695,7 +852,7 @@ const LugarDetalle = () => {
                 <button
                   type="button"
                   onClick={addStep}
-                  className="mt-5 bg-white text-[#4B367C] font-bold px-5 py-3 rounded-full shadow"
+                  className="mt-5 rounded-full bg-white px-5 py-3 font-bold text-[#4B367C] shadow"
                 >
                   + Agregar paso
                 </button>
@@ -703,43 +860,48 @@ const LugarDetalle = () => {
 
               <button
                 type="submit"
-                className="md:col-span-2 bg-[#9B7BE8] text-white font-bold py-4 rounded-2xl"
+                className="rounded-2xl bg-[#9B7BE8] py-4 font-bold text-white md:col-span-2"
               >
                 Guardar cambios
               </button>
             </form>
           ) : (
             <>
-              <h1 className="text-4xl md:text-6xl font-extrabold text-[#4B367C] mb-4">
+              <h1 className="mb-4 text-4xl font-extrabold text-[#4B367C] md:text-6xl">
                 {lugar.nombre}
               </h1>
 
-              <p className="text-xl text-[#6B5A95] mb-8">
+              <p className="mb-8 text-xl text-[#6B5A95]">
                 {lugar.descripcion || "Sin descripción"}
               </p>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-8">
+              <div className="mb-8 grid grid-cols-1 gap-5 md:grid-cols-2">
                 <InfoCard
                   icono="📍"
                   titulo="Dirección"
                   texto={lugar.direccion}
                 />
+
                 <InfoCard
                   icono="✅"
                   titulo="Qué haremos"
                   texto={lugar.actividad}
                 />
+
                 <InfoCard
                   icono="👥"
                   titulo="Quién estará"
                   texto={lugar.personas}
                 />
+
                 <InfoCard
                   icono="🚗"
                   titulo="Cómo iremos"
                   texto={lugar.transporte}
                 />
+
                 <InfoCard icono="⏱️" titulo="Duración" texto={lugar.duracion} />
+
                 <InfoCard
                   icono="💡"
                   titulo="Recordatorio"
@@ -747,9 +909,9 @@ const LugarDetalle = () => {
                 />
               </div>
 
-              <div className="flex flex-col md:flex-row items-center justify-between gap-6 bg-[#F3ECFF] rounded-[2rem] p-6">
+              <div className="flex flex-col items-center justify-between gap-6 rounded-[2rem] bg-[#F3ECFF] p-6 md:flex-row">
                 <div>
-                  <h2 className="text-2xl font-bold text-[#4B367C] mb-2">
+                  <h2 className="mb-2 text-2xl font-bold text-[#4B367C]">
                     Prepararme para ir
                   </h2>
 
@@ -764,7 +926,7 @@ const LugarDetalle = () => {
                     setPasoActual(0);
                     setModoPreparacion(true);
                   }}
-                  className="bg-[#9B7BE8] hover:bg-[#8B6FD6] text-white font-bold px-8 py-4 rounded-full transition"
+                  className="rounded-full bg-[#9B7BE8] px-8 py-4 font-bold text-white transition hover:bg-[#8B6FD6]"
                 >
                   Empezar
                 </button>
@@ -779,13 +941,14 @@ const LugarDetalle = () => {
 
 const InfoCard = ({ icono, titulo, texto }) => {
   return (
-    <div className="bg-[#FDFBFF] border-2 border-[#E4D8FF] rounded-[2rem] p-5">
-      <div className="text-4xl mb-3">{icono}</div>
-      <h3 className="text-xl font-bold text-[#4B367C] mb-2">{titulo}</h3>
-      <p className="text-[#6B5A95] text-lg">{texto || "Sin información"}</p>
+    <div className="rounded-[2rem] border-2 border-[#E4D8FF] bg-[#FDFBFF] p-5">
+      <div className="mb-3 text-4xl">{icono}</div>
+
+      <h3 className="mb-2 text-xl font-bold text-[#4B367C]">{titulo}</h3>
+
+      <p className="text-lg text-[#6B5A95]">{texto || "Sin información"}</p>
     </div>
   );
 };
 
 export default LugarDetalle;
-
