@@ -8,6 +8,7 @@ import {
   getChildWeeklySupportPlanHistory,
   getChildEvolutionDashboard,
 } from "../services/parentDashboardService";
+import { getCachedData, setCachedData } from "../utils/cache";
 
 const PanelPadres = () => {
   const { user } = useFloFlo();
@@ -112,6 +113,79 @@ const PanelPadres = () => {
   const getChildFullName = (child) => {
     return `${getChildFirstName(child)} ${getChildLastName(child)}`.trim();
   };
+  const getPanelCacheKey = (childId = null) => {
+    if (!user?.id) return null;
+
+    if (user?.role === "parent" && childId) {
+      return `floflo_parent_panel_${user.id}_${childId}`;
+    }
+
+    return `floflo_parent_panel_${user.id}`;
+  };
+
+  const applyPanelCache = (cachedPanel) => {
+    if (!cachedPanel) return false;
+
+    setDashboard(cachedPanel.dashboard || null);
+    setSensoryProfile(cachedPanel.sensoryProfile || null);
+    setWeeklyPlanHistory(
+      Array.isArray(cachedPanel.weeklyPlanHistory)
+        ? cachedPanel.weeklyPlanHistory
+        : [],
+    );
+    setEvolutionDashboard(cachedPanel.evolutionDashboard || null);
+    setLoading(false);
+
+    return true;
+  };
+
+  const fetchChildPanelData = async (childId) => {
+    const [dashboardData, sensoryData, weeklyHistoryData, evolutionData] =
+      await Promise.all([
+        getChildDashboard(childId),
+        getChildSensoryProfile(childId).catch((error) => {
+          console.error(
+            "Error cargando perfil sensorial:",
+            error.response?.data || error,
+          );
+          return null;
+        }),
+        getChildWeeklySupportPlanHistory(childId).catch((error) => {
+          console.error(
+            "Error cargando historial del plan semanal:",
+            error.response?.data || error,
+          );
+          return [];
+        }),
+        getChildEvolutionDashboard(childId).catch((error) => {
+          console.error(
+            "Error cargando dashboard de evolución:",
+            error.response?.data || error,
+          );
+          return null;
+        }),
+      ]);
+
+    return {
+      dashboard: dashboardData,
+      sensoryProfile: sensoryData || null,
+      weeklyPlanHistory: Array.isArray(weeklyHistoryData)
+        ? weeklyHistoryData
+        : [],
+      evolutionDashboard: evolutionData || null,
+    };
+  };
+
+  const applyChildPanelData = (panelData) => {
+    setDashboard(panelData.dashboard || null);
+    setSensoryProfile(panelData.sensoryProfile || null);
+    setWeeklyPlanHistory(
+      Array.isArray(panelData.weeklyPlanHistory)
+        ? panelData.weeklyPlanHistory
+        : [],
+    );
+    setEvolutionDashboard(panelData.evolutionDashboard || null);
+  };
 
   const saveSelectedChild = (child) => {
     if (!child) {
@@ -136,15 +210,34 @@ const PanelPadres = () => {
 
   const cargarDatos = useCallback(async () => {
     try {
+      if (!user?.id) return;
+
       setLoading(true);
 
       if (user?.role === "parent") {
+        const childrenCacheKey = `floflo_parent_children_${user.id}`;
+        const cachedChildren = getCachedData(childrenCacheKey);
+
+        if (Array.isArray(cachedChildren)) {
+          setChildren(cachedChildren);
+        }
+
+        const storedChild = getStoredSelectedChild();
+
+        if (storedChild?.id) {
+          const cachedPanel = getCachedData(getPanelCacheKey(storedChild.id));
+
+          if (cachedPanel) {
+            setSelectedChild(storedChild);
+            applyPanelCache(cachedPanel);
+          }
+        }
+
         const childrenData = await getMyChildren();
         setChildren(childrenData);
+        setCachedData(childrenCacheKey, childrenData);
 
         if (childrenData.length > 0) {
-          const storedChild = getStoredSelectedChild();
-
           const childToSelect =
             childrenData.find(
               (child) => String(child.id) === String(storedChild?.id),
@@ -153,12 +246,15 @@ const PanelPadres = () => {
           setSelectedChild(childToSelect);
           saveSelectedChild(childToSelect);
 
-          const dashboardData = await getChildDashboard(childToSelect.id);
-          setDashboard(dashboardData);
+          const panelData = await fetchChildPanelData(childToSelect.id);
 
-          await loadChildSensoryProfile(childToSelect.id);
-          await loadWeeklyPlanHistory(childToSelect.id);
-          await loadEvolutionDashboard(childToSelect.id);
+          applyChildPanelData(panelData);
+
+          const panelCacheKey = getPanelCacheKey(childToSelect.id);
+
+          if (panelCacheKey) {
+            setCachedData(panelCacheKey, panelData);
+          }
         } else {
           setSelectedChild(null);
           setDashboard(null);
@@ -171,28 +267,40 @@ const PanelPadres = () => {
         return;
       }
 
+      const cacheKey = getPanelCacheKey();
+      const cachedPanel = getCachedData(cacheKey);
+
+      if (cachedPanel) {
+        applyPanelCache(cachedPanel);
+      }
+
       const dashboardData = await getMyDashboard();
-      setDashboard(dashboardData);
-      setWeeklyPlanHistory([]);
-      setEvolutionDashboard(null);
+
+      const panelData = {
+        dashboard: dashboardData,
+        sensoryProfile: null,
+        weeklyPlanHistory: [],
+        evolutionDashboard: null,
+      };
+
+      applyChildPanelData(panelData);
+
+      if (cacheKey) {
+        setCachedData(cacheKey, panelData);
+      }
     } catch (error) {
       console.error(
         "Error cargando panel de padres:",
         error.response?.data || error,
       );
+
       setDashboard(null);
       setWeeklyPlanHistory([]);
       setEvolutionDashboard(null);
     } finally {
       setLoading(false);
     }
-  }, [
-    user?.id,
-    user?.role,
-    loadChildSensoryProfile,
-    loadWeeklyPlanHistory,
-    loadEvolutionDashboard,
-  ]);
+  }, [user?.id, user?.role]);
 
   useEffect(() => {
     if (user?.id) {
@@ -207,17 +315,25 @@ const PanelPadres = () => {
     if (!child) return;
 
     setSelectedChild(child);
-    setLoading(true);
     saveSelectedChild(child);
 
+    const cacheKey = getPanelCacheKey(child.id);
+    const cachedPanel = getCachedData(cacheKey);
+
+    if (cachedPanel) {
+      applyPanelCache(cachedPanel);
+    } else {
+      setLoading(true);
+    }
+
     try {
-      const dashboardData = await getChildDashboard(child.id);
+      const panelData = await fetchChildPanelData(child.id);
 
-      setDashboard(dashboardData);
+      applyChildPanelData(panelData);
 
-      await loadChildSensoryProfile(child.id);
-      await loadWeeklyPlanHistory(child.id);
-      await loadEvolutionDashboard(child.id);
+      if (cacheKey) {
+        setCachedData(cacheKey, panelData);
+      }
     } catch (error) {
       console.error(
         "Error cargando dashboard del niño:",

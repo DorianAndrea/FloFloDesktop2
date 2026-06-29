@@ -21,6 +21,7 @@ import { useFloFlo } from "../context/FloFloContext";
 import { useSelectedChild } from "../context/SelectedChildContext";
 import { useFeedback } from "../context/FeedbackContext";
 import felix from "../assets/webp/felix_respirando.webp";
+import { getCachedData, setCachedData, removeCachedData } from "../utils/cache";
 
 const lugaresDemo = [
   {
@@ -120,6 +121,11 @@ const LugarDetalle = () => {
   const childName = selectedChild
     ? getChildDisplayName(selectedChild)
     : "el niño/a seleccionado";
+  const getLugarDetalleCacheKey = () => {
+    const ownerId = isParentMode ? selectedChildId : user?.id;
+
+    return ownerId ? `floflo_lugar_detalle_${ownerId}_${id}` : null;
+  };
 
   const [lugar, setLugar] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -175,7 +181,7 @@ const LugarDetalle = () => {
     managed_by_parent: data.managed_by_parent,
   });
 
-  const loadLugar = async () => {
+  const loadLugar = async ({ useCache = true } = {}) => {
     try {
       if (!user) return;
 
@@ -183,30 +189,62 @@ const LugarDetalle = () => {
         return;
       }
 
-      setLoading(true);
-
       if (esDemo) {
+        setLoading(true);
+
         const lugarDemo = lugaresDemo.find(
           (lugar) => String(lugar.id) === String(id),
         );
 
         setLugar(lugarDemo || null);
         setEditingSteps(lugarDemo?.pasos || defaultSteps);
+        setLoading(false);
         return;
       }
 
       if (isParentWithoutChild) {
         setLugar(null);
+        setLoading(false);
         return;
       }
 
-      const data = isParentMode
-        ? await getChildPlaceById(selectedChildId, id)
-        : await getPlaceById(id);
+      const cacheKey = getLugarDetalleCacheKey();
+      const cachedLugar = useCache && cacheKey ? getCachedData(cacheKey) : null;
 
-      const stepsData = isParentMode
-        ? await getChildPlaceSteps(selectedChildId, id)
-        : await getPlaceSteps(id);
+      if (cachedLugar?.lugar) {
+        setLugar(cachedLugar.lugar);
+        setEditingSteps(
+          Array.isArray(cachedLugar.editingSteps)
+            ? cachedLugar.editingSteps
+            : cachedLugar.lugar.pasos || defaultSteps,
+        );
+
+        setForm(
+          cachedLugar.form || {
+            nombre: cachedLugar.lugar.nombre || "",
+            direccion: cachedLugar.lugar.direccion || "",
+            descripcion: cachedLugar.lugar.descripcion || "",
+            actividad: cachedLugar.lugar.actividad || "",
+            personas: cachedLugar.lugar.personas || "",
+            transporte: cachedLugar.lugar.transporte || "",
+            duracion: cachedLugar.lugar.duracion || "",
+            consejos: cachedLugar.lugar.consejos || "",
+          },
+        );
+
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
+
+      const [data, stepsData] = await Promise.all([
+        isParentMode
+          ? getChildPlaceById(selectedChildId, id)
+          : getPlaceById(id),
+        isParentMode
+          ? getChildPlaceSteps(selectedChildId, id)
+          : getPlaceSteps(id),
+      ]);
 
       const pasosBD = Array.isArray(stepsData)
         ? stepsData
@@ -217,10 +255,7 @@ const LugarDetalle = () => {
       const pasosFinales = pasosBD.length > 0 ? pasosBD : defaultSteps;
       const lugarFormateado = formatPlace(data, pasosFinales);
 
-      setLugar(lugarFormateado);
-      setEditingSteps(pasosFinales);
-
-      setForm({
+      const formActualizado = {
         nombre: data.name || "",
         direccion: data.address || "",
         descripcion: data.description || "",
@@ -229,7 +264,19 @@ const LugarDetalle = () => {
         transporte: data.transport || "",
         duracion: data.estimated_duration || "",
         consejos: data.tips || "",
-      });
+      };
+
+      setLugar(lugarFormateado);
+      setEditingSteps(pasosFinales);
+      setForm(formActualizado);
+
+      if (cacheKey) {
+        setCachedData(cacheKey, {
+          lugar: lugarFormateado,
+          editingSteps: pasosFinales,
+          form: formActualizado,
+        });
+      }
     } catch (error) {
       console.error(error);
       setLugar(null);
@@ -396,7 +443,7 @@ const LugarDetalle = () => {
         await replacePlaceSteps(id, pasosValidos);
       }
 
-      setLugar({
+      const lugarActualizado = {
         ...lugar,
         nombre: updated.name,
         direccion: updated.address,
@@ -409,7 +456,32 @@ const LugarDetalle = () => {
         imagen: updated.image,
         pasos: pasosValidos,
         managed_by_parent: updated.managed_by_parent,
-      });
+      };
+
+      const formActualizado = {
+        nombre: updated.name || "",
+        direccion: updated.address || "",
+        descripcion: updated.description || "",
+        actividad: updated.activity || "",
+        personas: updated.people_present || "",
+        transporte: updated.transport || "",
+        duracion: updated.estimated_duration || "",
+        consejos: updated.tips || "",
+      };
+
+      setLugar(lugarActualizado);
+      setEditingSteps(pasosValidos);
+      setForm(formActualizado);
+
+      const cacheKey = getLugarDetalleCacheKey();
+
+      if (cacheKey) {
+        setCachedData(cacheKey, {
+          lugar: lugarActualizado,
+          editingSteps: pasosValidos,
+          form: formActualizado,
+        });
+      }
 
       setEditing(false);
 
@@ -460,6 +532,11 @@ const LugarDetalle = () => {
       } else {
         await deletePlace(id);
       }
+      const cacheKey = getLugarDetalleCacheKey();
+
+      if (cacheKey) {
+        removeCachedData(cacheKey);
+      }
 
       showFeedback({
         type: "success",
@@ -498,6 +575,34 @@ const LugarDetalle = () => {
       setPasoActual(pasoActual - 1);
     }
   };
+  const getVisitedPlacesKey = () => {
+    const ownerId = isParentMode ? selectedChildId : user?.id;
+
+    return ownerId
+      ? `floflo_visited_places_${ownerId}`
+      : "floflo_visited_places";
+  };
+
+  const markPlaceAsVisited = () => {
+    const key = getVisitedPlacesKey();
+
+    let savedVisitedPlaces = [];
+
+    try {
+      savedVisitedPlaces = JSON.parse(localStorage.getItem(key) || "[]");
+    } catch {
+      savedVisitedPlaces = [];
+    }
+
+    const placeId = String(id);
+
+    if (!savedVisitedPlaces.includes(placeId)) {
+      localStorage.setItem(
+        key,
+        JSON.stringify([...savedVisitedPlaces, placeId]),
+      );
+    }
+  };
 
   const prepararLugar = async () => {
     if (!validateParentChildSelection()) return;
@@ -511,6 +616,8 @@ const LugarDetalle = () => {
         }
       }
 
+      markPlaceAsVisited();
+
       showFeedback({
         type: "success",
         icon: "⭐",
@@ -521,7 +628,7 @@ const LugarDetalle = () => {
           : "Félix te ayudó a prepararte. Ganaste una estrella.",
       });
 
-      setModoPreparacion(false);
+      navigate("/lugares");
     } catch (error) {
       console.error(error);
 

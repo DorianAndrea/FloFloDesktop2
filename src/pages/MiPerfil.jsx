@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { getMe, updateMe } from "../services/authService";
 import { useFloFlo } from "../context/FloFloContext";
 import { useFeedback } from "../context/FeedbackContext";
-import { formatRut } from "../utils/formatRut";
+import { formatRut, cleanRut } from "../utils/formatRut";
 
 const MiPerfil = () => {
   const { setUser } = useFloFlo();
@@ -90,7 +90,7 @@ const MiPerfil = () => {
 
       formData.append("firstName", firstName.trim());
       formData.append("lastName", lastName.trim());
-      formData.append("rut", rut.trim());
+      formData.append("rut", cleanRut(rut));
       formData.append("birth_date", birthDate || "");
       formData.append("role", role);
 
@@ -287,10 +287,10 @@ const MiPerfil = () => {
                 id="perfil-rut"
                 name="rut"
                 type="text"
-                value={rut}
-                onChange={(e) => setRut(formatRut(e.target.value))}
+                value={formatRut(rut)}
+                onChange={(e) => setRut(cleanRut(e.target.value))}
                 placeholder="Rut"
-                className="w-full py-3 text-gray-900 bg-transparent border-b border-gray-300 focus:outline-none focus:border-[#9B7BE8]"
+                className="w-full border-b border-gray-300 bg-transparent py-3 text-gray-900 focus:border-[#9B7BE8] focus:outline-none"
               />
 
               <input

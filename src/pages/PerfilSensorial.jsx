@@ -8,6 +8,7 @@ import {
   getMySensoryProfileHistory,
   getChildSensoryProfileHistory,
 } from "../services/sensoryProfileService";
+import { getCachedData, setCachedData } from "../utils/cache";
 
 const emptyProfile = {
   noise_sensitivity: "",
@@ -117,9 +118,50 @@ const PerfilSensorial = () => {
     }
   };
 
-  const loadProfile = async () => {
+  const getSensoryProfileCacheKey = (childId = null) => {
+    if (!user?.id) return null;
+
+    if (isParent && childId) {
+      return `floflo_sensory_profile_${user.id}_${childId}`;
+    }
+
+    return `floflo_sensory_profile_${user.id}`;
+  };
+
+  const applySensoryProfileData = (profileData, historyData) => {
+    setProfile(normalizeProfile(profileData));
+    setHistory(Array.isArray(historyData) ? historyData : []);
+  };
+
+  const fetchSensoryProfileData = async (childId = null) => {
+    if (isParent && childId) {
+      const [profileData, historyData] = await Promise.all([
+        getChildSensoryProfile(childId),
+        getChildSensoryProfileHistory(childId),
+      ]);
+
+      return {
+        profileData,
+        historyData: Array.isArray(historyData) ? historyData : [],
+      };
+    }
+
+    const [profileData, historyData] = await Promise.all([
+      getMySensoryProfile(),
+      getMySensoryProfileHistory(),
+    ]);
+
+    return {
+      profileData,
+      historyData: Array.isArray(historyData) ? historyData : [],
+    };
+  };
+
+  const loadProfile = async ({ useCache = true } = {}) => {
+    let hasCache = false;
+
     try {
-      setLoading(true);
+      if (!user?.id) return;
 
       if (isParent) {
         const child = getStoredChild();
@@ -128,28 +170,61 @@ const PerfilSensorial = () => {
         if (!child?.id) {
           setProfile({ ...emptyProfile });
           setHistory([]);
+          setLoading(false);
           return;
         }
 
-        const [profileData, historyData] = await Promise.all([
-          getChildSensoryProfile(child.id),
-          getChildSensoryProfileHistory(child.id),
-        ]);
+        const cacheKey = getSensoryProfileCacheKey(child.id);
+        const cachedData =
+          useCache && cacheKey ? getCachedData(cacheKey) : null;
 
-        setProfile(normalizeProfile(profileData));
-        setHistory(Array.isArray(historyData) ? historyData : []);
+        if (cachedData) {
+          hasCache = true;
+          applySensoryProfileData(
+            cachedData.profileData,
+            cachedData.historyData,
+          );
+          setLoading(false);
+        } else {
+          setLoading(true);
+        }
+
+        const freshData = await fetchSensoryProfileData(child.id);
+
+        applySensoryProfileData(freshData.profileData, freshData.historyData);
+
+        if (cacheKey) {
+          setCachedData(cacheKey, freshData);
+        }
+
         return;
       }
 
-      const [profileData, historyData] = await Promise.all([
-        getMySensoryProfile(),
-        getMySensoryProfileHistory(),
-      ]);
+      const cacheKey = getSensoryProfileCacheKey();
+      const cachedData = useCache && cacheKey ? getCachedData(cacheKey) : null;
 
-      setProfile(normalizeProfile(profileData));
-      setHistory(Array.isArray(historyData) ? historyData : []);
+      if (cachedData) {
+        hasCache = true;
+        applySensoryProfileData(cachedData.profileData, cachedData.historyData);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
+
+      const freshData = await fetchSensoryProfileData();
+
+      applySensoryProfileData(freshData.profileData, freshData.historyData);
+
+      if (cacheKey) {
+        setCachedData(cacheKey, freshData);
+      }
     } catch (error) {
       console.error("Error cargando perfil sensorial:", error);
+
+      if (!hasCache) {
+        setProfile({ ...emptyProfile });
+        setHistory([]);
+      }
 
       showFeedback({
         type: "error",
@@ -209,7 +284,7 @@ const PerfilSensorial = () => {
       });
 
       setIsEditing(false);
-      await loadProfile();
+      await loadProfile({ useCache: false });
     } catch (error) {
       console.error("Error guardando perfil sensorial:", error);
 
@@ -225,7 +300,7 @@ const PerfilSensorial = () => {
       setSaving(false);
     }
   };
-  
+
   const previousProfile = history?.[1] || null;
   if (loading) {
     return <p className="text-center mt-10">Cargando perfil sensorial...</p>;

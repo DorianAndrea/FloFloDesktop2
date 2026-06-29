@@ -14,6 +14,7 @@ import {
   updateChildContact,
 } from "../services/contactService";
 import { getRelationshipTypes } from "../services/relationshipTypeService";
+import { getCachedData, setCachedData } from "../utils/cache";
 
 const Amigos = () => {
   const [name, setName] = useState("");
@@ -79,18 +80,33 @@ const Amigos = () => {
         return;
       }
 
-      setLoadingContacts(true);
+      const ownerId = isParentMode ? selectedChildId : user.id;
+      const searchKey = busquedaDebounce.trim() || "all";
+      const cacheKey = `floflo_contacts_${ownerId}_${searchKey}_${orden}`;
 
       if (isParentWithoutChild) {
         setContacts([]);
+        setLoadingContacts(false);
         return;
+      }
+
+      const cachedContacts = getCachedData(cacheKey);
+
+      if (Array.isArray(cachedContacts)) {
+        setContacts(cachedContacts);
+        setLoadingContacts(false);
+      } else {
+        setLoadingContacts(true);
       }
 
       const data = isParentMode
         ? await getChildContacts(selectedChildId, busquedaDebounce, orden)
         : await getContacts(busquedaDebounce, orden);
 
-      setContacts(Array.isArray(data) ? data : []);
+      const safeContacts = Array.isArray(data) ? data : [];
+
+      setContacts(safeContacts);
+      setCachedData(cacheKey, safeContacts);
     } catch (error) {
       console.error(error);
 
@@ -385,7 +401,7 @@ const Amigos = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white px-8 py-10">
+    <div className="min-h-screen bg-[#F3ECFF]">
       <div className="mx-auto w-full max-w-6xl">
         {isParentMode && (
           <div className="mb-8 rounded-[2rem] border-2 border-[#9ED5B3] bg-[#EAF8EF] p-5 text-center shadow-sm">
@@ -397,107 +413,117 @@ const Amigos = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 items-center gap-12 md:grid-cols-2">
-          <div className="mx-auto w-full max-w-md">
-            <p className="mb-3 text-center text-lg font-bold text-[#9B7BE8]">
-              {isParentMode ? "Personas del niño/a" : "Personas importantes"}
-            </p>
+        <section className="mx-auto mb-10 max-w-6xl rounded-[2rem] bg-white px-8 py-10 shadow-sm md:px-12">
+          <div className="grid grid-cols-1 items-center gap-12 md:grid-cols-2">
+            <div className="mx-auto w-full max-w-md">
+              <p className="mb-3 text-center text-lg font-bold text-[#9B7BE8]">
+                {isParentMode ? "Personas del niño/a" : "Personas importantes"}
+              </p>
 
-            <h1 className="mb-10 text-center text-4xl font-light text-black">
-              {isParentMode
-                ? `Personas importantes para ${childName}`
-                : "Personas importantes que recordar."}
-            </h1>
+              <h1 className="mb-10 text-center text-4xl font-light text-black">
+                {isParentMode
+                  ? `Personas importantes para ${childName}`
+                  : "Personas importantes que recordar."}
+              </h1>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Nombre"
-                className="w-full border-b border-gray-300 bg-transparent py-3 text-gray-900 placeholder-black focus:border-cyan-700 focus:outline-none"
-              />
+              <form onSubmit={handleSubmit} className="space-y-6">
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Nombre"
+                  className="w-full border-b border-[#D6D1E8] bg-transparent px-1 py-4 text-[#4B367C] placeholder:text-[#9A91B5] focus:border-[#9B7BE8] focus:outline-none"
+                />
 
-              <select
-                value={relationshipTypeId}
-                onChange={(e) => setRelationshipTypeId(e.target.value)}
-                className="w-full border-b border-gray-300 bg-transparent py-3 text-gray-900 focus:border-cyan-700 focus:outline-none"
-              >
-                <option value="">Selecciona quién es</option>
-
-                {relationshipTypes.map((type) => (
-                  <option key={type.id} value={type.id}>
-                    {type.relationship_name}
-                  </option>
-                ))}
-              </select>
-
-              <input
-                type="text"
-                value={whereMet}
-                onChange={(e) => setWhereMet(e.target.value)}
-                placeholder="Dónde lo conocí"
-                className="w-full border-b border-gray-300 bg-transparent py-3 text-gray-900 placeholder-gray-400 focus:border-cyan-700 focus:outline-none"
-              />
-
-              <textarea
-                value={memoryNote}
-                onChange={(e) => setMemoryNote(e.target.value)}
-                placeholder="¿Cómo puedo recordar a esta persona?"
-                className="w-full border-b border-gray-300 bg-transparent py-3 text-gray-900 placeholder-gray-400 focus:border-cyan-700 focus:outline-none"
-              />
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-                className="w-full py-3 text-gray-500"
-              />
-
-              <button
-                type="submit"
-                disabled={saving}
-                className="w-full border border-cyan-700 py-3 font-medium text-cyan-700 transition-all duration-300 hover:bg-cyan-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {saving
-                  ? "Guardando..."
-                  : editingContactId
-                    ? "Actualizar"
-                    : isParentMode
-                      ? "Guardar para niño/a"
-                      : "Enviar"}
-              </button>
-
-              {editingContactId && (
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="w-full border border-[#DCCCF8] py-3 font-medium text-[#4B367C] transition-all duration-300 hover:bg-[#F3ECFF]"
+                <select
+                  value={relationshipTypeId}
+                  onChange={(e) => setRelationshipTypeId(e.target.value)}
+                  className={`w-full border-b border-gray-300 bg-transparent py-3 focus:border-cyan-700 focus:outline-none ${
+                    relationshipTypeId ? "text-gray-900" : "text-[#9A91B5]"
+                  }`}
                 >
-                  Cancelar edición
+                  <option value="" className="text-[#9A91B5]">
+                    Selecciona quién es
+                  </option>
+
+                  {relationshipTypes.map((type) => (
+                    <option
+                      key={type.id}
+                      value={type.id}
+                      className="text-gray-900"
+                    >
+                      {type.relationship_name}
+                    </option>
+                  ))}
+                </select>
+
+                <input
+                  type="text"
+                  value={whereMet}
+                  onChange={(e) => setWhereMet(e.target.value)}
+                  placeholder="Dónde lo conocí"
+                  className="w-full border-b border-gray-300 bg-transparent py-3 text-gray-900 placeholder-gray-400 focus:border-cyan-700 focus:outline-none"
+                />
+
+                <textarea
+                  value={memoryNote}
+                  onChange={(e) => setMemoryNote(e.target.value)}
+                  placeholder="¿Cómo puedo recordar a esta persona?"
+                  className="w-full border-b border-gray-300 bg-transparent py-3 text-gray-900 placeholder-gray-400 focus:border-cyan-700 focus:outline-none"
+                />
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="w-full py-3 text-gray-500"
+                />
+
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="w-full border border-cyan-700 py-3 font-medium text-cyan-700 transition-all duration-300 hover:bg-cyan-700 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {saving
+                    ? "Guardando..."
+                    : editingContactId
+                      ? "Actualizar"
+                      : isParentMode
+                        ? "Guardar para niño/a"
+                        : "Enviar"}
                 </button>
+
+                {editingContactId && (
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    className="w-full border border-[#DCCCF8] py-3 font-medium text-[#4B367C] transition-all duration-300 hover:bg-[#F3ECFF]"
+                  >
+                    Cancelar edición
+                  </button>
+                )}
+              </form>
+            </div>
+
+            <div className="flex items-center justify-center">
+              {preview ? (
+                <img
+                  src={preview}
+                  alt="Vista previa"
+                  className="h-80 w-80 rounded-full border-4 border-cyan-700 object-cover"
+                />
+              ) : (
+                <div className="flex h-80 w-80 items-center justify-center rounded-full bg-gray-300 text-gray-500">
+                  Sin imagen
+                </div>
               )}
-            </form>
+            </div>
           </div>
+        </section>
 
-          <div className="flex items-center justify-center">
-            {preview ? (
-              <img
-                src={preview}
-                alt="Vista previa"
-                className="h-80 w-80 rounded-full border-4 border-cyan-700 object-cover"
-              />
-            ) : (
-              <div className="flex h-80 w-80 items-center justify-center rounded-full bg-gray-300 text-gray-500">
-                Sin imagen
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="mt-16 w-full">
-          <div className="mb-8 grid grid-cols-1 gap-4 md:grid-cols-2">
+        <section className="mx-auto mb-8 max-w-6xl rounded-[2rem] bg-white px-8 py-8 shadow-sm md:px-12">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <input
               id="buscar-amigo"
               name="buscar-amigo"
@@ -521,7 +547,9 @@ const Amigos = () => {
               <option value="za">Z-A</option>
             </select>
           </div>
+        </section>
 
+        <section className="mx-auto mb-10 max-w-6xl rounded-[2rem] bg-white px-8 py-10 shadow-sm md:px-12">
           <h2 className="mb-8 text-center text-3xl font-bold">
             {isParentMode
               ? `Personas que conoce ${childName}`
@@ -613,7 +641,7 @@ const Amigos = () => {
               ))}
             </div>
           )}
-        </div>
+        </section>
       </div>
     </div>
   );

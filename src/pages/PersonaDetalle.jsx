@@ -18,6 +18,7 @@ import {
   updateChildContactConversation,
   deleteChildContactConversation,
 } from "../services/contactConversationService";
+import { getCachedData, setCachedData } from "../utils/cache";
 
 const PersonaDetalle = () => {
   const { id } = useParams();
@@ -40,12 +41,17 @@ const PersonaDetalle = () => {
     ? getChildDisplayName(selectedChild)
     : "el niño/a seleccionado";
 
+  const protagonistName = isParentMode
+    ? childName
+    : user?.firstName || user?.first_name || user?.name || "Félix";
+
   const [contact, setContact] = useState(null);
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [title, setTitle] = useState("");
   const [situation, setSituation] = useState("");
+  const [generatedSituation, setGeneratedSituation] = useState("");
   const [whatToSay, setWhatToSay] = useState("");
   const [reminder, setReminder] = useState("");
   const [generandoIA, setGenerandoIA] = useState(false);
@@ -55,6 +61,12 @@ const PersonaDetalle = () => {
   const [wrongAnswer2, setWrongAnswer2] = useState("");
 
   const [editingConversationId, setEditingConversationId] = useState(null);
+
+  const getPersonaDetalleCacheKey = () => {
+    const ownerId = isParentMode ? selectedChildId : user?.id;
+
+    return ownerId ? `floflo_persona_detalle_${ownerId}_${id}` : null;
+  };
 
   const validateParentChildSelection = () => {
     if (!isParent) return true;
@@ -75,7 +87,23 @@ const PersonaDetalle = () => {
     return true;
   };
 
-  const loadContact = async () => {
+  const fetchContactData = async () => {
+    return isParentMode
+      ? await getChildContactById(selectedChildId, id)
+      : await getContactById(id);
+  };
+
+  const fetchConversationsData = async () => {
+    const data = isParentMode
+      ? await getChildContactConversationsByContactId(selectedChildId, id)
+      : await getContactConversationsByContactId(id);
+
+    return Array.isArray(data) ? data : [];
+  };
+
+  const loadPage = async ({ useCache = true } = {}) => {
+    let hasCache = false;
+
     try {
       if (!user) return;
 
@@ -83,19 +111,51 @@ const PersonaDetalle = () => {
         return;
       }
 
+      const cacheKey = getPersonaDetalleCacheKey();
+      const cachedPage = useCache && cacheKey ? getCachedData(cacheKey) : null;
+
+      if (cachedPage) {
+        hasCache = true;
+
+        setContact(cachedPage.contact || null);
+        setConversations(
+          Array.isArray(cachedPage.conversations)
+            ? cachedPage.conversations
+            : [],
+        );
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
+
       if (isParentWithoutChild) {
         setContact(null);
+        setConversations([]);
+        setLoading(false);
         return;
       }
 
-      const data = isParentMode
-        ? await getChildContactById(selectedChildId, id)
-        : await getContactById(id);
+      const [contactData, conversationsData] = await Promise.all([
+        fetchContactData(),
+        fetchConversationsData(),
+      ]);
 
-      setContact(data);
+      setContact(contactData);
+      setConversations(conversationsData);
+
+      if (cacheKey) {
+        setCachedData(cacheKey, {
+          contact: contactData,
+          conversations: conversationsData,
+        });
+      }
     } catch (error) {
       console.error(error);
-      setContact(null);
+
+      if (!hasCache) {
+        setContact(null);
+        setConversations([]);
+      }
 
       showFeedback({
         type: "error",
@@ -106,30 +166,36 @@ const PersonaDetalle = () => {
           error.response?.data?.message ||
           "La persona no existe o no tienes permiso para verla.",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const loadConversations = async () => {
+  const refreshConversations = async () => {
     try {
       if (!user) return;
-
-      if (isParent && loadingChildren) {
-        return;
-      }
 
       if (isParentWithoutChild) {
         setConversations([]);
         return;
       }
 
-      const data = isParentMode
-        ? await getChildContactConversationsByContactId(selectedChildId, id)
-        : await getContactConversationsByContactId(id);
+      const cacheKey = getPersonaDetalleCacheKey();
+      const conversationsData = await fetchConversationsData();
 
-      setConversations(Array.isArray(data) ? data : []);
+      setConversations(conversationsData);
+
+      if (cacheKey) {
+        const cachedPage = getCachedData(cacheKey);
+
+        setCachedData(cacheKey, {
+          ...(cachedPage || {}),
+          contact: cachedPage?.contact || contact,
+          conversations: conversationsData,
+        });
+      }
     } catch (error) {
       console.error(error);
-      setConversations([]);
 
       showFeedback({
         type: "error",
@@ -143,15 +209,6 @@ const PersonaDetalle = () => {
     }
   };
 
-  const loadPage = async () => {
-    try {
-      setLoading(true);
-      await Promise.all([loadContact(), loadConversations()]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
     loadPage();
   }, [id, user?.id, user?.role, selectedChildId, loadingChildren]);
@@ -159,6 +216,7 @@ const PersonaDetalle = () => {
   const resetForm = () => {
     setTitle("");
     setSituation("");
+    setGeneratedSituation("");
     setWhatToSay("");
     setReminder("");
     setCorrectAnswer("");
@@ -194,11 +252,16 @@ const PersonaDetalle = () => {
     try {
       setGenerandoIA(true);
 
+      const cleanSituation = situation.trim();
+
       const data = await generateContactConversation({
         contactName: contact.name,
         relationshipName: contact.relationship_name,
-        situation: situation.trim(),
+        situation: cleanSituation,
       });
+
+      setGeneratedSituation(cleanSituation);
+      setSituation("");
 
       setTitle(data.title || "");
       setWhatToSay(data.what_to_say || "");
@@ -256,7 +319,9 @@ const PersonaDetalle = () => {
       return;
     }
 
-    if (!situation.trim()) {
+    const finalSituation = (generatedSituation || situation).trim();
+
+    if (!finalSituation) {
       showFeedback({
         type: "warning",
         icon: "⚠️",
@@ -273,7 +338,7 @@ const PersonaDetalle = () => {
         icon: "⚠️",
         label: "Falta información",
         title: "Falta qué decir",
-        message: "Debes ingresar qué puede decir Félix en esta situación.",
+        message: `Debes ingresar qué puede decir ${protagonistName} en esta situación.`,
       });
       return;
     }
@@ -317,7 +382,7 @@ const PersonaDetalle = () => {
       const conversationData = {
         user_contact_id: contact.id,
         title: title.trim(),
-        situation: situation.trim(),
+        situation: finalSituation,
         what_to_say: whatToSay.trim(),
         reminder: reminder.trim(),
         correct_answer: correctAnswer.trim(),
@@ -344,7 +409,7 @@ const PersonaDetalle = () => {
         await createContactConversation(conversationData);
       }
 
-      await loadConversations();
+      await refreshConversations();
       resetForm();
 
       showFeedback({
@@ -381,6 +446,7 @@ const PersonaDetalle = () => {
     setEditingConversationId(conversation.id);
     setTitle(conversation.title || "");
     setSituation(conversation.situation || "");
+    setGeneratedSituation("");
     setWhatToSay(conversation.what_to_say || "");
     setReminder(conversation.reminder || "");
     setCorrectAnswer(conversation.correct_answer || "");
@@ -431,7 +497,7 @@ const PersonaDetalle = () => {
         resetForm();
       }
 
-      await loadConversations();
+      await refreshConversations();
     } catch (error) {
       console.error(error);
 
@@ -450,9 +516,7 @@ const PersonaDetalle = () => {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#F3ECFF]">
-        <p className="text-2xl font-bold text-[#4B367C]">
-          Cargando persona...
-        </p>
+        <p className="text-2xl font-bold text-[#4B367C]">Cargando persona...</p>
       </div>
     );
   }
@@ -573,7 +637,7 @@ const PersonaDetalle = () => {
 
         <div className="mt-12">
           <h2 className="mb-6 text-3xl font-bold text-[#4B367C]">
-            Conversaciones de Félix con {contact.name}
+            Conversaciones de {protagonistName} con {contact.name}
           </h2>
 
           <form
@@ -582,7 +646,10 @@ const PersonaDetalle = () => {
           >
             <textarea
               value={situation}
-              onChange={(e) => setSituation(e.target.value)}
+              onChange={(e) => {
+                setSituation(e.target.value);
+                setGeneratedSituation("");
+              }}
               placeholder="Escribe el escenario. Ej: cuando nos vemos en el colegio"
               className="min-h-28 w-full rounded-xl border p-3"
             />
@@ -605,7 +672,7 @@ const PersonaDetalle = () => {
                 </h3>
 
                 <p className="text-[#6B5A95]">
-                  <strong>Situación:</strong> {situation}
+                  <strong>Situación:</strong> {generatedSituation || situation}
                 </p>
 
                 <p className="mt-2 text-[#6B5A95]">

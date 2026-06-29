@@ -20,6 +20,7 @@ import { useFloFlo } from "../context/FloFloContext";
 import { useSelectedChild } from "../context/SelectedChildContext";
 import { useFeedback } from "../context/FeedbackContext";
 import AchievementPopup from "../components/AchievementPopup";
+import { getCachedData, setCachedData } from "../utils/cache";
 
 const DAYS = [
   { key: "monday", label: "Lun", fullLabel: "Lunes" },
@@ -119,7 +120,7 @@ const Rutinas = () => {
     [todayRoutines],
   );
 
-  const loadRoutines = async () => {
+  const loadRoutines = async ({ useCache = true } = {}) => {
     try {
       if (!user) return;
 
@@ -127,14 +128,46 @@ const Rutinas = () => {
         return;
       }
 
-      setLoading(true);
+      const ownerId = isParentMode ? selectedChildId : user.id;
+      const cacheKey = `floflo_routines_${ownerId}`;
 
       if (isParentWithoutChild) {
         setAllRoutines([]);
         setTodayRoutines([]);
         setTodayInfo(null);
         setHistory([]);
+        setLoading(false);
         return;
+      }
+
+      if (useCache) {
+        const cachedRoutines = getCachedData(cacheKey);
+
+        if (cachedRoutines) {
+          setAllRoutines(
+            Array.isArray(cachedRoutines.allRoutines)
+              ? cachedRoutines.allRoutines
+              : [],
+          );
+
+          setTodayRoutines(
+            Array.isArray(cachedRoutines.todayRoutines)
+              ? cachedRoutines.todayRoutines
+              : [],
+          );
+
+          setTodayInfo(cachedRoutines.todayInfo || null);
+
+          setHistory(
+            Array.isArray(cachedRoutines.history) ? cachedRoutines.history : [],
+          );
+
+          setLoading(false);
+        } else {
+          setLoading(true);
+        }
+      } else {
+        setLoading(true);
       }
 
       const [allData, todayData, historyData] = await Promise.all([
@@ -147,12 +180,24 @@ const Rutinas = () => {
           : getRoutineHistory(),
       ]);
 
-      setAllRoutines(Array.isArray(allData) ? allData : []);
-      setTodayRoutines(
-        Array.isArray(todayData?.routines) ? todayData.routines : [],
-      );
-      setTodayInfo(todayData || null);
-      setHistory(Array.isArray(historyData) ? historyData : []);
+      const safeAllRoutines = Array.isArray(allData) ? allData : [];
+      const safeTodayRoutines = Array.isArray(todayData?.routines)
+        ? todayData.routines
+        : [];
+      const safeTodayInfo = todayData || null;
+      const safeHistory = Array.isArray(historyData) ? historyData : [];
+
+      setAllRoutines(safeAllRoutines);
+      setTodayRoutines(safeTodayRoutines);
+      setTodayInfo(safeTodayInfo);
+      setHistory(safeHistory);
+
+      setCachedData(cacheKey, {
+        allRoutines: safeAllRoutines,
+        todayRoutines: safeTodayRoutines,
+        todayInfo: safeTodayInfo,
+        history: safeHistory,
+      });
     } catch (error) {
       console.error("Error cargando rutinas:", error);
 
@@ -326,7 +371,7 @@ const Rutinas = () => {
       }
 
       resetForm();
-      await loadRoutines();
+      await loadRoutines({ useCache: false });
     } catch (error) {
       console.error(error);
 
@@ -380,7 +425,7 @@ const Rutinas = () => {
         resetForm();
       }
 
-      await loadRoutines();
+      await loadRoutines({ useCache: false });
     } catch (error) {
       console.error(error);
 
@@ -441,7 +486,7 @@ const Rutinas = () => {
         });
       }
 
-      await loadRoutines();
+      await loadRoutines({ useCache: false });
     } catch (error) {
       console.error(error);
 
@@ -630,8 +675,7 @@ const Rutinas = () => {
               {todayRoutines.length}
             </p>
             <p className="mt-1 text-[#6B5A95]">
-              rutinas para{" "}
-              {todayInfo?.day ? dayNames[todayInfo.day] : "hoy"}
+              rutinas para {todayInfo?.day ? dayNames[todayInfo.day] : "hoy"}
             </p>
           </div>
 
@@ -761,9 +805,7 @@ const Rutinas = () => {
               <div>
                 <label className="mb-2 block font-semibold text-[#4B367C]">
                   Descripción{" "}
-                  <span className="font-normal text-[#9B7BE8]">
-                    (opcional)
-                  </span>
+                  <span className="font-normal text-[#9B7BE8]">(opcional)</span>
                 </label>
 
                 <textarea
@@ -936,9 +978,7 @@ const Rutinas = () => {
 
                   <p className="mt-2 text-sm font-bold text-green-700">
                     Realizada el{" "}
-                    {new Date(item.completion_date).toLocaleDateString(
-                      "es-CL",
-                    )}
+                    {new Date(item.completion_date).toLocaleDateString("es-CL")}
                   </p>
                 </div>
               ))}

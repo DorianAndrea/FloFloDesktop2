@@ -21,6 +21,7 @@ import felixFeliz from "../assets/svg/felix_feliz.svg";
 import sparkle from "../assets/sounds/sparkle.mp3";
 
 import AchievementPopup from "../components/AchievementPopup";
+import { getCachedData, setCachedData } from "../utils/cache";
 
 const EstadosAnimo = () => {
   const { setMood, user } = useFloFlo();
@@ -99,40 +100,58 @@ const EstadosAnimo = () => {
     },
   ];
 
-  const loadMoods = async () => {
-    try {
-      if (!user) return;
+  const loadMoods = async ({ useCache = true } = {}) => {
+  try {
+    if (!user) return;
 
-      if (isParent && loadingChildren) return;
+    if (isParent && loadingChildren) return;
 
-      setLoading(true);
+    const ownerId = isParentMode ? selectedChildId : user.id;
+    const cacheKey = `floflo_moods_${ownerId}`;
 
-      if (isParentWithoutChild) {
-        setMoods([]);
-        return;
-      }
-
-      const data = isParentMode
-        ? await getChildMoods(selectedChildId)
-        : await getMoods();
-
-      setMoods(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error(error);
-
-      showFeedback({
-        type: "error",
-        icon: "❌",
-        label: "Algo salió mal",
-        title: "No se pudo cargar el historial",
-        message:
-          error.response?.data?.message ||
-          "Intenta nuevamente en unos segundos.",
-      });
-    } finally {
+    if (isParentWithoutChild) {
+      setMoods([]);
       setLoading(false);
+      return;
     }
-  };
+
+    if (useCache) {
+      const cachedMoods = getCachedData(cacheKey);
+
+      if (Array.isArray(cachedMoods)) {
+        setMoods(cachedMoods);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
+    } else {
+      setLoading(true);
+    }
+
+    const data = isParentMode
+      ? await getChildMoods(selectedChildId)
+      : await getMoods();
+
+    const safeMoods = Array.isArray(data) ? data : [];
+
+    setMoods(safeMoods);
+    setCachedData(cacheKey, safeMoods);
+  } catch (error) {
+    console.error(error);
+
+    showFeedback({
+      type: "error",
+      icon: "❌",
+      label: "Algo salió mal",
+      title: "No se pudo cargar el historial",
+      message:
+        error.response?.data?.message ||
+        "Intenta nuevamente en unos segundos.",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     loadMoods();
@@ -207,7 +226,7 @@ const EstadosAnimo = () => {
         setNewAchievement(null);
       }, 5000);
 
-      await loadMoods();
+      await loadMoods({ useCache: false });
     } catch (error) {
       console.error(error);
 

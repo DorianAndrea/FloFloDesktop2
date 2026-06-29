@@ -39,6 +39,7 @@ import felixFeliz from "../assets/svg/felix_feliz.svg";
 
 import successSound from "../assets/sounds/kid_success.mp3";
 import wrongSound from "../assets/sounds/error.mp3";
+import { getCachedData, setCachedData } from "../utils/cache";
 
 const contenidoBasePorTitulo = {
   Saludar: {
@@ -298,19 +299,61 @@ const Conversaciones = () => {
     setCompletedConversations([...normalIds, ...contactIds]);
   };
 
-  const loadConversations = async () => {
+  const loadConversations = async ({
+    showFullLoader = true,
+    useCache = true,
+  } = {}) => {
     try {
       if (!user) return;
 
       if (isParent && loadingChildren) return;
 
-      setCargandoPagina(true);
+      const ownerId = isParentMode ? selectedChildId : user.id;
+      const searchKey = busquedaDebounce.trim() || "all";
+      const cacheKey = `floflo_conversations_${ownerId}_${paginaActual}_${searchKey}_${orden}`;
+
+      if (showFullLoader) {
+        const cachedData = useCache ? getCachedData(cacheKey) : null;
+
+        if (cachedData) {
+          setConversaciones(
+            Array.isArray(cachedData.conversaciones)
+              ? cachedData.conversaciones
+              : [],
+          );
+
+          setTotalPaginas(cachedData.totalPaginas || 1);
+          setTotalConversaciones(cachedData.totalConversaciones || 0);
+
+          if (
+            Array.isArray(cachedData.conversaciones) &&
+            cachedData.conversaciones.length > 0
+          ) {
+            setConversacionSeleccionada((prev) => {
+              if (!prev) return cachedData.conversaciones[0];
+
+              const actualizada = cachedData.conversaciones.find(
+                (item) => item.id === prev.id,
+              );
+
+              return actualizada || cachedData.conversaciones[0];
+            });
+          } else {
+            setConversacionSeleccionada(null);
+          }
+
+          setCargandoPagina(false);
+        } else {
+          setCargandoPagina(true);
+        }
+      }
 
       if (isParentWithoutChild) {
         setConversaciones([]);
         setConversacionSeleccionada(null);
         setTotalPaginas(1);
         setTotalConversaciones(0);
+        setCargandoPagina(false);
         return;
       }
 
@@ -403,6 +446,12 @@ const Conversaciones = () => {
       setTotalPaginas(data.totalPages || 1);
       setTotalConversaciones(data.total || 0);
 
+      setCachedData(cacheKey, {
+        conversaciones: conversacionesMapeadas,
+        totalPaginas: data.totalPages || 1,
+        totalConversaciones: data.total || 0,
+      });
+
       if (conversacionesMapeadas.length > 0) {
         setConversacionSeleccionada((prev) => {
           if (!prev) return conversacionesMapeadas[0];
@@ -429,7 +478,9 @@ const Conversaciones = () => {
           "Intenta nuevamente en unos segundos.",
       });
     } finally {
-      setCargandoPagina(false);
+      if (showFullLoader) {
+        setCargandoPagina(false);
+      }
     }
   };
 
@@ -501,7 +552,10 @@ const Conversaciones = () => {
 
   const progreso =
     totalConversaciones > 0
-      ? Math.min((completedConversations.length / totalConversaciones) * 100, 100)
+      ? Math.min(
+          (completedConversations.length / totalConversaciones) * 100,
+          100,
+        )
       : 0;
 
   const seleccionarConversacion = (conversacion) => {
@@ -552,7 +606,10 @@ const Conversaciones = () => {
       const response =
         conversacionSeleccionada.tipo === "contacto"
           ? isParentMode
-            ? await completeChildContactConversation(selectedChildId, idNumerico)
+            ? await completeChildContactConversation(
+                selectedChildId,
+                idNumerico,
+              )
             : await completeContactConversation(idNumerico)
           : isParentMode
             ? await completeChildConversation(selectedChildId, idNumerico)
@@ -673,7 +730,7 @@ const Conversaciones = () => {
           : "Ya puedes practicarla o editarla si quieres ajustarla.",
       });
 
-      await loadConversations();
+      await loadConversations({ useCache: false });
     } catch (error) {
       console.error(error);
 
@@ -734,7 +791,10 @@ const Conversaciones = () => {
 
     try {
       if (isParentMode) {
-        await deleteChildConversation(selectedChildId, conversation.conversationId);
+        await deleteChildConversation(
+          selectedChildId,
+          conversation.conversationId,
+        );
       } else {
         await deleteConversation(conversation.conversationId);
       }
@@ -758,7 +818,7 @@ const Conversaciones = () => {
           : "La conversación fue eliminada de FloFlo.",
       });
 
-      await loadConversations();
+      await loadConversations({ useCache: false });
       await cargarProgreso();
       await cargarUserProgress();
     } catch (error) {
@@ -898,11 +958,14 @@ const Conversaciones = () => {
           payload,
         );
       } else {
-        await updateConversation(conversacionSeleccionada.conversationId, payload);
+        await updateConversation(
+          conversacionSeleccionada.conversationId,
+          payload,
+        );
       }
 
       setEditando(false);
-      await loadConversations();
+      await loadConversations({ useCache: false });
 
       showFeedback({
         type: "success",
@@ -930,6 +993,28 @@ const Conversaciones = () => {
 
   const handleToggleFavorite = async (item) => {
     try {
+      const nuevoEstadoFavorito = !item.is_favorite;
+
+      setConversaciones((prev) =>
+        prev.map((conversation) =>
+          conversation.id === item.id
+            ? {
+                ...conversation,
+                is_favorite: nuevoEstadoFavorito,
+              }
+            : conversation,
+        ),
+      );
+
+      setConversacionSeleccionada((prev) =>
+        prev?.id === item.id
+          ? {
+              ...prev,
+              is_favorite: nuevoEstadoFavorito,
+            }
+          : prev,
+      );
+
       if (item.tipo === "contacto") {
         if (isParentMode) {
           await toggleFavoriteChildContactConversation(
@@ -940,14 +1025,40 @@ const Conversaciones = () => {
           await toggleFavoriteContactConversation(item.conversationId);
         }
       } else if (isParentMode) {
-        await toggleFavoriteChildConversation(selectedChildId, item.conversationId);
+        await toggleFavoriteChildConversation(
+          selectedChildId,
+          item.conversationId,
+        );
       } else {
         await toggleFavoriteConversation(item.conversationId);
       }
 
-      await loadConversations();
+      await loadConversations({
+        showFullLoader: false,
+        useCache: false,
+      });
     } catch (error) {
       console.error(error);
+
+      setConversaciones((prev) =>
+        prev.map((conversation) =>
+          conversation.id === item.id
+            ? {
+                ...conversation,
+                is_favorite: item.is_favorite,
+              }
+            : conversation,
+        ),
+      );
+
+      setConversacionSeleccionada((prev) =>
+        prev?.id === item.id
+          ? {
+              ...prev,
+              is_favorite: item.is_favorite,
+            }
+          : prev,
+      );
 
       showFeedback({
         type: "error",
@@ -1113,7 +1224,9 @@ const Conversaciones = () => {
             disabled={generandoIA}
             className="mt-5 rounded-full bg-[#4B367C] px-6 py-3 font-bold text-white hover:bg-[#3E2E68] disabled:opacity-50"
           >
-            {generandoIA ? "Félix está pensando..." : "✨ Generar conversación"}
+            {generandoIA
+              ? "Félix está pensando..."
+              : "✨ Generar conversación con Félix"}
           </button>
         </div>
 
