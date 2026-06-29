@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { getAchievements } from "../services/achievementService";
 import { useFloFlo } from "../context/FloFloContext";
 import { useFeedback } from "../context/FeedbackContext";
+import { getCachedData, setCachedData } from "../utils/cache";
 
 const Logros = () => {
   const [achievements, setAchievements] = useState([]);
@@ -11,28 +12,38 @@ const Logros = () => {
   const { showFeedback } = useFeedback();
 
   const loadAchievements = async () => {
-    try {
-      if (!user?.id) return;
+  try {
+    if (!user?.id) return;
 
-      setLoading(true);
+    const cacheKey = `floflo_achievements_${user.id}`;
+    const cachedAchievements = getCachedData(cacheKey);
 
-      const data = await getAchievements();
-
-      setAchievements(Array.isArray(data) ? data : []);
-    } catch (error) {
-      console.error(error);
-
-      showFeedback({
-        type: "error",
-        icon: "❌",
-        label: "Algo salió mal",
-        title: "No se pudieron cargar los logros",
-        message: "Intenta nuevamente en unos segundos.",
-      });
-    } finally {
+    if (Array.isArray(cachedAchievements)) {
+      setAchievements(cachedAchievements);
       setLoading(false);
+    } else {
+      setLoading(true);
     }
-  };
+
+    const data = await getAchievements();
+    const safeAchievements = Array.isArray(data) ? data : [];
+
+    setAchievements(safeAchievements);
+    setCachedData(cacheKey, safeAchievements);
+  } catch (error) {
+    console.error(error);
+
+    showFeedback({
+      type: "error",
+      icon: "❌",
+      label: "Algo salió mal",
+      title: "No se pudieron cargar los logros",
+      message: "Intenta nuevamente en unos segundos.",
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     loadAchievements();
@@ -45,6 +56,9 @@ const Logros = () => {
   const lockedAchievements = achievements.filter(
     (achievement) => !achievement.unlocked,
   );
+
+  const loggedUserName =
+    user?.firstName || user?.first_name || user?.name || "el usuario";
 
   if (loading) {
     return (
@@ -67,7 +81,7 @@ const Logros = () => {
           </h1>
 
           <p className="text-xl text-[#6B5A95]">
-            Mira los logros que Félix ha desbloqueado contigo.
+            Mira los logros que {loggedUserName} ha desbloqueado.
           </p>
         </div>
 
@@ -99,7 +113,7 @@ const Logros = () => {
 
             <p className="text-[#6B5A95] text-lg">
               Completa emociones, rutinas, conversaciones o lugares para que
-              Félix desbloquee nuevos logros contigo.
+              {loggedUserName} desbloquee nuevos logros.
             </p>
           </div>
         ) : (
@@ -177,9 +191,7 @@ const AchievementCard = ({ achievement, unlocked }) => {
             {achievement.name}
           </h3>
 
-          <p className="text-[#6B5A95] mt-2">
-            {achievement.description}
-          </p>
+          <p className="text-[#6B5A95] mt-2">{achievement.description}</p>
 
           <p
             className={`

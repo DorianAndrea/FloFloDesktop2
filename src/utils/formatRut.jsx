@@ -1,8 +1,11 @@
-export const formatRut = (value) => {
-  if (!value) return "";
+export const cleanRut = (rut = "") => {
+  return String(rut).replace(/[^0-9kK]/g, "").toUpperCase();
+};
 
-  let rut = value.replace(/[^0-9kK]/g, "").toUpperCase();
+export const formatRut = (value = "") => {
+  const rut = cleanRut(value);
 
+  if (!rut) return "";
   if (rut.length <= 1) return rut;
 
   const dv = rut.slice(-1);
@@ -11,7 +14,4 @@ export const formatRut = (value) => {
   cuerpo = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
 
   return `${cuerpo}-${dv}`;
-};
-export const cleanRut = (rut) => {
-  return rut.replace(/[.-]/g, "");
 };
