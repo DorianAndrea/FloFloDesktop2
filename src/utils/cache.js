@@ -22,3 +22,15 @@ export const setCachedData = (key, data) => {
 export const removeCachedData = (key) => {
   localStorage.removeItem(key);
 };
+
+export const clearFloFloCache = () => {
+  Object.keys(localStorage).forEach((key) => {
+    if (
+      key.startsWith("floflo_") ||
+      key === "selectedChild" ||
+      key === "floflo_selected_child_id"
+    ) {
+      localStorage.removeItem(key);
+    }
+  });
+};

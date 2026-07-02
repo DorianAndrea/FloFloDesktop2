@@ -9,6 +9,7 @@ import {
   getChildDashboard,
 } from "../services/parentDashboardService";
 import felixLogo from "../assets/webp/felix_cara_sonriendo.webp";
+import { clearFloFloCache } from "../utils/cache";
 
 const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -87,8 +88,7 @@ const Navbar = () => {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("selectedChild");
-    localStorage.removeItem("floflo_selected_child_id");
+    clearFloFloCache();
     logout();
     setAchievementCount(0);
     closeMenus();
