@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useFloFlo } from "../context/FloFloContext";
+import { useSelectedChild } from "../context/SelectedChildContext";
 import { useFeedback } from "../context/FeedbackContext";
 import {
   getMySensoryProfile,
@@ -7,6 +8,7 @@ import {
   getChildSensoryProfile,
   getMySensoryProfileHistory,
   getChildSensoryProfileHistory,
+  saveChildSensoryProfile,
 } from "../services/sensoryProfileService";
 import { getCachedData, setCachedData } from "../utils/cache";
 
@@ -74,17 +76,29 @@ const fields = [
 
 const PerfilSensorial = () => {
   const { user } = useFloFlo();
+  const {
+    isParent,
+    selectedChild,
+    selectedChildId,
+    loadingChildren,
+    getChildDisplayName,
+  } = useSelectedChild();
+
   const { showFeedback } = useFeedback();
+
   const [profile, setProfile] = useState(emptyProfile);
   const [history, setHistory] = useState([]);
-  const [selectedChild, setSelectedChild] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
-  const isParent = user?.role === "parent";
   const isChild = user?.role === "child";
 
+  const childName = selectedChild
+    ? getChildDisplayName(selectedChild)
+    : "un niño seleccionado";
+
+  const canEditProfile = isChild || (isParent && Boolean(selectedChildId));
   const hasProfileData = fields.some((field) => profile[field.name]?.trim());
   const lastUpdatedAt = profile.updated_at || history[0]?.created_at || null;
 
@@ -103,19 +117,6 @@ const PerfilSensorial = () => {
       notes: data.notes || "",
       updated_at: data.updated_at || null,
     };
-  };
-
-  const getStoredChild = () => {
-    const stored = localStorage.getItem("selectedChild");
-
-    if (!stored) return null;
-
-    try {
-      return JSON.parse(stored);
-    } catch (error) {
-      localStorage.removeItem("selectedChild");
-      return null;
-    }
   };
 
   const getSensoryProfileCacheKey = (childId = null) => {
@@ -163,18 +164,17 @@ const PerfilSensorial = () => {
     try {
       if (!user?.id) return;
 
-      if (isParent) {
-        const child = getStoredChild();
-        setSelectedChild(child);
+      if (isParent && loadingChildren) return;
 
-        if (!child?.id) {
+      if (isParent) {
+        if (!selectedChildId) {
           setProfile({ ...emptyProfile });
           setHistory([]);
           setLoading(false);
           return;
         }
 
-        const cacheKey = getSensoryProfileCacheKey(child.id);
+        const cacheKey = getSensoryProfileCacheKey(selectedChildId);
         const cachedData =
           useCache && cacheKey ? getCachedData(cacheKey) : null;
 
@@ -189,7 +189,7 @@ const PerfilSensorial = () => {
           setLoading(true);
         }
 
-        const freshData = await fetchSensoryProfileData(child.id);
+        const freshData = await fetchSensoryProfileData(selectedChildId);
 
         applySensoryProfileData(freshData.profileData, freshData.historyData);
 
@@ -240,25 +240,11 @@ const PerfilSensorial = () => {
   };
 
   useEffect(() => {
-    if (user?.id) {
+    if (user?.id && !loadingChildren) {
+      setIsEditing(false);
       loadProfile();
     }
-
-    const handleSelectedChildChanged = () => {
-      if (user?.role === "parent") {
-        loadProfile();
-      }
-    };
-
-    window.addEventListener("selectedChildChanged", handleSelectedChildChanged);
-
-    return () => {
-      window.removeEventListener(
-        "selectedChildChanged",
-        handleSelectedChildChanged,
-      );
-    };
-  }, [user]);
+  }, [user?.id, user?.role, isParent, selectedChildId, loadingChildren]);
 
   const handleChange = (e) => {
     setProfile({
@@ -273,14 +259,34 @@ const PerfilSensorial = () => {
     try {
       setSaving(true);
 
-      await saveMySensoryProfile(profile);
+      const { updated_at, ...payload } = profile;
+
+      if (isParent) {
+        if (!selectedChildId) {
+          showFeedback({
+            type: "warning",
+            icon: "⚠️",
+            label: "Falta selección",
+            title: "No hay niño/a seleccionado",
+            message:
+              "Selecciona un niño/a activo antes de guardar el perfil sensorial.",
+          });
+          return;
+        }
+
+        await saveChildSensoryProfile(selectedChildId, payload);
+      } else {
+        await saveMySensoryProfile(payload);
+      }
 
       showFeedback({
         type: "success",
         icon: "✅",
         label: "Cambios guardados",
         title: "Perfil sensorial actualizado",
-        message: "La información sensorial fue guardada correctamente.",
+        message: isParent
+          ? `La información sensorial de ${childName} fue guardada correctamente.`
+          : "La información sensorial fue guardada correctamente.",
       });
 
       setIsEditing(false);
@@ -294,6 +300,7 @@ const PerfilSensorial = () => {
         label: "Algo salió mal",
         title: "No se pudo guardar",
         message:
+          error.response?.data?.message ||
           "No fue posible guardar el perfil sensorial. Intenta nuevamente.",
       });
     } finally {
@@ -344,15 +351,25 @@ const PerfilSensorial = () => {
           </div>
         )}
 
-        {isParent && selectedChild && (
+        {isParent && selectedChild && !isEditing && hasProfileData && (
           <>
             <div className="bg-white rounded-3xl shadow-md p-6 md:p-8 border border-purple-100">
-              <div className="mb-6">
-                <h2 className="text-2xl font-bold text-purple-700">
-                  Resumen sensorial actual
-                </h2>
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
+                <div>
+                  <h2 className="text-2xl font-bold text-purple-700">
+                    Resumen sensorial actual
+                  </h2>
 
-                <LastUpdatedInfo date={lastUpdatedAt} />
+                  <LastUpdatedInfo date={lastUpdatedAt} />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setIsEditing(true)}
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl font-bold shadow-md w-fit"
+                >
+                  Editar perfil
+                </button>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -414,7 +431,7 @@ const PerfilSensorial = () => {
           </>
         )}
 
-        {isChild && (!hasProfileData || isEditing) && (
+        {canEditProfile && (!hasProfileData || isEditing) && (
           <>
             <form
               onSubmit={handleSave}

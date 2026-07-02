@@ -29,3 +29,13 @@ export const getChildSensoryProfileHistory = async (childId) => {
   const response = await api.get(`/sensory-profile/children/${childId}/history`);
   return response.data;
 };
+
+export const saveChildSensoryProfile = async (childId, data) => {
+  const response = await api.post(`/sensory-profile/children/${childId}`, data);
+  return response.data;
+};
+
+export const updateChildSensoryProfile = async (childId, data) => {
+  const response = await api.put(`/sensory-profile/children/${childId}`, data);
+  return response.data;
+};

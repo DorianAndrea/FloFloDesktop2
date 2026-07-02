@@ -884,97 +884,124 @@ const Conversaciones = () => {
     conversacionSeleccionada?.ejercicio?.opciones || []
   ).filter((op) => op.texto && op.texto.trim() !== "");
 
- const handleRegenerateConversation = async (conversation) => {
-  if (!conversation) return;
-
-  if (conversation.tipo === "contacto") {
-    showFeedback({
-      type: "warning",
-      icon: "⚠️",
-      label: "Conversación de contacto",
-      title: "Regénérala desde Amigos",
-      message:
-        "Esta conversación pertenece a un contacto. Puedes regenerarla desde el módulo Amigos.",
-    });
-    return;
-  }
-
-  if (!conversation.conversationId) {
-    showFeedback({
-      type: "error",
-      icon: "❌",
-      label: "Algo salió mal",
-      title: "Conversación inválida",
-      message: "No se encontró el ID de esta conversación.",
-    });
-    return;
-  }
-
-  try {
-    setRegenerandoConversationId(conversation.id);
-
-    const adultLabel = "Adulto";
-    const childLabel = isParentMode
-      ? getFirstName(childName)
-      : user?.firstName || "el niño/a";
-
-    const data = await generateConversation({
-      topic: conversation.titulo || "Conversación social",
-      situation: `${conversation.escenario}. La conversación debe ser entre ${adultLabel} y ${childLabel}. ${adultLabel} debe hacer preguntas o apoyar. ${childLabel} debe responder en primera persona. No uses el nombre Félix. No uses el hablante Persona.`,
-      person: adultLabel,
-      emotion: "",
-    });
-
-    const normalizedContent = normalizeAIGeneratedContent(data, adultLabel);
-
-    const payload = {
-      title: data.title || conversation.titulo,
-      situation: conversation.escenario,
-      what_to_say: normalizedContent.childAnswer,
-      reminder:
-        conversation.habilidad ||
-        `Conversación regenerada con IA sobre ${conversation.titulo}`,
-      messages: normalizedContent.messages,
-      exercise: normalizedContent.exercise,
-    };
-
-    if (isParentMode) {
-      await updateChildConversation(
-        selectedChildId,
-        conversation.conversationId,
-        payload,
-      );
-    } else {
-      await updateConversation(conversation.conversationId, payload);
+  const handleRegenerateConversation = async (conversation) => {
+    if (!conversation) return;
+    if (conversation.tipo === "contacto") {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Conversación de contacto",
+        title: "Regénérala desde Amigos",
+        message:
+          "Esta conversación pertenece a un contacto. Puedes regenerarla desde el módulo Amigos.",
+      });
+      return;
     }
 
-    await loadConversations({ useCache: false });
+    if (!conversation.conversationId) {
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "Conversación inválida",
+        message: "No se encontró el ID de esta conversación.",
+      });
+      return;
+    }
 
-    showFeedback({
-      type: "success",
-      icon: "✨",
-      label: "Conversación regenerada",
-      title: "Félix actualizó la conversación",
-      message: isParentMode
-        ? `La conversación fue regenerada para ${childName}.`
-        : "La conversación fue regenerada correctamente.",
-    });
-  } catch (error) {
-    console.error(error);
+    try {
+      setRegenerandoConversationId(conversation.id);
 
-    showFeedback({
-      type: "error",
-      icon: "❌",
-      label: "Algo salió mal",
-      title: "No se pudo regenerar",
-      message:
-        error.response?.data?.message ||
-        "Félix no pudo regenerar la conversación. Intenta nuevamente.",
-    });
-  } finally {
-    setRegenerandoConversationId(null);
-  }
-};
+      const adultLabel = "Adulto";
+      const childLabel = isParentMode
+        ? getFirstName(childName)
+        : user?.firstName || "el niño/a";
+
+      const data = await generateConversation({
+        topic: conversation.titulo || "Conversación social",
+        situation: `${conversation.escenario}. La conversación debe ser entre ${adultLabel} y ${childLabel}. ${adultLabel} debe hacer preguntas o apoyar. ${childLabel} debe responder en primera persona. No uses el nombre Félix. No uses el hablante Persona.`,
+        person: adultLabel,
+        emotion: "",
+      });
+
+      const normalizedContent = normalizeAIGeneratedContent(data, adultLabel);
+
+      const payload = {
+        title: data.title || conversation.titulo,
+        situation: conversation.escenario,
+        what_to_say: normalizedContent.childAnswer,
+        reminder:
+          conversation.habilidad ||
+          `Conversación regenerada con IA sobre ${conversation.titulo}`,
+        messages: normalizedContent.messages,
+        exercise: normalizedContent.exercise,
+      };
+      if (isParentMode) {
+        await updateChildConversation(
+          selectedChildId,
+          conversation.conversationId,
+          payload,
+        );
+      } else {
+        await updateConversation(conversation.conversationId, payload);
+      }
+
+      const regeneratedConversation = {
+        ...conversation,
+        titulo: payload.title,
+        escenario: payload.situation,
+        habilidad: payload.reminder,
+        what_to_say: payload.what_to_say,
+        dialogo: normalizedContent.messages.map((msg) => ({
+          personaje: msg.speaker,
+          texto: msg.text,
+        })),
+        ejercicio: {
+          pregunta: normalizedContent.exercise.question,
+          opciones: normalizedContent.exercise.options.map((op) => ({
+            texto: op.text,
+            correcta: op.isCorrect,
+          })),
+        },
+      };
+
+      setPaginaActual(1);
+
+      await loadConversations({ useCache: false });
+
+      setConversaciones((prev) => [
+        regeneratedConversation,
+        ...prev.filter((item) => item.id !== conversation.id),
+      ]);
+
+      setConversacionSeleccionada(regeneratedConversation);
+      setRespuestaSeleccionada(null);
+
+      showFeedback({
+        type: "success",
+        icon: "✨",
+        label: "Conversación regenerada",
+        title: "Félix actualizó la conversación",
+        message: isParentMode
+          ? `La conversación fue regenerada para ${childName}.`
+          : "La conversación fue regenerada correctamente.",
+      });
+    } catch (error) {
+      console.error(error);
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudo regenerar",
+        message:
+          error.response?.data?.message ||
+          "Félix no pudo regenerar la conversación. Intenta nuevamente.",
+      });
+    } finally {
+      setRegenerandoConversationId(null);
+    }
+  };
 
   const handleDeleteConversation = async (conversation) => {
     if (!conversation) return;
@@ -1471,6 +1498,7 @@ const Conversaciones = () => {
                 }}
                 className="w-full rounded-2xl border-2 border-[#DCCCF8] p-4 font-semibold text-[#4B367C] focus:border-[#9B7BE8] focus:outline-none"
               >
+                <option value="favoritas">Favoritas primero</option>
                 <option value="recientes">Más recientes</option>
                 <option value="antiguos">Más antiguos</option>
                 <option value="az">A-Z</option>
@@ -1527,9 +1555,15 @@ const Conversaciones = () => {
 
                         <div className="flex flex-col items-end gap-2">
                           {item.tipo === "contacto" && (
-                            <span className="rounded-full bg-[#EAF8EF] px-3 py-1 text-sm font-bold text-[#2F6B4F]">
-                              Cuidador
-                            </span>
+                            <>
+                              <span className="rounded-full bg-[#EAF8EF] px-3 py-1 text-sm font-bold text-[#2F6B4F]">
+                                Cuidador
+                              </span>
+
+                              <span className="rounded-full bg-[#F3ECFF] px-3 py-1 text-sm font-bold text-[#6B4FC3]">
+                                👥 Desde Amigos
+                              </span>
+                            </>
                           )}
 
                           {completada && (
