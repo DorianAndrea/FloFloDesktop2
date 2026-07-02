@@ -939,16 +939,15 @@ const Rutinas = () => {
               <h2 className="text-3xl font-extrabold text-[#4B367C]">
                 Historial reciente
               </h2>
-
               <p className="mt-2 text-[#6B5A95]">
                 {isParentMode
-                  ? `Últimas rutinas realizadas por ${childName}.`
-                  : "Últimas rutinas marcadas como realizadas."}
+                  ? `Aquí aparecen las rutinas que ${childName} ya realizó.`
+                  : "Aquí aparecen las rutinas que ya marcaste como realizadas."}
               </p>
             </div>
-
             <p className="text-sm font-bold text-[#9B7BE8]">
-              Se guarda por fecha, no solo una vez.
+              El historial se mantiene aunque la rutina ya no esté en la lista
+              activa.
             </p>
           </div>
 

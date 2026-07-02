@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
@@ -97,6 +97,15 @@ const defaultSteps = [
   "Haremos la actividad preparada.",
   "Luego volveremos a casa.",
 ];
+const getPlaceImageUrl = (image) => {
+  if (!image) return null;
+
+  if (image.startsWith("http")) {
+    return image;
+  }
+
+  return `${import.meta.env.VITE_API_URL}${image}`;
+};
 
 const LugarDetalle = () => {
   const { id } = useParams();
@@ -114,6 +123,7 @@ const LugarDetalle = () => {
   } = useSelectedChild();
 
   const { showFeedback, showConfirm } = useFeedback();
+  const previousSelectedChildId = useRef(selectedChildId);
 
   const isParentMode = isParent && Boolean(selectedChildId);
   const isParentWithoutChild = isParent && !selectedChildId;
@@ -134,7 +144,8 @@ const LugarDetalle = () => {
   const [editing, setEditing] = useState(false);
   const [editingSteps, setEditingSteps] = useState([]);
   const [generandoIA, setGenerandoIA] = useState(false);
-
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   const [form, setForm] = useState({
     nombre: "",
     direccion: "",
@@ -206,6 +217,21 @@ const LugarDetalle = () => {
         setLugar(null);
         setLoading(false);
         return;
+      }
+
+      if (isParentMode && previousSelectedChildId.current) {
+        if (
+          String(previousSelectedChildId.current) !== String(selectedChildId)
+        ) {
+          previousSelectedChildId.current = selectedChildId;
+          navigate("/lugares", { replace: true });
+          setLoading(false);
+          return;
+        }
+      }
+
+      if (isParentMode && !previousSelectedChildId.current) {
+        previousSelectedChildId.current = selectedChildId;
       }
 
       const cacheKey = getLugarDetalleCacheKey();
@@ -281,6 +307,11 @@ const LugarDetalle = () => {
       console.error(error);
       setLugar(null);
 
+      if (isParentMode && error.response?.status === 404) {
+        navigate("/lugares", { replace: true });
+        return;
+      }
+
       showFeedback({
         type: "error",
         icon: "❌",
@@ -299,11 +330,44 @@ const LugarDetalle = () => {
     loadLugar();
   }, [id, user?.id, user?.role, selectedChildId, loadingChildren]);
 
+  useEffect(() => {
+    if (!isParent) return;
+
+    if (loadingChildren) return;
+
+    if (!previousSelectedChildId.current) {
+      previousSelectedChildId.current = selectedChildId;
+      return;
+    }
+
+    if (
+      selectedChildId &&
+      previousSelectedChildId.current &&
+      String(previousSelectedChildId.current) !== String(selectedChildId)
+    ) {
+      previousSelectedChildId.current = selectedChildId;
+      navigate("/lugares");
+    }
+  }, [isParent, selectedChildId, loadingChildren, navigate]);
+
   const handleChange = (e) => {
     setForm({
       ...form,
       [e.target.name]: e.target.value,
     });
+  };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+
+    if (!file) {
+      setImageFile(null);
+      setImagePreview(null);
+      return;
+    }
+
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
   };
 
   const handleGenerateStepsAI = async () => {
@@ -428,7 +492,9 @@ const LugarDetalle = () => {
       formData.append("transport", form.transporte.trim());
       formData.append("estimated_duration", form.duracion.trim());
       formData.append("tips", form.consejos.trim());
-
+      if (imageFile) {
+        formData.append("image", imageFile);
+      }
       const updated = isParentMode
         ? await updateChildPlace(selectedChildId, id, formData)
         : await updatePlace(id, formData);
@@ -472,6 +538,8 @@ const LugarDetalle = () => {
       setLugar(lugarActualizado);
       setEditingSteps(pasosValidos);
       setForm(formActualizado);
+      setImageFile(null);
+      setImagePreview(null);
 
       const cacheKey = getLugarDetalleCacheKey();
 
@@ -661,6 +729,8 @@ const LugarDetalle = () => {
     });
 
     setEditingSteps(lugar.pasos || defaultSteps);
+    setImageFile(null);
+    setImagePreview(null);
   };
 
   if (loading) {
@@ -779,8 +849,7 @@ const LugarDetalle = () => {
     );
   }
 
-  const imagenValida =
-    lugar.imagen && lugar.imagen.startsWith("https://res.cloudinary.com");
+  const imageUrl = getPlaceImageUrl(lugar.imagen);
 
   return (
     <main className="min-h-screen bg-[#F3ECFF] px-6 py-10">
@@ -802,9 +871,9 @@ const LugarDetalle = () => {
           </div>
         )}
 
-        {imagenValida ? (
+        {imageUrl ? (
           <img
-            src={lugar.imagen}
+            src={imageUrl}
             alt={lugar.nombre}
             className="mb-8 h-72 w-full rounded-[2.5rem] object-cover shadow-md"
           />
@@ -861,6 +930,34 @@ const LugarDetalle = () => {
                 placeholder="Dirección"
                 className="rounded-2xl border-2 border-[#DCCCF8] p-4"
               />
+              <div className="md:col-span-2 rounded-[2rem] border-2 border-[#DCCCF8] bg-[#FDFBFF] p-5">
+                <p className="mb-3 font-bold text-[#4B367C]">
+                  Imagen del lugar
+                </p>
+
+                {imagePreview || imageUrl ? (
+                  <img
+                    src={imagePreview || imageUrl}
+                    alt="Vista previa del lugar"
+                    className="mb-4 h-56 w-full rounded-2xl object-cover"
+                  />
+                ) : (
+                  <div className="mb-4 flex h-56 w-full items-center justify-center rounded-2xl bg-[#E8DDFF] text-6xl">
+                    📍
+                  </div>
+                )}
+
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="w-full rounded-2xl border-2 border-[#DCCCF8] bg-white p-4 text-[#4B367C]"
+                />
+
+                <p className="mt-2 text-sm text-[#6B5A95]">
+                  Si no eliges una imagen nueva, se conservará la imagen actual.
+                </p>
+              </div>
 
               <textarea
                 name="descripcion"

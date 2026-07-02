@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useState, useRef } from "react";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import {
   getContactById,
   getChildContactById,
@@ -22,6 +22,7 @@ import { getCachedData, setCachedData } from "../utils/cache";
 
 const PersonaDetalle = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user } = useFloFlo();
 
   const {
@@ -33,6 +34,7 @@ const PersonaDetalle = () => {
   } = useSelectedChild();
 
   const { showFeedback, showConfirm } = useFeedback();
+  const previousSelectedChildId = useRef(selectedChildId);
 
   const isParentMode = isParent && Boolean(selectedChildId);
   const isParentWithoutChild = isParent && !selectedChildId;
@@ -135,6 +137,21 @@ const PersonaDetalle = () => {
         return;
       }
 
+      if (isParentMode && previousSelectedChildId.current) {
+        if (
+          String(previousSelectedChildId.current) !== String(selectedChildId)
+        ) {
+          previousSelectedChildId.current = selectedChildId;
+          navigate("/amigos", { replace: true });
+          setLoading(false);
+          return;
+        }
+      }
+
+      if (isParentMode && !previousSelectedChildId.current) {
+        previousSelectedChildId.current = selectedChildId;
+      }
+
       const [contactData, conversationsData] = await Promise.all([
         fetchContactData(),
         fetchConversationsData(),
@@ -155,6 +172,10 @@ const PersonaDetalle = () => {
       if (!hasCache) {
         setContact(null);
         setConversations([]);
+      }
+      if (isParentMode && error.response?.status === 404) {
+        navigate("/amigos", { replace: true });
+        return;
       }
 
       showFeedback({

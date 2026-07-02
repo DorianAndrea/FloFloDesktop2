@@ -4,7 +4,10 @@ import { FaBars, FaTimes, FaChevronDown } from "react-icons/fa";
 
 import { useFloFlo } from "../context/FloFloContext";
 import { useSelectedChild } from "../context/SelectedChildContext";
-import { getMyDashboard } from "../services/parentDashboardService";
+import {
+  getMyDashboard,
+  getChildDashboard,
+} from "../services/parentDashboardService";
 import felixLogo from "../assets/webp/felix_cara_sonriendo.webp";
 
 const Navbar = () => {
@@ -24,6 +27,7 @@ const Navbar = () => {
   } = useSelectedChild();
 
   const isParent = user?.role === "parent";
+  const isParentMode = isParent && Boolean(selectedChildId);
 
   const activityLinks = [
     { name: "Emociones", path: "/emociones", emoji: "😊" },
@@ -42,15 +46,35 @@ const Navbar = () => {
           return;
         }
 
-        const data = await getMyDashboard();
-        setAchievementCount(data.achievements || 0);
+        if (isParent && loadingChildren) {
+          return;
+        }
+
+        if (isParent && !selectedChildId) {
+          setAchievementCount(0);
+          return;
+        }
+
+        const data = isParentMode
+          ? await getChildDashboard(selectedChildId)
+          : await getMyDashboard();
+
+        setAchievementCount(data?.achievements || 0);
       } catch (error) {
         console.error("Error cargando logros navbar:", error);
+        setAchievementCount(0);
       }
     };
 
     loadNavbarAchievements();
-  }, [user]);
+  }, [
+    user?.id,
+    user?.role,
+    isParent,
+    isParentMode,
+    selectedChildId,
+    loadingChildren,
+  ]);
 
   const linkClass = ({ isActive }) =>
     `font-semibold transition ${

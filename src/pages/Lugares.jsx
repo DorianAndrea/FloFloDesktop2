@@ -57,64 +57,64 @@ const Lugares = () => {
     : "el niño/a seleccionado";
 
   const loadPlaces = async () => {
-  try {
-    if (!user) return;
+    try {
+      if (!user) return;
 
-    if (isParent && loadingChildren) {
-      return;
-    }
+      if (isParent && loadingChildren) {
+        return;
+      }
 
-    const ownerId = isParentMode ? selectedChildId : user.id;
-    const searchKey = busquedaDebounce.trim() || "all";
-    const cacheKey = `floflo_places_${ownerId}_${searchKey}_${orden}`;
+      const ownerId = isParentMode ? selectedChildId : user.id;
+      const searchKey = busquedaDebounce.trim() || "all";
+      const cacheKey = `floflo_places_${ownerId}_${searchKey}_${orden}`;
 
-    if (isParentWithoutChild) {
-      setLugaresBD([]);
+      if (isParentWithoutChild) {
+        setLugaresBD([]);
+        setLoading(false);
+        return;
+      }
+
+      const cachedPlaces = getCachedData(cacheKey);
+
+      if (Array.isArray(cachedPlaces)) {
+        setLugaresBD(cachedPlaces);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
+
+      const data = isParentMode
+        ? await getChildPlaces(selectedChildId, busquedaDebounce, orden)
+        : await getPlaces(busquedaDebounce, orden);
+
+      const lugaresFormateados = data.map((lugar) => ({
+        id: lugar.id,
+        nombre: lugar.name,
+        descripcion: lugar.description,
+        imagen: lugar.image,
+        emoji: "📍",
+        esDemo: false,
+        managed_by_parent: lugar.managed_by_parent,
+      }));
+
+      setLugaresBD(lugaresFormateados);
+      setCachedData(cacheKey, lugaresFormateados);
+    } catch (error) {
+      console.error(error);
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudieron cargar los lugares",
+        message:
+          error.response?.data?.message ||
+          "Intenta nuevamente en unos segundos.",
+      });
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const cachedPlaces = getCachedData(cacheKey);
-
-    if (Array.isArray(cachedPlaces)) {
-      setLugaresBD(cachedPlaces);
-      setLoading(false);
-    } else {
-      setLoading(true);
-    }
-
-    const data = isParentMode
-      ? await getChildPlaces(selectedChildId, busquedaDebounce, orden)
-      : await getPlaces(busquedaDebounce, orden);
-
-    const lugaresFormateados = data.map((lugar) => ({
-      id: lugar.id,
-      nombre: lugar.name,
-      descripcion: lugar.description,
-      imagen: lugar.image,
-      emoji: "📍",
-      esDemo: false,
-      managed_by_parent: lugar.managed_by_parent,
-    }));
-
-    setLugaresBD(lugaresFormateados);
-    setCachedData(cacheKey, lugaresFormateados);
-  } catch (error) {
-    console.error(error);
-
-    showFeedback({
-      type: "error",
-      icon: "❌",
-      label: "Algo salió mal",
-      title: "No se pudieron cargar los lugares",
-      message:
-        error.response?.data?.message ||
-        "Intenta nuevamente en unos segundos.",
-    });
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   useEffect(() => {
     loadPlaces();
@@ -272,9 +272,17 @@ const Lugares = () => {
               <section className="mx-auto mb-8 max-w-6xl rounded-[2rem] bg-white px-8 py-8 shadow-sm md:px-12">
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
                   {lugares.map((lugar) => {
-                    const imagenValida =
-                      lugar.imagen &&
-                      lugar.imagen.startsWith("https://res.cloudinary.com");
+                    const getImageUrl = (image) => {
+                      if (!image) return null;
+
+                      if (image.startsWith("http")) {
+                        return image;
+                      }
+
+                      return `${import.meta.env.VITE_API_URL}${image}`;
+                    };
+
+                    const imageUrl = getImageUrl(lugar.imagen);
 
                     return (
                       <Link
@@ -282,9 +290,9 @@ const Lugares = () => {
                         to={`/lugares/${lugar.id}`}
                         className="rounded-[2rem] bg-white p-6 shadow-md transition hover:scale-[1.02]"
                       >
-                        {imagenValida ? (
+                        {imageUrl ? (
                           <img
-                            src={lugar.imagen}
+                            src={imageUrl}
                             alt={lugar.nombre}
                             className="mb-4 h-40 w-full rounded-2xl object-cover"
                           />

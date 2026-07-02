@@ -326,6 +326,7 @@ const Amigos = () => {
       setSaving(true);
 
       const wasEditing = Boolean(editingContactId);
+      const contactName = name.trim() || "la persona";
 
       const formData = new FormData();
 
@@ -360,11 +361,11 @@ const Amigos = () => {
         title: wasEditing ? "Persona actualizada" : "Guardada correctamente",
         message: wasEditing
           ? isParentMode
-            ? `Los datos de la persona de ${childName} se actualizaron correctamente.`
-            : "Los datos de la persona se actualizaron correctamente."
+            ? `Los datos de ${contactName}, contacto de ${childName}, se actualizaron correctamente.`
+            : `Los datos de ${contactName} se actualizaron correctamente.`
           : isParentMode
-            ? `La persona fue guardada para ${childName}.`
-            : "La persona fue guardada y ya está disponible en FloFlo.",
+            ? `${contactName} fue guardado/a como contacto de ${childName}.`
+            : `${contactName} fue guardado/a y ya está disponible en FloFlo.`,
       });
     } catch (error) {
       console.error(error);

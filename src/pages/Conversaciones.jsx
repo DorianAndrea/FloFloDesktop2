@@ -214,11 +214,114 @@ const Conversaciones = () => {
     ? getChildDisplayName(selectedChild)
     : "el niño/a seleccionado";
 
+  const getFirstName = (name) => {
+    return (
+      String(name || "")
+        .trim()
+        .split(" ")[0] || ""
+    );
+  };
+
+  const getCleanAdultLabel = (personValue) => {
+    const raw = String(personValue || "").trim();
+
+    if (!raw) return "Adulto";
+
+    const childFirstName = getFirstName(childName).toLowerCase();
+    const childFullName = String(childName || "")
+      .trim()
+      .toLowerCase();
+
+    const parts = raw
+      .split(/,| y /i)
+      .map((part) => part.trim())
+      .filter(Boolean)
+      .filter((part) => {
+        const lower = part.toLowerCase();
+        return lower !== childFirstName && lower !== childFullName;
+      });
+
+    if (parts.length === 0) return "Adulto";
+    if (parts.length === 1) return parts[0];
+
+    return parts.join(" y ");
+  };
+
+  const normalizeAIGeneratedContent = (data, personValue) => {
+    const adultLabel = getCleanAdultLabel(personValue);
+    const childLabel = isParentMode
+      ? getFirstName(childName)
+      : user?.firstName || "el niño/a";
+
+    const cleanText = (text) => {
+      return String(text || "")
+        .replaceAll("Félix", childLabel)
+        .replaceAll("Felix", childLabel)
+        .replaceAll("Persona", childLabel);
+    };
+
+    const cleanAdultSpeaker = (speaker) => {
+      const rawSpeaker = String(speaker || "").trim();
+      const lowerSpeaker = rawSpeaker.toLowerCase();
+
+      if (
+        !rawSpeaker ||
+        lowerSpeaker === "félix" ||
+        lowerSpeaker === "felix" ||
+        lowerSpeaker === "persona" ||
+        lowerSpeaker === "niño" ||
+        lowerSpeaker === "niña"
+      ) {
+        return adultLabel;
+      }
+
+      if (lowerSpeaker.includes(childLabel.toLowerCase())) {
+        return adultLabel;
+      }
+
+      return rawSpeaker;
+    };
+
+    const messages = Array.isArray(data.messages)
+      ? data.messages.map((msg, index) => ({
+          ...msg,
+          // Regla fija:
+          // pares = adulto, impares = niño/a
+          speaker:
+            index % 2 === 0 ? cleanAdultSpeaker(msg.speaker) : childLabel,
+          text: cleanText(msg.text),
+        }))
+      : [];
+
+    const exercise = {
+      question: cleanText(
+        data.exercise?.question || `¿Qué debería decir ${childLabel}?`,
+      ),
+      options: Array.isArray(data.exercise?.options)
+        ? data.exercise.options.map((op) => ({
+            ...op,
+            text: cleanText(op.text),
+          }))
+        : [],
+    };
+
+    const childAnswer =
+      messages.find((msg) => msg.speaker === childLabel)?.text || "";
+
+    return {
+      messages,
+      exercise,
+      childAnswer,
+    };
+  };
+
   const [conversaciones, setConversaciones] = useState([]);
   const [conversacionSeleccionada, setConversacionSeleccionada] =
     useState(null);
   const [respuestaSeleccionada, setRespuestaSeleccionada] = useState(null);
   const [generandoIA, setGenerandoIA] = useState(false);
+  const [regenerandoConversationId, setRegenerandoConversationId] =
+    useState(null);
   const [newAchievement, setNewAchievement] = useState(null);
   const [cargandoOpciones, setCargandoOpciones] = useState(false);
   const [cargandoPagina, setCargandoPagina] = useState(true);
@@ -259,12 +362,20 @@ const Conversaciones = () => {
   const [playWrongSound] = useSound(wrongSound, { volume: 0.35 });
 
   const cargarUserProgress = async () => {
-    if (isParentMode) return;
+    try {
+      if (!user) return;
 
-    const progress = await getUserProgress();
+      // El progreso general con estrellas/nivel solo lo carga el niño/a.
+      // El cuidador no debe llamar /api/progress porque esa ruta es child-only.
+      if (isParent) return;
 
-    setPoints(Number(progress.points || 0));
-    setLevel(Number(progress.level || 1));
+      const progress = await getUserProgress();
+
+      setPoints(Number(progress.points || 0));
+      setLevel(Number(progress.level || 1));
+    } catch (error) {
+      console.error("Error cargando progreso general:", error);
+    }
   };
 
   const cargarProgreso = async () => {
@@ -667,16 +778,29 @@ const Conversaciones = () => {
     try {
       setGenerandoIA(true);
 
-      const data = await generateConversation(formIA);
+      const adultLabel = getCleanAdultLabel(formIA.person);
+      const childLabel = isParentMode
+        ? getFirstName(childName)
+        : user?.firstName || "el niño/a";
+
+      const data = await generateConversation({
+        ...formIA,
+        person: adultLabel,
+        situation: `${formIA.situation}. La conversación debe ser entre ${adultLabel} y ${childLabel}. ${adultLabel} debe hablarle directamente a ${childLabel}. ${childLabel} debe responder en primera persona.`,
+      });
+
+      const normalizedContent = normalizeAIGeneratedContent(
+        data,
+        formIA.person,
+      );
 
       const payload = {
         title: data.title || formIA.topic,
         situation: formIA.situation,
-        what_to_say:
-          data.messages.find((msg) => msg.speaker === "Félix")?.text || "",
+        what_to_say: normalizedContent.childAnswer,
         reminder: `Conversación generada con IA sobre ${formIA.topic}`,
-        messages: data.messages,
-        exercise: data.exercise,
+        messages: normalizedContent.messages,
+        exercise: normalizedContent.exercise,
       };
 
       const savedConversation = isParentMode
@@ -695,13 +819,13 @@ const Conversaciones = () => {
         escenario: formIA.situation,
         habilidad: `Conversación generada con IA sobre ${formIA.topic}`,
         managed_by_parent: isParentMode,
-        dialogo: data.messages.map((msg) => ({
+        dialogo: normalizedContent.messages.map((msg) => ({
           personaje: msg.speaker,
           texto: msg.text,
         })),
         ejercicio: {
-          pregunta: data.exercise.question,
-          opciones: data.exercise.options.map((op) => ({
+          pregunta: normalizedContent.exercise.question,
+          opciones: normalizedContent.exercise.options.map((op) => ({
             texto: op.text,
             correcta: op.isCorrect,
           })),
@@ -759,6 +883,98 @@ const Conversaciones = () => {
   const opcionesNivel2 = (
     conversacionSeleccionada?.ejercicio?.opciones || []
   ).filter((op) => op.texto && op.texto.trim() !== "");
+
+ const handleRegenerateConversation = async (conversation) => {
+  if (!conversation) return;
+
+  if (conversation.tipo === "contacto") {
+    showFeedback({
+      type: "warning",
+      icon: "⚠️",
+      label: "Conversación de contacto",
+      title: "Regénérala desde Amigos",
+      message:
+        "Esta conversación pertenece a un contacto. Puedes regenerarla desde el módulo Amigos.",
+    });
+    return;
+  }
+
+  if (!conversation.conversationId) {
+    showFeedback({
+      type: "error",
+      icon: "❌",
+      label: "Algo salió mal",
+      title: "Conversación inválida",
+      message: "No se encontró el ID de esta conversación.",
+    });
+    return;
+  }
+
+  try {
+    setRegenerandoConversationId(conversation.id);
+
+    const adultLabel = "Adulto";
+    const childLabel = isParentMode
+      ? getFirstName(childName)
+      : user?.firstName || "el niño/a";
+
+    const data = await generateConversation({
+      topic: conversation.titulo || "Conversación social",
+      situation: `${conversation.escenario}. La conversación debe ser entre ${adultLabel} y ${childLabel}. ${adultLabel} debe hacer preguntas o apoyar. ${childLabel} debe responder en primera persona. No uses el nombre Félix. No uses el hablante Persona.`,
+      person: adultLabel,
+      emotion: "",
+    });
+
+    const normalizedContent = normalizeAIGeneratedContent(data, adultLabel);
+
+    const payload = {
+      title: data.title || conversation.titulo,
+      situation: conversation.escenario,
+      what_to_say: normalizedContent.childAnswer,
+      reminder:
+        conversation.habilidad ||
+        `Conversación regenerada con IA sobre ${conversation.titulo}`,
+      messages: normalizedContent.messages,
+      exercise: normalizedContent.exercise,
+    };
+
+    if (isParentMode) {
+      await updateChildConversation(
+        selectedChildId,
+        conversation.conversationId,
+        payload,
+      );
+    } else {
+      await updateConversation(conversation.conversationId, payload);
+    }
+
+    await loadConversations({ useCache: false });
+
+    showFeedback({
+      type: "success",
+      icon: "✨",
+      label: "Conversación regenerada",
+      title: "Félix actualizó la conversación",
+      message: isParentMode
+        ? `La conversación fue regenerada para ${childName}.`
+        : "La conversación fue regenerada correctamente.",
+    });
+  } catch (error) {
+    console.error(error);
+
+    showFeedback({
+      type: "error",
+      icon: "❌",
+      label: "Algo salió mal",
+      title: "No se pudo regenerar",
+      message:
+        error.response?.data?.message ||
+        "Félix no pudo regenerar la conversación. Intenta nuevamente.",
+    });
+  } finally {
+    setRegenerandoConversationId(null);
+  }
+};
 
   const handleDeleteConversation = async (conversation) => {
     if (!conversation) return;
@@ -1205,7 +1421,7 @@ const Conversaciones = () => {
               name="person"
               value={formIA.person}
               onChange={handleChangeIA}
-              placeholder="Persona: Profesora"
+              placeholder="Persona que habla: Mamá"
               className="rounded-2xl border-2 border-[#DCCCF8] p-4 focus:border-[#9B7BE8] focus:outline-none"
             />
 
@@ -1312,7 +1528,7 @@ const Conversaciones = () => {
                         <div className="flex flex-col items-end gap-2">
                           {item.tipo === "contacto" && (
                             <span className="rounded-full bg-[#EAF8EF] px-3 py-1 text-sm font-bold text-[#2F6B4F]">
-                              Contacto
+                              Cuidador
                             </span>
                           )}
 
@@ -1338,11 +1554,14 @@ const Conversaciones = () => {
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              abrirEditor(item);
+                              handleRegenerateConversation(item);
                             }}
-                            className="rounded-xl bg-[#E8DDFF] px-4 py-3 font-bold text-[#4B367C] hover:bg-[#DCCCF8]"
+                            disabled={regenerandoConversationId === item.id}
+                            className="rounded-xl bg-[#E8DDFF] px-4 py-3 font-bold text-[#4B367C] hover:bg-[#DCCCF8] disabled:opacity-50"
                           >
-                            Editar
+                            {regenerandoConversationId === item.id
+                              ? "Regenerando..."
+                              : "✨ Regenerar"}
                           </button>
 
                           <button
@@ -1527,30 +1746,61 @@ const Conversaciones = () => {
                   {conversacionSeleccionada.dialogo
                     .filter((linea) => linea.texto)
                     .map((linea, index) => {
-                      const esFelix = linea.personaje === "Félix";
+                      const activeChildLabel = isParentMode
+                        ? getFirstName(childName)
+                        : user?.firstName || "el niño/a";
+
+                      const rawSpeaker = String(linea.personaje || "").trim();
+                      const speakerLower = rawSpeaker.toLowerCase();
+                      const childLower = activeChildLabel.toLowerCase();
+
+                      const isGeneratedByAI = String(
+                        conversacionSeleccionada.habilidad || "",
+                      )
+                        .toLowerCase()
+                        .includes("ia");
+
+                      const esNino =
+                        speakerLower === childLower ||
+                        speakerLower === "persona" ||
+                        speakerLower === "niño" ||
+                        speakerLower === "niña" ||
+                        (isGeneratedByAI && index % 2 === 1);
+
+                      const displaySpeaker = esNino
+                        ? activeChildLabel
+                        : rawSpeaker &&
+                            rawSpeaker.toLowerCase() !== "félix" &&
+                            rawSpeaker.toLowerCase() !== "felix" &&
+                            rawSpeaker.toLowerCase() !== "persona"
+                          ? rawSpeaker
+                          : "Adulto";
+
+                      const displayText = String(linea.texto || "")
+                        .replaceAll("Félix", activeChildLabel)
+                        .replaceAll("Felix", activeChildLabel)
+                        .replaceAll("Persona", activeChildLabel);
 
                       return (
                         <motion.div
-                          key={`${linea.personaje}-${index}`}
+                          key={`${displaySpeaker}-${index}`}
                           initial={{ opacity: 0, y: 8 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: index * 0.08 }}
-                          className={`flex ${
-                            esFelix ? "justify-start" : "justify-end"
-                          }`}
+                          className={`flex w-full ${esNino ? "justify-end" : "justify-start"}`}
                         >
                           <div
                             className={`
                               max-w-[85%] rounded-[1.5rem] px-6 py-4 shadow-sm
                               ${
-                                esFelix
-                                  ? "bg-[#E8DDFF] text-[#4B367C]"
-                                  : "bg-[#FFF3C4] text-[#5C4A00]"
+                                esNino
+                                  ? "bg-[#FFF3C4] text-[#5C4A00]"
+                                  : "bg-[#E8DDFF] text-[#4B367C]"
                               }
                             `}
                           >
-                            <p className="mb-1 font-bold">{linea.personaje}</p>
-                            <p className="text-xl">{linea.texto}</p>
+                            <p className="mb-1 font-bold">{displaySpeaker}</p>
+                            <p className="text-xl">{displayText}</p>
                           </div>
                         </motion.div>
                       );
