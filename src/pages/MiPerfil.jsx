@@ -208,25 +208,25 @@ const MiPerfil = () => {
     }
   };
   const getAvatarUrl = (avatarValue) => {
-  if (!avatarValue) return null;
+    if (!avatarValue) return null;
 
-  const avatarString = String(avatarValue).trim();
+    const avatarString = String(avatarValue).trim();
 
-  if (!avatarString) return null;
+    if (!avatarString) return null;
 
-  if (avatarString.startsWith("http")) {
-    return avatarString;
-  }
+    if (avatarString.startsWith("http")) {
+      return avatarString;
+    }
 
-  if (avatarString.startsWith("/uploads")) {
-    const apiBase = import.meta.env.VITE_API_URL || "";
-    const backendBase = apiBase.replace("/api", "");
+    if (avatarString.startsWith("/uploads")) {
+      const apiBase = import.meta.env.VITE_API_URL || "";
+      const backendBase = apiBase.replace("/api", "");
 
-    return `${backendBase}${avatarString}`;
-  }
+      return `${backendBase}${avatarString}`;
+    }
 
-  return null;
-};
+    return null;
+  };
 
   if (!user) {
     return (
@@ -329,9 +329,9 @@ const MiPerfil = () => {
               <div className="bg-[#F3ECFF] border-2 border-[#E4D8FF] rounded-[2rem] p-8 text-center">
                 <p className="text-[#6B5A95] font-semibold mb-5">Avatar</p>
 
-                {user.avatar ? (
+                {avatarUrl ? (
                   <img
-                    src={user.avatar}
+                    src={avatarUrl}
                     alt="Avatar usuario"
                     className="w-44 h-44 mx-auto rounded-full object-cover border-4 border-[#DCCCF8] shadow-md"
                   />
