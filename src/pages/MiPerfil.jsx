@@ -4,6 +4,28 @@ import { useFloFlo } from "../context/FloFloContext";
 import { useFeedback } from "../context/FeedbackContext";
 import { formatRut, cleanRut } from "../utils/formatRut";
 
+const getAvatarUrl = (avatarValue) => {
+  if (!avatarValue) return null;
+
+  const avatarString = String(avatarValue).trim();
+
+  if (!avatarString) return null;
+
+  if (avatarString.startsWith("http")) {
+    return avatarString;
+  }
+
+  if (avatarString.startsWith("/uploads")) {
+    const apiBase = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
+
+    const backendBase = apiBase.replace(/\/api\/?$/, "");
+
+    return `${backendBase}${avatarString}`;
+  }
+
+  return null;
+};
+
 const MiPerfil = () => {
   const { setUser } = useFloFlo();
   const { showFeedback } = useFeedback();
@@ -35,7 +57,7 @@ const MiPerfil = () => {
       setBirthDate(data.birth_date ? data.birth_date.slice(0, 10) : "");
       setRole(data.role || "child");
       setAvatar(null);
-      setPreview(data.avatar || "");
+      setPreview(getAvatarUrl(data.avatar) || "");
     } catch (error) {
       console.error(error);
 
@@ -333,6 +355,11 @@ const MiPerfil = () => {
                   <img
                     src={avatarUrl}
                     alt="Avatar usuario"
+                    onError={() => {
+                      setProfileUser((prev) =>
+                        prev ? { ...prev, avatar: null } : prev,
+                      );
+                    }}
                     className="w-44 h-44 mx-auto rounded-full object-cover border-4 border-[#DCCCF8] shadow-md"
                   />
                 ) : (
@@ -488,6 +515,7 @@ const MiPerfil = () => {
                 <img
                   src={preview}
                   alt="Avatar"
+                  onError={() => setPreview("")}
                   className="w-44 h-44 mx-auto rounded-full object-cover mb-5 border-4 border-[#DCCCF8] shadow-md"
                 />
               )}
