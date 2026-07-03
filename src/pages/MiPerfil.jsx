@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getMe, updateMe } from "../services/authService";
+import { getMe, updateMe, changePassword } from "../services/authService";
 import { useFloFlo } from "../context/FloFloContext";
 import { useFeedback } from "../context/FeedbackContext";
 import { formatRut, cleanRut } from "../utils/formatRut";
@@ -18,6 +18,11 @@ const MiPerfil = () => {
   const [role, setRole] = useState("child");
   const [avatar, setAvatar] = useState(null);
   const [preview, setPreview] = useState("");
+
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
 
   const loadProfile = async () => {
     try {
@@ -132,9 +137,80 @@ const MiPerfil = () => {
     }
   };
 
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+
+    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+
+    if (!currentPassword.trim()) {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Falta información",
+        title: "Contraseña actual obligatoria",
+        message: "Debes ingresar tu contraseña actual.",
+      });
+      return;
+    }
+
+    if (!passwordRegex.test(newPassword)) {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Contraseña débil",
+        title: "Revisa tu nueva contraseña",
+        message:
+          "La nueva contraseña debe tener al menos 8 caracteres e incluir letras y números.",
+      });
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Revisa la contraseña",
+        title: "Las contraseñas no coinciden",
+        message: "La nueva contraseña y su confirmación deben ser iguales.",
+      });
+      return;
+    }
+
+    try {
+      setChangingPassword(true);
+
+      await changePassword(currentPassword, newPassword);
+
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+
+      showFeedback({
+        type: "success",
+        icon: "✅",
+        label: "Contraseña actualizada",
+        title: "Tu clave fue cambiada",
+        message: "La contraseña de tu cuenta se actualizó correctamente.",
+      });
+    } catch (error) {
+      console.error(error);
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudo cambiar la contraseña",
+        message:
+          error.message || "Revisa tu contraseña actual e intenta nuevamente.",
+      });
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   if (!user) {
     return (
-      <div className="min-h-screen flex justify-center items-center">
+      <div className="min-h-screen bg-[#F6F0FF] flex justify-center items-center text-[#4B367C] font-bold">
         Cargando perfil...
       </div>
     );
@@ -166,84 +242,145 @@ const MiPerfil = () => {
         </div>
 
         {!editing ? (
-          <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-10 items-start">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-[#FDFBFF] border border-[#E4D8FF] rounded-2xl p-5">
-                <p className="text-gray-500">Nombre</p>
-                <p className="text-xl font-semibold">{user.firstName}</p>
+          <div className="space-y-10">
+            <div className="grid grid-cols-1 lg:grid-cols-[1.2fr_0.8fr] gap-10 items-start">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-[#FDFBFF] border border-[#E4D8FF] rounded-2xl p-5">
+                  <p className="text-gray-500">Nombre</p>
+                  <p className="text-xl font-semibold">{user.firstName}</p>
+                </div>
+
+                <div className="bg-[#FDFBFF] border border-[#E4D8FF] rounded-2xl p-5">
+                  <p className="text-gray-500">Apellido</p>
+                  <p className="text-xl font-semibold">{user.lastName}</p>
+                </div>
+
+                <div className="bg-[#FDFBFF] border border-[#E4D8FF] rounded-2xl p-5 md:col-span-2">
+                  <p className="text-gray-500">Correo</p>
+                  <p className="text-xl font-semibold break-all">
+                    {user.email}
+                  </p>
+                </div>
+
+                <div className="bg-[#FDFBFF] border border-[#E4D8FF] rounded-2xl p-5">
+                  <p className="text-gray-500">Rol</p>
+
+                  <p
+                    className={`inline-block mt-2 px-4 py-2 rounded-full font-bold ${
+                      user.role === "parent"
+                        ? "bg-[#CFEFD9] text-[#2F6B4F] border border-[#9ED5B3]"
+                        : "bg-[#E8DDFF] text-[#6B4FC3] border border-[#D6C7FF]"
+                    }`}
+                  >
+                    {user.role === "parent" ? "Padre/Cuidador" : "Niño"}
+                  </p>
+                </div>
+
+                <div className="bg-[#FDFBFF] border border-[#E4D8FF] rounded-2xl p-5">
+                  <p className="text-gray-500">Rut</p>
+
+                  <p className="text-xl font-semibold">
+                    {user.rut ? formatRut(user.rut) : "No registrado"}
+                  </p>
+                </div>
+
+                <div className="bg-[#FDFBFF] border border-[#E4D8FF] rounded-2xl p-5">
+                  <p className="text-gray-500">Fecha nacimiento</p>
+
+                  <p className="text-xl font-semibold">
+                    {user.birth_date
+                      ? new Date(user.birth_date).toLocaleDateString()
+                      : "No registrada"}
+                  </p>
+                </div>
+
+                <div className="bg-[#FDFBFF] border border-[#E4D8FF] rounded-2xl p-5 md:col-span-2">
+                  <p className="text-gray-500">Miembro desde</p>
+
+                  <p className="text-xl font-semibold">
+                    {user.created_at
+                      ? new Date(user.created_at).toLocaleDateString()
+                      : "No registrado"}
+                  </p>
+                </div>
               </div>
 
-              <div className="bg-[#FDFBFF] border border-[#E4D8FF] rounded-2xl p-5">
-                <p className="text-gray-500">Apellido</p>
-                <p className="text-xl font-semibold">{user.lastName}</p>
-              </div>
+              <div className="bg-[#F3ECFF] border-2 border-[#E4D8FF] rounded-[2rem] p-8 text-center">
+                <p className="text-[#6B5A95] font-semibold mb-5">Avatar</p>
 
-              <div className="bg-[#FDFBFF] border border-[#E4D8FF] rounded-2xl p-5 md:col-span-2">
-                <p className="text-gray-500">Correo</p>
-                <p className="text-xl font-semibold break-all">{user.email}</p>
-              </div>
+                {user.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt="Avatar usuario"
+                    className="w-44 h-44 mx-auto rounded-full object-cover border-4 border-[#DCCCF8] shadow-md"
+                  />
+                ) : (
+                  <div className="w-44 h-44 mx-auto rounded-full border-4 border-[#DCCCF8] bg-white flex items-center justify-center text-[#6B5A95] font-bold">
+                    Sin avatar
+                  </div>
+                )}
 
-              <div className="bg-[#FDFBFF] border border-[#E4D8FF] rounded-2xl p-5">
-                <p className="text-gray-500">Rol</p>
+                <h2 className="text-2xl font-bold text-[#4B367C] mt-5">
+                  {user.firstName} {user.lastName}
+                </h2>
 
-                <p
-                  className={`inline-block mt-2 px-4 py-2 rounded-full font-bold ${
-                    user.role === "parent"
-                      ? "bg-[#CFEFD9] text-[#2F6B4F] border border-[#9ED5B3]"
-                      : "bg-[#E8DDFF] text-[#6B4FC3] border border-[#D6C7FF]"
-                  }`}
-                >
-                  {user.role === "parent" ? "Padre/Cuidador" : "Niño"}
-                </p>
-              </div>
-
-              <div className="bg-[#FDFBFF] border border-[#E4D8FF] rounded-2xl p-5">
-                <p className="text-gray-500">Rut</p>
-
-                <p className="text-xl font-semibold">
-                  {user.rut ? formatRut(user.rut) : "No registrado"}
-                </p>
-              </div>
-
-              <div className="bg-[#FDFBFF] border border-[#E4D8FF] rounded-2xl p-5">
-                <p className="text-gray-500">Fecha nacimiento</p>
-
-                <p className="text-xl font-semibold">
-                  {user.birth_date
-                    ? new Date(user.birth_date).toLocaleDateString()
-                    : "No registrada"}
-                </p>
-              </div>
-
-              <div className="bg-[#FDFBFF] border border-[#E4D8FF] rounded-2xl p-5 md:col-span-2">
-                <p className="text-gray-500">Miembro desde</p>
-
-                <p className="text-xl font-semibold">
-                  {new Date(user.created_at).toLocaleDateString()}
-                </p>
+                <p className="text-[#6B5A95] mt-2">Perfil de FloFlo</p>
               </div>
             </div>
 
-            <div className="bg-[#F3ECFF] border-2 border-[#E4D8FF] rounded-[2rem] p-8 text-center">
-              <p className="text-[#6B5A95] font-semibold mb-5">Avatar</p>
-
-              {user.avatar ? (
-                <img
-                  src={user.avatar}
-                  alt="Avatar usuario"
-                  className="w-44 h-44 mx-auto rounded-full object-cover border-4 border-[#DCCCF8] shadow-md"
-                />
-              ) : (
-                <div className="w-44 h-44 mx-auto rounded-full border-4 border-[#DCCCF8] bg-white flex items-center justify-center text-[#6B5A95] font-bold">
-                  Sin avatar
-                </div>
-              )}
-
-              <h2 className="text-2xl font-bold text-[#4B367C] mt-5">
-                {user.firstName} {user.lastName}
+            <div className="bg-[#FDFBFF] border border-[#E4D8FF] rounded-3xl p-6 md:p-8">
+              <h2 className="text-2xl font-bold text-[#4B367C]">
+                Seguridad de la cuenta
               </h2>
 
-              <p className="text-[#6B5A95] mt-2">Perfil de FloFlo</p>
+              <p className="text-[#6B5A95] mt-2 mb-6">
+                Cambia tu contraseña para mantener protegida tu información en
+                FloFlo.
+              </p>
+
+              <form onSubmit={handleChangePassword} className="space-y-5">
+                <input
+                  id="perfil-password-actual"
+                  name="currentPassword"
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Contraseña actual"
+                  className="w-full py-3 text-gray-900 bg-transparent border-b border-gray-300 focus:outline-none focus:border-[#9B7BE8]"
+                />
+
+                <input
+                  id="perfil-password-nueva"
+                  name="newPassword"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Nueva contraseña"
+                  className="w-full py-3 text-gray-900 bg-transparent border-b border-gray-300 focus:outline-none focus:border-[#9B7BE8]"
+                />
+
+                <p className="text-sm text-[#6B5A95]">
+                  Mínimo 8 caracteres, con al menos una letra y un número.
+                </p>
+
+                <input
+                  id="perfil-password-confirmar"
+                  name="confirmNewPassword"
+                  type="password"
+                  value={confirmNewPassword}
+                  onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  placeholder="Confirmar nueva contraseña"
+                  className="w-full py-3 text-gray-900 bg-transparent border-b border-gray-300 focus:outline-none focus:border-[#9B7BE8]"
+                />
+
+                <button
+                  type="submit"
+                  disabled={changingPassword}
+                  className="bg-[#9B7BE8] hover:bg-[#8B6FD6] disabled:opacity-60 text-white font-semibold px-6 py-3 rounded-full transition"
+                >
+                  {changingPassword ? "Cambiando..." : "Cambiar contraseña"}
+                </button>
+              </form>
             </div>
           </div>
         ) : (

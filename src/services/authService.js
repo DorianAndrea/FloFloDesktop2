@@ -28,6 +28,23 @@ export const updateMe = async (userData) => {
   return response.data;
 };
 
+export const changePassword = async (currentPassword, newPassword) => {
+  try {
+    const response = await api.put("/auth/change-password", {
+      currentPassword,
+      newPassword,
+    });
+
+    return response.data;
+  } catch (error) {
+    throw (
+      error.response?.data || {
+        message: "Error cambiando contraseña",
+      }
+    );
+  }
+};
+
 export const forgotPassword = async (email) => {
   try {
     const response = await api.post("/auth/forgot-password", {

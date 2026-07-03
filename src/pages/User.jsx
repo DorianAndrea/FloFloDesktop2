@@ -106,13 +106,16 @@ const User = () => {
       return;
     }
 
-    if (password.length < 6) {
+    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+
+    if (!passwordRegex.test(password)) {
       showFeedback({
         type: "warning",
         icon: "⚠️",
-        label: "Contraseña muy corta",
-        title: "Usa al menos 6 caracteres",
-        message: "La contraseña debe tener al menos 6 caracteres.",
+        label: "Contraseña débil",
+        title: "Revisa tu contraseña",
+        message:
+          "La contraseña debe tener al menos 8 caracteres e incluir letras y números.",
       });
       return;
     }
@@ -245,6 +248,10 @@ const User = () => {
               placeholder="Contraseña"
               className="w-full py-3 text-gray-900 placeholder-gray-400 bg-transparent border-b border-gray-300 focus:outline-none focus:border-cyan-700"
             />
+
+            <p className="text-sm text-gray-500">
+              Mínimo 8 caracteres, con al menos una letra y un número.
+            </p>
 
             <input
               type="password"
