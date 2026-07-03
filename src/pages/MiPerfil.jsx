@@ -140,7 +140,7 @@ const MiPerfil = () => {
   const handleChangePassword = async (e) => {
     e.preventDefault();
 
-    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 
     if (!currentPassword.trim()) {
       showFeedback({
@@ -160,7 +160,7 @@ const MiPerfil = () => {
         label: "Contraseña débil",
         title: "Revisa tu nueva contraseña",
         message:
-          "La nueva contraseña debe tener al menos 8 caracteres e incluir letras y números.",
+          "La nueva contraseña debe tener al menos 8 caracteres e incluir mayúscula, minúscula y número.",
       });
       return;
     }
@@ -207,6 +207,26 @@ const MiPerfil = () => {
       setChangingPassword(false);
     }
   };
+  const getAvatarUrl = (avatarValue) => {
+  if (!avatarValue) return null;
+
+  const avatarString = String(avatarValue).trim();
+
+  if (!avatarString) return null;
+
+  if (avatarString.startsWith("http")) {
+    return avatarString;
+  }
+
+  if (avatarString.startsWith("/uploads")) {
+    const apiBase = import.meta.env.VITE_API_URL || "";
+    const backendBase = apiBase.replace("/api", "");
+
+    return `${backendBase}${avatarString}`;
+  }
+
+  return null;
+};
 
   if (!user) {
     return (
@@ -215,6 +235,7 @@ const MiPerfil = () => {
       </div>
     );
   }
+  const avatarUrl = getAvatarUrl(user.avatar);
 
   return (
     <div className="min-h-screen bg-[#F6F0FF] py-10 px-6">
@@ -360,7 +381,7 @@ const MiPerfil = () => {
                 />
 
                 <p className="text-sm text-[#6B5A95]">
-                  Mínimo 8 caracteres, con al menos una letra y un número.
+                  Mínimo 8 caracteres, con mayúscula, minúscula y número.
                 </p>
 
                 <input

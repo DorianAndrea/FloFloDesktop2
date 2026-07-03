@@ -106,7 +106,7 @@ const User = () => {
       return;
     }
 
-    const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
 
     if (!passwordRegex.test(password)) {
       showFeedback({
@@ -115,7 +115,7 @@ const User = () => {
         label: "Contraseña débil",
         title: "Revisa tu contraseña",
         message:
-          "La contraseña debe tener al menos 8 caracteres e incluir letras y números.",
+          "La contraseña debe tener al menos 8 caracteres e incluir mayúscula, minúscula y número.",
       });
       return;
     }
@@ -250,7 +250,7 @@ const User = () => {
             />
 
             <p className="text-sm text-gray-500">
-              Mínimo 8 caracteres, con al menos una letra y un número.
+              Mínimo 8 caracteres, con mayúscula, minúscula y número.
             </p>
 
             <input
