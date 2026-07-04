@@ -17,6 +17,11 @@ const emptyProfile = {
   light_sensitivity: "",
   texture_sensitivity: "",
   crowd_sensitivity: "",
+  touch_sensitivity: "",
+  smell_sensitivity: "",
+  food_sensitivity: "",
+  unexpected_changes: "",
+  waiting_sensitivity: "",
   calming_items: "",
   calming_activities: "",
   stress_signals: "",
@@ -25,54 +30,123 @@ const emptyProfile = {
   updated_at: null,
 };
 
-const fields = [
+const fieldGroups = [
   {
-    name: "noise_sensitivity",
-    label: "Sensibilidad al ruido",
-    placeholder: "Ej: Le molestan aspiradoras, gritos o bocinas.",
+    title: "Sensibilidades",
+    emoji: "🧩",
+    description:
+      "Registra estímulos sensoriales que pueden incomodar, sobrecargar o requerir adaptación.",
+    fields: [
+      {
+        name: "noise_sensitivity",
+        label: "Sensibilidad al ruido",
+        placeholder:
+          "Ej: Le molestan aspiradoras, gritos, bocinas o ambientes ruidosos.",
+      },
+      {
+        name: "light_sensitivity",
+        label: "Sensibilidad a la luz",
+        placeholder:
+          "Ej: Prefiere luces suaves o le molestan luces directas o intensas.",
+      },
+      {
+        name: "texture_sensitivity",
+        label: "Sensibilidad a texturas",
+        placeholder:
+          "Ej: No tolera etiquetas, telas ásperas, lana o ciertas texturas.",
+      },
+      {
+        name: "crowd_sensitivity",
+        label: "Sensibilidad a multitudes",
+        placeholder:
+          "Ej: Se incomoda en lugares con mucha gente o espacios llenos.",
+      },
+      {
+        name: "touch_sensitivity",
+        label: "Contacto físico",
+        placeholder:
+          "Ej: Prefiere que le avisen antes de abrazarlo/a o tocarlo/a.",
+      },
+      {
+        name: "smell_sensitivity",
+        label: "Olores",
+        placeholder:
+          "Ej: Le incomodan perfumes, comida con olor fuerte o productos de limpieza.",
+      },
+      {
+        name: "food_sensitivity",
+        label: "Alimentación y texturas de comida",
+        placeholder:
+          "Ej: Prefiere alimentos suaves, evita mezclas o rechaza ciertas texturas.",
+      },
+    ],
   },
   {
-    name: "light_sensitivity",
-    label: "Sensibilidad a la luz",
-    placeholder: "Ej: Prefiere luces suaves o cálidas.",
+    title: "Situaciones difíciles",
+    emoji: "⏳",
+    description:
+      "Registra momentos que pueden generar frustración, incomodidad o necesidad de anticipación.",
+    fields: [
+      {
+        name: "unexpected_changes",
+        label: "Cambios inesperados",
+        placeholder:
+          "Ej: Le cuesta cuando cambia una rutina, salida o actividad sin aviso.",
+      },
+      {
+        name: "waiting_sensitivity",
+        label: "Esperas prolongadas",
+        placeholder:
+          "Ej: Se frustra o se inquieta cuando debe esperar mucho tiempo.",
+      },
+    ],
   },
   {
-    name: "texture_sensitivity",
-    label: "Sensibilidad a texturas",
-    placeholder: "Ej: No tolera etiquetas, telas ásperas o ciertas comidas.",
+    title: "Apoyos que ayudan",
+    emoji: "🌿",
+    description:
+      "Registra objetos, actividades y estrategias que favorecen calma, regulación y seguridad.",
+    fields: [
+      {
+        name: "calming_items",
+        label: "Objetos que ayudan a calmar",
+        placeholder: "Ej: Audífonos, peluche, manta, juguete favorito.",
+      },
+      {
+        name: "calming_activities",
+        label: "Actividades que ayudan",
+        placeholder: "Ej: Respirar con Félix, música tranquila, dibujar.",
+      },
+      {
+        name: "support_strategies",
+        label: "Estrategias que funcionan",
+        placeholder: "Ej: Anticipar cambios, hablar con calma, dar pausas.",
+      },
+    ],
   },
   {
-    name: "crowd_sensitivity",
-    label: "Sensibilidad a multitudes",
-    placeholder: "Ej: Se incomoda en lugares con mucha gente.",
-  },
-  {
-    name: "calming_items",
-    label: "Objetos que ayudan a calmar",
-    placeholder: "Ej: Audífonos, peluche, manta, juguete favorito.",
-  },
-  {
-    name: "calming_activities",
-    label: "Actividades que ayudan",
-    placeholder: "Ej: Respirar con Félix, música tranquila, dibujar.",
-  },
-  {
-    name: "stress_signals",
-    label: "Señales de sobrecarga",
-    placeholder: "Ej: Se tapa los oídos, llora, se aleja, se queda callado.",
-  },
-  {
-    name: "support_strategies",
-    label: "Estrategias que funcionan",
-    placeholder: "Ej: Anticipar cambios, hablar con calma, dar pausas.",
-  },
-  {
-    name: "notes",
-    label: "Notas generales",
-    placeholder:
-      "Ej: Reacciona mejor cuando se le avisa antes de cambiar de actividad.",
+    title: "Observaciones",
+    emoji: "📝",
+    description:
+      "Registra señales observables y notas generales útiles para padres, cuidadores o profesionales.",
+    fields: [
+      {
+        name: "stress_signals",
+        label: "Señales de sobrecarga",
+        placeholder:
+          "Ej: Se tapa los oídos, llora, se aleja, aletea o se queda callado/a.",
+      },
+      {
+        name: "notes",
+        label: "Notas generales",
+        placeholder:
+          "Ej: Reacciona mejor cuando se le avisa antes de cambiar de actividad.",
+      },
+    ],
   },
 ];
+
+const fields = fieldGroups.flatMap((group) => group.fields);
 
 const PerfilSensorial = () => {
   const { user } = useFloFlo();
@@ -105,16 +179,16 @@ const PerfilSensorial = () => {
   const normalizeProfile = (data) => {
     if (!data) return { ...emptyProfile };
 
+    const normalized = fields.reduce(
+      (acc, field) => ({
+        ...acc,
+        [field.name]: data[field.name] || "",
+      }),
+      {},
+    );
+
     return {
-      noise_sensitivity: data.noise_sensitivity || "",
-      light_sensitivity: data.light_sensitivity || "",
-      texture_sensitivity: data.texture_sensitivity || "",
-      crowd_sensitivity: data.crowd_sensitivity || "",
-      calming_items: data.calming_items || "",
-      calming_activities: data.calming_activities || "",
-      stress_signals: data.stress_signals || "",
-      support_strategies: data.support_strategies || "",
-      notes: data.notes || "",
+      ...normalized,
       updated_at: data.updated_at || null,
     };
   };
@@ -372,15 +446,7 @@ const PerfilSensorial = () => {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {fields.map((field) => (
-                  <InfoCard
-                    key={field.name}
-                    title={field.label}
-                    value={profile[field.name]}
-                  />
-                ))}
-              </div>
+              <FieldGroupsView profile={profile} />
             </div>
             <CompareSensoryVersions
               currentProfile={profile}
@@ -413,13 +479,7 @@ const PerfilSensorial = () => {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {fields.map((field) => (
-                  <InfoCard
-                    key={field.name}
-                    title={field.label}
-                    value={profile[field.name]}
-                  />
-                ))}
+                <FieldGroupsView profile={profile} />
               </div>
             </div>
             <CompareSensoryVersions
@@ -467,24 +527,7 @@ const PerfilSensorial = () => {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                {fields.map((field) => (
-                  <div key={field.name}>
-                    <label className="block text-sm font-bold text-purple-700 mb-2">
-                      {field.label}
-                    </label>
-
-                    <textarea
-                      name={field.name}
-                      value={profile[field.name]}
-                      onChange={handleChange}
-                      placeholder={field.placeholder}
-                      rows={4}
-                      className="w-full border border-purple-200 rounded-2xl px-4 py-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-300"
-                    />
-                  </div>
-                ))}
-              </div>
+              <FieldGroupsForm profile={profile} onChange={handleChange} />
 
               <button
                 type="submit"
@@ -505,6 +548,77 @@ const PerfilSensorial = () => {
         )}
       </section>
     </main>
+  );
+};
+const FieldGroupSection = ({ group, profile, mode = "view", onChange }) => {
+  return (
+    <section className="bg-white rounded-3xl border border-purple-100 shadow-sm p-5 md:p-6">
+      <div className="mb-5">
+        <p className="text-sm font-bold text-purple-500 mb-1">
+          {group.emoji} {group.title}
+        </p>
+
+        <p className="text-sm text-gray-500">{group.description}</p>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        {group.fields.map((field) =>
+          mode === "edit" ? (
+            <div key={field.name}>
+              <label className="block text-sm font-bold text-purple-700 mb-2">
+                {field.label}
+              </label>
+
+              <textarea
+                name={field.name}
+                value={profile[field.name] || ""}
+                onChange={onChange}
+                placeholder={field.placeholder}
+                rows={4}
+                className="w-full border border-purple-200 rounded-2xl px-4 py-3 text-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-300"
+              />
+            </div>
+          ) : (
+            <InfoCard
+              key={field.name}
+              title={field.label}
+              value={profile[field.name]}
+            />
+          ),
+        )}
+      </div>
+    </section>
+  );
+};
+
+const FieldGroupsView = ({ profile }) => {
+  return (
+    <div className="space-y-6">
+      {fieldGroups.map((group) => (
+        <FieldGroupSection
+          key={group.title}
+          group={group}
+          profile={profile}
+          mode="view"
+        />
+      ))}
+    </div>
+  );
+};
+
+const FieldGroupsForm = ({ profile, onChange }) => {
+  return (
+    <div className="space-y-6">
+      {fieldGroups.map((group) => (
+        <FieldGroupSection
+          key={group.title}
+          group={group}
+          profile={profile}
+          mode="edit"
+          onChange={onChange}
+        />
+      ))}
+    </div>
   );
 };
 const LastUpdatedInfo = ({ date }) => {
@@ -672,11 +786,7 @@ const HistoryCard = ({ item, index }) => {
     : "Fecha no disponible";
 
   const mainSummary =
-    item.noise_sensitivity ||
-    item.light_sensitivity ||
-    item.texture_sensitivity ||
-    item.crowd_sensitivity ||
-    item.notes ||
+    fields.map((field) => item[field.name]).find((value) => value?.trim()) ||
     "Versión guardada del perfil sensorial.";
 
   return (
@@ -713,28 +823,28 @@ const HistoryCard = ({ item, index }) => {
 
       {isOpen && (
         <div className="mt-5">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <SmallInfo title="Ruido" value={item.noise_sensitivity} />
-            <SmallInfo title="Luz" value={item.light_sensitivity} />
-            <SmallInfo title="Texturas" value={item.texture_sensitivity} />
-            <SmallInfo title="Multitudes" value={item.crowd_sensitivity} />
-            <SmallInfo title="Objetos calmantes" value={item.calming_items} />
-            <SmallInfo
-              title="Actividades calmantes"
-              value={item.calming_activities}
-            />
-            <SmallInfo title="Señales" value={item.stress_signals} />
-            <SmallInfo title="Estrategias" value={item.support_strategies} />
-          </div>
+          <div className="space-y-5">
+            {fieldGroups.map((group) => (
+              <section
+                key={group.title}
+                className="bg-white rounded-2xl p-4 border border-purple-100"
+              >
+                <p className="text-sm font-bold text-purple-700 mb-3">
+                  {group.emoji} {group.title}
+                </p>
 
-          {item.notes && (
-            <div className="mt-4 bg-white rounded-xl p-4 border border-purple-100">
-              <p className="text-sm font-bold text-purple-700 mb-1">Notas</p>
-              <p className="text-sm text-gray-600 whitespace-pre-line">
-                {item.notes}
-              </p>
-            </div>
-          )}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {group.fields.map((field) => (
+                    <SmallInfo
+                      key={field.name}
+                      title={field.label}
+                      value={item[field.name]}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
         </div>
       )}
     </article>

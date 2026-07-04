@@ -29,6 +29,9 @@ const Navbar = () => {
 
   const isParent = user?.role === "parent";
   const isParentMode = isParent && Boolean(selectedChildId);
+  const intelligentReportPath = selectedChildId
+    ? `/informe-inteligente?childId=${selectedChildId}`
+    : "/informe-inteligente";
 
   const activityLinks = [
     { name: "Emociones", path: "/emociones", emoji: "😊" },
@@ -238,6 +241,20 @@ const Navbar = () => {
                   Panel Padres
                 </NavLink>
               )}
+              {isParent && (
+                <NavLink
+                  to={intelligentReportPath}
+                  className={({ isActive }) =>
+                    `font-semibold px-4 py-2 rounded-full transition ${
+                      isActive
+                        ? "bg-[#E8DDFF] text-[#6B4FC3] border border-[#CDBBFF]"
+                        : "bg-[#F3ECFF] text-[#6B4FC3] border border-[#D6C7FF] hover:bg-[#E8DDFF]"
+                    }`
+                  }
+                >
+                  Informe Inteligente
+                </NavLink>
+              )}
             </>
           )}
         </div>
@@ -370,6 +387,15 @@ const Navbar = () => {
                     className="bg-[#CFEFD9] text-[#2F6B4F] border border-[#9ED5B3] font-bold px-4 py-3 rounded-full w-fit"
                   >
                     👨‍👩‍👧 Panel Padres
+                  </NavLink>
+                )}
+                {isParent && (
+                  <NavLink
+                    to={intelligentReportPath}
+                    onClick={closeMenus}
+                    className="bg-[#F3ECFF] text-[#6B4FC3] border border-[#D6C7FF] font-bold px-4 py-3 rounded-full w-fit"
+                  >
+                    🧠 Informe Inteligente
                   </NavLink>
                 )}
 

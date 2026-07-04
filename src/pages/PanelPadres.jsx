@@ -9,6 +9,7 @@ import {
   getChildEvolutionDashboard,
 } from "../services/parentDashboardService";
 import { getCachedData, setCachedData } from "../utils/cache";
+import InformeInteligenteObservaciones from "../pages/InformeInteligenteObservaciones";
 
 const PanelPadres = () => {
   const { user } = useFloFlo();
@@ -563,19 +564,21 @@ const PanelPadres = () => {
           <button
             onClick={handleDownloadReport}
             disabled={isDownloadingPdf || !selectedChild}
-            className={`bg-purple-600 text-white px-5 py-3 rounded-2xl font-bold shadow-md transition flex items-center justify-center gap-2 ${
-              isDownloadingPdf
-                ? "opacity-70 cursor-not-allowed"
-                : "hover:bg-purple-700"
-            }`}
+            className={`bg-gradient-to-r from-violet-200 via-purple-100 to-teal-100 
+  text-purple-800 px-5 py-3 rounded-2xl font-bold shadow-md 
+  border border-purple-200 transition flex items-center justify-center gap-2 ${
+    isDownloadingPdf || !selectedChild
+      ? "opacity-60 cursor-not-allowed"
+      : "hover:from-violet-300 hover:via-purple-200 hover:to-teal-200 hover:scale-[1.01]"
+  }`}
           >
             {isDownloadingPdf ? (
               <>
-                <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                <span className="w-4 h-4 border-2 border-purple-700 border-t-transparent rounded-full animate-spin"></span>
                 Generando PDF...
               </>
             ) : (
-              <>📄 Descargar PDF</>
+              <>📄 Descargar reporte general</>
             )}
           </button>
         </div>
@@ -599,6 +602,7 @@ const PanelPadres = () => {
         {dashboard.wellnessStatus && (
           <WellnessStatusCard status={dashboard.wellnessStatus} />
         )}
+       
         {user?.role === "parent" && selectedChild && (
           <section className="mt-10 bg-white rounded-3xl p-6 shadow-md border border-purple-100">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-5">
@@ -636,7 +640,10 @@ const PanelPadres = () => {
                       label: "Ruido",
                       value: sensoryProfile?.noise_sensitivity,
                     },
-                    { label: "Luz", value: sensoryProfile?.light_sensitivity },
+                    {
+                      label: "Luz",
+                      value: sensoryProfile?.light_sensitivity,
+                    },
                     {
                       label: "Texturas",
                       value: sensoryProfile?.texture_sensitivity,
@@ -644,6 +651,26 @@ const PanelPadres = () => {
                     {
                       label: "Multitudes",
                       value: sensoryProfile?.crowd_sensitivity,
+                    },
+                    {
+                      label: "Contacto físico",
+                      value: sensoryProfile?.touch_sensitivity,
+                    },
+                    {
+                      label: "Olores",
+                      value: sensoryProfile?.smell_sensitivity,
+                    },
+                    {
+                      label: "Alimentación",
+                      value: sensoryProfile?.food_sensitivity,
+                    },
+                    {
+                      label: "Cambios inesperados",
+                      value: sensoryProfile?.unexpected_changes,
+                    },
+                    {
+                      label: "Esperas prolongadas",
+                      value: sensoryProfile?.waiting_sensitivity,
                     },
                   ]}
                 />

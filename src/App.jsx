@@ -24,6 +24,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import { FeedbackProvider } from "./context/FeedbackContext";
 import { SelectedChildProvider } from "./context/SelectedChildContext";
+import InformeInteligentePage from "./pages/InformeInteligentePage";
 
 const ProtectedParentRoute = ({ children }) => {
   const { user } = useFloFlo();
@@ -154,6 +155,14 @@ function App() {
                   element={
                     <ProtectedParentRoute>
                       <PanelPadres />
+                    </ProtectedParentRoute>
+                  }
+                />
+                 <Route
+                  path="/informe-inteligente"
+                  element={
+                    <ProtectedParentRoute>
+                      <InformeInteligentePage />
                     </ProtectedParentRoute>
                   }
                 />
