@@ -1556,8 +1556,14 @@ const Conversaciones = () => {
                         <div className="flex flex-col items-end gap-2">
                           {item.tipo === "contacto" && (
                             <>
-                              <span className="rounded-full bg-[#EAF8EF] px-3 py-1 text-sm font-bold text-[#2F6B4F]">
-                                Cuidador
+                              <span
+                                className={`rounded-full px-3 py-1 text-sm font-bold ${
+                                  isParentMode
+                                    ? "bg-[#EAF8EF] text-[#2F6B4F]"
+                                    : "bg-[#FFF3C4] text-[#5C4A00]"
+                                }`}
+                              >
+                                {isParentMode ? "Cuidador" : "Niño"}
                               </span>
 
                               <span className="rounded-full bg-[#F3ECFF] px-3 py-1 text-sm font-bold text-[#6B4FC3]">
