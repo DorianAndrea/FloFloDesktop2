@@ -22,6 +22,7 @@ import { useSelectedChild } from "../context/SelectedChildContext";
 import { useFeedback } from "../context/FeedbackContext";
 import felix from "../assets/webp/felix_respirando.webp";
 import { getCachedData, setCachedData, removeCachedData } from "../utils/cache";
+import { validateImageFile } from "../utils/validateImageFile";
 
 const lugaresDemo = [
   {
@@ -358,17 +359,29 @@ const LugarDetalle = () => {
   };
 
   const handleImageChange = (e) => {
-    const file = e.target.files?.[0];
+  const file = e.target.files?.[0];
 
-    if (!file) {
-      setImageFile(null);
-      setImagePreview(null);
-      return;
-    }
+  if (!file) {
+    setImageFile(null);
+    setImagePreview(null);
+    return;
+  }
 
-    setImageFile(file);
-    setImagePreview(URL.createObjectURL(file));
-  };
+  const validation = validateImageFile(file);
+
+  if (!validation.isValid) {
+    e.target.value = "";
+    setImageFile(null);
+    setImagePreview(null);
+
+    showFeedback(validation.feedback);
+
+    return;
+  }
+
+  setImageFile(file);
+  setImagePreview(URL.createObjectURL(file));
+};
 
   const handleGenerateStepsAI = async () => {
     if (!form.nombre.trim()) {
@@ -949,7 +962,7 @@ const LugarDetalle = () => {
 
                 <input
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp"
                   onChange={handleImageChange}
                   className="w-full rounded-2xl border-2 border-[#DCCCF8] bg-white p-4 text-[#4B367C]"
                 />

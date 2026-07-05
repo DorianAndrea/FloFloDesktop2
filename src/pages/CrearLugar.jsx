@@ -10,6 +10,7 @@ import { generatePlaceSteps } from "../services/aiService";
 import { useFloFlo } from "../context/FloFloContext";
 import { useSelectedChild } from "../context/SelectedChildContext";
 import { useFeedback } from "../context/FeedbackContext";
+import { validateImageFile } from "../utils/validateImageFile";
 
 const CrearLugar = () => {
   const [form, setForm] = useState({
@@ -40,12 +41,8 @@ const CrearLugar = () => {
   const navigate = useNavigate();
   const { user } = useFloFlo();
 
-  const {
-    isParent,
-    selectedChild,
-    selectedChildId,
-    getChildDisplayName,
-  } = useSelectedChild();
+  const { isParent, selectedChild, selectedChildId, getChildDisplayName } =
+    useSelectedChild();
 
   const { showFeedback } = useFeedback();
 
@@ -80,7 +77,23 @@ const CrearLugar = () => {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
 
-    if (!file) return;
+    if (!file) {
+      setImagen(null);
+      setPreview(null);
+      return;
+    }
+
+    const validation = validateImageFile(file);
+
+    if (!validation.isValid) {
+      e.target.value = "";
+      setImagen(null);
+      setPreview(null);
+
+      showFeedback(validation.feedback);
+
+      return;
+    }
 
     setImagen(file);
     setPreview(URL.createObjectURL(file));
@@ -405,7 +418,7 @@ const CrearLugar = () => {
 
           <input
             type="file"
-            accept="image/*"
+            accept="image/jpeg,image/png,image/webp"
             onChange={handleImageChange}
             className="rounded-2xl bg-[#F3ECFF] p-4 text-[#4B367C] md:col-span-2"
           />

@@ -15,6 +15,7 @@ import {
 } from "../services/contactService";
 import { getRelationshipTypes } from "../services/relationshipTypeService";
 import { getCachedData, setCachedData } from "../utils/cache";
+import { validateImageFile } from "../utils/validateImageFile";
 
 const Amigos = () => {
   const [name, setName] = useState("");
@@ -22,7 +23,7 @@ const Amigos = () => {
   const [memoryNote, setMemoryNote] = useState("");
   const [image, setImage] = useState("");
   const [preview, setPreview] = useState("");
-
+  const { showFeedback, showConfirm } = useFeedback();
   const { user } = useFloFlo();
 
   const {
@@ -32,8 +33,6 @@ const Amigos = () => {
     loadingChildren,
     getChildDisplayName,
   } = useSelectedChild();
-
-  const { showFeedback, showConfirm } = useFeedback();
 
   const [contacts, setContacts] = useState([]);
   const [relationshipTypes, setRelationshipTypes] = useState([]);
@@ -180,18 +179,29 @@ const Amigos = () => {
     return true;
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
+ const handleImageChange = (e) => {
+  const file = e.target.files[0];
 
-    if (!file) {
-      setImage("");
-      setPreview("");
-      return;
-    }
+  if (!file) {
+    setImage(null);
+    return;
+  }
 
-    setImage(file);
-    setPreview(URL.createObjectURL(file));
-  };
+  const validation = validateImageFile(file);
+
+  if (!validation.isValid) {
+    e.target.value = "";
+    setImage(null);
+    setPreview("");
+
+    showFeedback(validation.feedback);
+
+    return;
+  }
+
+  setImage(file);
+  setPreview(URL.createObjectURL(file));
+};
 
   const handleEdit = (contact) => {
     setEditingContactId(contact.id);
@@ -476,7 +486,7 @@ const Amigos = () => {
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/*"
+                  accept="image/jpeg,image/png,image/webp"
                   onChange={handleImageChange}
                   className="w-full py-3 text-gray-500"
                 />

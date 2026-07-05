@@ -3,6 +3,7 @@ import { getMe, updateMe, changePassword } from "../services/authService";
 import { useFloFlo } from "../context/FloFloContext";
 import { useFeedback } from "../context/FeedbackContext";
 import { formatRut, cleanRut } from "../utils/formatRut";
+import { validateImageFile } from "../utils/validateImageFile";
 
 const getAvatarUrl = (avatarValue) => {
   if (!avatarValue) return null;
@@ -81,6 +82,18 @@ const MiPerfil = () => {
       return;
     }
 
+    const validation = validateImageFile(file);
+
+    if (!validation.isValid) {
+      e.target.value = "";
+      setAvatar(null);
+      setPreview(getAvatarUrl(user?.avatar) || "");
+
+      showFeedback(validation.feedback);
+
+      return;
+    }
+
     setAvatar(file);
     setPreview(URL.createObjectURL(file));
   };
@@ -150,7 +163,10 @@ const MiPerfil = () => {
         icon: "❌",
         label: "Algo salió mal",
         title: "No se pudo actualizar",
-        message: "Revisa los datos e intenta nuevamente.",
+        message:
+          error.response?.data?.message ||
+          error.message ||
+          "Revisa los datos e intenta nuevamente.",
       });
     }
   };
@@ -452,7 +468,7 @@ const MiPerfil = () => {
                 placeholder="Apellido"
                 className="w-full py-3 text-gray-900 bg-transparent border-b border-gray-300 focus:outline-none focus:border-[#9B7BE8]"
               />
-              
+
               <input
                 id="perfil-rut"
                 name="rut"
@@ -509,7 +525,7 @@ const MiPerfil = () => {
                 id="perfil-avatar"
                 name="avatar"
                 type="file"
-                accept="image/*"
+                accept="image/jpeg,image/png,image/webp"
                 onChange={handleAvatarChange}
                 className="w-full py-3 text-gray-900"
               />

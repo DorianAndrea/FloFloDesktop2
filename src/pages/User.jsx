@@ -4,6 +4,7 @@ import { register } from "../services/authService";
 import { useFloFlo } from "../context/FloFloContext";
 import { useFeedback } from "../context/FeedbackContext";
 import { formatRut } from "../utils/formatRut";
+import { validateImageFile } from "../utils/validateImageFile";
 
 const User = () => {
   const [firstName, setFirstName] = useState("");
@@ -28,13 +29,22 @@ const User = () => {
   const handleImageChange = (e) => {
     const file = e.target.files[0];
 
-    setAvatar(file || null);
-
-    if (file) {
-      setPreview(URL.createObjectURL(file));
-    } else {
+    if (!file) {
+      setAvatar(null);
       setPreview(null);
+      return;
     }
+    const validation = validateImageFile(file);
+    if (!validation.isValid) {
+      e.target.value = "";
+      setAvatar(null);
+      setPreview(null);
+
+      showFeedback(validation.feedback);
+      return;
+    }
+    setAvatar(file);
+    setPreview(URL.createObjectURL(file));
   };
 
   const handleSubmit = async (e) => {
@@ -132,18 +142,20 @@ const User = () => {
     }
 
     try {
-      const userData = {
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        rut: cleanRut(rut),
-        birth_date: birthDate,
-        email: email.trim(),
-        avatar: avatar ? avatar.name : null,
-        password,
-        role,
-      };
+      const formData = new FormData();
+      formData.append("firstName", firstName.trim());
+      formData.append("lastName", lastName.trim());
+      formData.append("rut", cleanRut(rut));
+      formData.append("birth_date", birthDate);
+      formData.append("email", email.trim());
+      formData.append("password", password);
+      formData.append("role", role);
 
-      const data = await register(userData);
+      if (avatar) {
+        formData.append("avatar", avatar);
+      }
+
+      const data = await register(formData);
 
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
@@ -236,7 +248,7 @@ const User = () => {
 
             <input
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
               onChange={handleImageChange}
               className="w-full py-3 text-gray-500"
             />
