@@ -37,7 +37,6 @@ const MiPerfil = () => {
   const [lastName, setLastName] = useState("");
   const [rut, setRut] = useState("");
   const [birthDate, setBirthDate] = useState("");
-  const [role, setRole] = useState("child");
   const [avatar, setAvatar] = useState(null);
   const [preview, setPreview] = useState("");
 
@@ -55,7 +54,6 @@ const MiPerfil = () => {
       setLastName(data.lastName || "");
       setRut(data.rut || "");
       setBirthDate(data.birth_date ? data.birth_date.slice(0, 10) : "");
-      setRole(data.role || "child");
       setAvatar(null);
       setPreview(getAvatarUrl(data.avatar) || "");
     } catch (error) {
@@ -119,7 +117,6 @@ const MiPerfil = () => {
       formData.append("lastName", lastName.trim());
       formData.append("rut", cleanRut(rut));
       formData.append("birth_date", birthDate || "");
-      formData.append("role", role);
 
       if (avatar instanceof File) {
         formData.append("avatar", avatar);
@@ -130,7 +127,6 @@ const MiPerfil = () => {
       const safeUpdatedUser = {
         ...user,
         ...updatedUser,
-        role,
       };
 
       setProfileUser(safeUpdatedUser);
@@ -456,18 +452,7 @@ const MiPerfil = () => {
                 placeholder="Apellido"
                 className="w-full py-3 text-gray-900 bg-transparent border-b border-gray-300 focus:outline-none focus:border-[#9B7BE8]"
               />
-
-              <select
-                id="perfil-role"
-                name="role"
-                value={role}
-                onChange={(e) => setRole(e.target.value)}
-                className="w-full py-3 text-gray-900 bg-transparent border-b border-gray-300 focus:outline-none focus:border-[#9B7BE8]"
-              >
-                <option value="child">Niño</option>
-                <option value="parent">Padre/Cuidador</option>
-              </select>
-
+              
               <input
                 id="perfil-rut"
                 name="rut"
