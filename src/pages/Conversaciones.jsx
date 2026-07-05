@@ -149,6 +149,10 @@ const getEmojiByTitle = (title) => {
   return contenidoBasePorTitulo[title]?.emoji || "✨";
 };
 
+const normalizeBoolean = (value) => {
+  return value === true || value === "true" || value === 1 || value === "1";
+};
+
 const generarOpcionesConIA = async (whatToSay, situation) => {
   try {
     const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -482,7 +486,19 @@ const Conversaciones = () => {
             busquedaDebounce,
             orden,
           );
-
+      console.table(
+        data.conversations
+          .filter((item) => item.tipo === "contacto")
+          .map((item) => ({
+            id: item.id,
+            title: item.title,
+            tipo: item.tipo,
+            managed_by_parent: item.managed_by_parent,
+            managedByParent: item.managedByParent,
+            tipoManagedSnake: typeof item.managed_by_parent,
+            tipoManagedCamel: typeof item.managedByParent,
+          })),
+      );
       const conversacionesMapeadas = data.conversations.map((item) => {
         const base = contenidoBasePorTitulo[item.title];
         const esContacto = item.tipo === "contacto";
@@ -541,7 +557,9 @@ const Conversaciones = () => {
           wrong_answer_1: item.wrong_answer_1,
           wrong_answer_2: item.wrong_answer_2,
           is_favorite: item.is_favorite || false,
-          managed_by_parent: item.managed_by_parent || false,
+          managed_by_parent: normalizeBoolean(
+            item.managed_by_parent ?? item.managedByParent,
+          ),
           dialogo,
           ejercicio: {
             pregunta:
@@ -1558,12 +1576,12 @@ const Conversaciones = () => {
                             <>
                               <span
                                 className={`rounded-full px-3 py-1 text-sm font-bold ${
-                                  isParentMode
+                                  item.managed_by_parent
                                     ? "bg-[#EAF8EF] text-[#2F6B4F]"
                                     : "bg-[#FFF3C4] text-[#5C4A00]"
                                 }`}
                               >
-                                {isParentMode ? "Cuidador" : "Niño"}
+                                {item.managed_by_parent ? "Cuidador" : "Niño"}
                               </span>
 
                               <span className="rounded-full bg-[#F3ECFF] px-3 py-1 text-sm font-bold text-[#6B4FC3]">
