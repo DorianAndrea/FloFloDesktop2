@@ -5,9 +5,15 @@ export const getMyChildren = async () => {
   return response.data;
 };
 
-export const linkChildToMe = async (childEmail) => {
+export const createMyLinkCode = async () => {
+  const response = await api.post("/parent-child/me/link-code");
+  return response.data;
+};
+
+export const linkChildToMe = async ({ childEmail, linkCode }) => {
   const response = await api.post("/parent-child/me/children", {
     childEmail,
+    linkCode,
   });
 
   return response.data;

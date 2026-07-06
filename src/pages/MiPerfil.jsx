@@ -4,6 +4,7 @@ import { useFloFlo } from "../context/FloFloContext";
 import { useFeedback } from "../context/FeedbackContext";
 import { formatRut, cleanRut } from "../utils/formatRut";
 import { validateImageFile } from "../utils/validateImageFile";
+import { createMyLinkCode } from "../services/parentChildService";
 
 const getAvatarUrl = (avatarValue) => {
   if (!avatarValue) return null;
@@ -45,6 +46,8 @@ const MiPerfil = () => {
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [changingPassword, setChangingPassword] = useState(false);
+  const [linkCodeData, setLinkCodeData] = useState(null);
+  const [generatingLinkCode, setGeneratingLinkCode] = useState(false);
 
   const loadProfile = async () => {
     try {
@@ -241,6 +244,62 @@ const MiPerfil = () => {
       setChangingPassword(false);
     }
   };
+  const handleGenerateLinkCode = async () => {
+    try {
+      setGeneratingLinkCode(true);
+
+      const data = await createMyLinkCode();
+
+      setLinkCodeData(data);
+
+      showFeedback({
+        type: "success",
+        icon: "✅",
+        label: "Código generado",
+        title: "Código de vinculación listo",
+        message: `Entrega este código a tu cuidador. Es válido por ${data.expiresInMinutes || 15} minutos.`,
+      });
+    } catch (error) {
+      console.error("Error generando código:", error.response?.data || error);
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudo generar el código",
+        message:
+          error.response?.data?.message ||
+          "Intenta nuevamente en unos segundos.",
+      });
+    } finally {
+      setGeneratingLinkCode(false);
+    }
+  };
+
+  const handleCopyLinkCode = async () => {
+    if (!linkCodeData?.code) return;
+
+    try {
+      await navigator.clipboard.writeText(linkCodeData.code);
+
+      showFeedback({
+        type: "success",
+        icon: "📋",
+        label: "Código copiado",
+        title: "Copiado al portapapeles",
+        message: "Ahora puedes entregarlo a tu cuidador.",
+      });
+    } catch (error) {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "No se pudo copiar",
+        title: "Copia manualmente el código",
+        message: "Selecciona el código y cópialo manualmente.",
+      });
+    }
+  };
+
   const getAvatarUrl = (avatarValue) => {
     if (!avatarValue) return null;
 
@@ -387,6 +446,82 @@ const MiPerfil = () => {
                 <p className="text-[#6B5A95] mt-2">Perfil de FloFlo</p>
               </div>
             </div>
+
+            {user.role === "child" && (
+              <div className="bg-green-50 border border-green-200 rounded-3xl p-6 md:p-8">
+                <h2 className="text-2xl font-bold text-green-700">
+                  Vincular cuidador
+                </h2>
+
+                <p className="text-[#6B5A95] mt-2 mb-6">
+                  Genera un código temporal para que tu padre, madre o cuidador
+                  pueda asociarte a su cuenta. El cuidador deberá ingresar tu
+                  correo y este código en su Panel Padres.
+                </p>
+
+                {linkCodeData?.code ? (
+                  <div className="bg-white border border-green-200 rounded-2xl p-5 mb-5">
+                    <p className="text-sm font-bold text-green-700 mb-2">
+                      Tu código de vinculación
+                    </p>
+
+                    <p className="text-5xl font-black tracking-[0.25em] text-[#4B367C]">
+                      {linkCodeData.code}
+                    </p>
+
+                    <p className="text-sm text-gray-500 mt-3">
+                      Válido por {linkCodeData.expiresInMinutes || 15} minutos.
+                    </p>
+
+                    {linkCodeData.expires_at && (
+                      <p className="text-sm text-gray-500 mt-1">
+                        Expira a las{" "}
+                        {new Date(linkCodeData.expires_at).toLocaleTimeString(
+                          "es-CL",
+                          {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          },
+                        )}
+                        .
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <div className="bg-white border border-green-200 rounded-2xl p-5 mb-5">
+                    <p className="text-gray-600">
+                      Todavía no has generado un código. Presiona el botón para
+                      crear uno.
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    type="button"
+                    onClick={handleGenerateLinkCode}
+                    disabled={generatingLinkCode}
+                    className="bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white font-semibold px-6 py-3 rounded-full transition"
+                  >
+                    {generatingLinkCode
+                      ? "Generando..."
+                      : linkCodeData?.code
+                        ? "Generar nuevo código"
+                        : "Generar código"}
+                  </button>
+
+                  {linkCodeData?.code && (
+                    <button
+                      type="button"
+                      onClick={handleCopyLinkCode}
+                      className="border border-green-300 text-green-700 bg-white hover:bg-green-100 font-semibold px-6 py-3 rounded-full transition"
+                    >
+                      Copiar código
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="bg-[#FDFBFF] border border-[#E4D8FF] rounded-3xl p-6 md:p-8">
               <h2 className="text-2xl font-bold text-[#4B367C]">
