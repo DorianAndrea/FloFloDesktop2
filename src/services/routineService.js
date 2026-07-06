@@ -1,4 +1,5 @@
 import api from "./api";
+import { validateChildId } from "../utils/validateChildId";
 
 /*
   Rutinas propias del usuario conectado.
@@ -25,13 +26,13 @@ export const createRoutine = async (routine) => {
   return response.data;
 };
 
-export const deleteRoutine = async (id) => {
-  const response = await api.delete(`/routines/${id}`);
+export const updateRoutine = async (id, routine) => {
+  const response = await api.put(`/routines/${id}`, routine);
   return response.data;
 };
 
-export const updateRoutine = async (id, routine) => {
-  const response = await api.put(`/routines/${id}`, routine);
+export const deleteRoutine = async (id) => {
+  const response = await api.delete(`/routines/${id}`);
   return response.data;
 };
 
@@ -46,36 +47,57 @@ export const completeRoutine = async (id) => {
 */
 
 export const getChildRoutines = async (childId) => {
-  const response = await api.get(`/routines/children/${childId}`);
+  const cleanChildId = validateChildId(childId);
+
+  const response = await api.get(`/routines/children/${cleanChildId}`);
   return response.data;
 };
 
 export const getChildTodayRoutines = async (childId) => {
-  const response = await api.get(`/routines/children/${childId}/today`);
+  const cleanChildId = validateChildId(childId);
+
+  const response = await api.get(`/routines/children/${cleanChildId}/today`);
   return response.data;
 };
 
 export const getChildRoutineHistory = async (childId) => {
-  const response = await api.get(`/routines/children/${childId}/history`);
+  const cleanChildId = validateChildId(childId);
+
+  const response = await api.get(`/routines/children/${cleanChildId}/history`);
   return response.data;
 };
 
 export const createChildRoutine = async (childId, routine) => {
-  const response = await api.post(`/routines/children/${childId}`, routine);
+  const cleanChildId = validateChildId(childId);
+
+  const response = await api.post(`/routines/children/${cleanChildId}`, routine);
   return response.data;
 };
 
 export const updateChildRoutine = async (childId, id, routine) => {
-  const response = await api.put(`/routines/children/${childId}/${id}`, routine);
+  const cleanChildId = validateChildId(childId);
+
+  const response = await api.put(
+    `/routines/children/${cleanChildId}/${id}`,
+    routine,
+  );
+
   return response.data;
 };
 
 export const deleteChildRoutine = async (childId, id) => {
-  const response = await api.delete(`/routines/children/${childId}/${id}`);
+  const cleanChildId = validateChildId(childId);
+
+  const response = await api.delete(`/routines/children/${cleanChildId}/${id}`);
   return response.data;
 };
 
 export const completeChildRoutine = async (childId, id) => {
-  const response = await api.post(`/routines/children/${childId}/${id}/complete`);
+  const cleanChildId = validateChildId(childId);
+
+  const response = await api.post(
+    `/routines/children/${cleanChildId}/${id}/complete`,
+  );
+
   return response.data;
 };

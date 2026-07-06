@@ -234,6 +234,10 @@ const PersonaDetalle = () => {
     loadPage();
   }, [id, user?.id, user?.role, selectedChildId, loadingChildren]);
 
+  useEffect(() => {
+    resetForm();
+  }, [id, selectedChildId, user?.id]);
+
   const resetForm = () => {
     setTitle("");
     setSituation("");
@@ -626,7 +630,7 @@ const PersonaDetalle = () => {
 
             {contact.managed_by_parent && (
               <p className="mt-4 inline-flex rounded-full bg-[#EAF8EF] px-3 py-1 text-sm font-bold text-[#2F6B4F]">
-                Persona del niño/a
+                Agregada por cuidador
               </p>
             )}
 
@@ -687,36 +691,97 @@ const PersonaDetalle = () => {
             </button>
 
             {title && (
-              <div className="rounded-2xl border-2 border-[#DCCCF8] bg-white p-5">
-                <h3 className="mb-3 text-2xl font-bold text-[#4B367C]">
-                  {title}
-                </h3>
+              <div className="space-y-4 rounded-2xl border-2 border-[#DCCCF8] bg-white p-5">
+                <div>
+                  <label className="mb-2 block font-bold text-[#4B367C]">
+                    Título
+                  </label>
 
-                <p className="text-[#6B5A95]">
-                  <strong>Situación:</strong> {generatedSituation || situation}
-                </p>
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    className="w-full rounded-xl border border-[#DCCCF8] p-3 focus:border-[#9B7BE8] focus:outline-none"
+                  />
+                </div>
 
-                <p className="mt-2 text-[#6B5A95]">
-                  <strong>Qué decir:</strong> {whatToSay}
-                </p>
+                <div>
+                  <label className="mb-2 block font-bold text-[#4B367C]">
+                    Situación
+                  </label>
 
-                <p className="mt-2 text-green-700">
-                  <strong>Respuesta correcta:</strong> {correctAnswer}
-                </p>
+                  <textarea
+                    value={generatedSituation || situation}
+                    onChange={(e) => {
+                      setGeneratedSituation("");
+                      setSituation(e.target.value);
+                    }}
+                    className="min-h-24 w-full rounded-xl border border-[#DCCCF8] p-3 focus:border-[#9B7BE8] focus:outline-none"
+                  />
+                </div>
 
-                <p className="mt-2 text-red-600">
-                  <strong>Incorrecta 1:</strong> {wrongAnswer1}
-                </p>
+                <div>
+                  <label className="mb-2 block font-bold text-[#4B367C]">
+                    Qué decir
+                  </label>
 
-                <p className="mt-2 text-red-600">
-                  <strong>Incorrecta 2:</strong> {wrongAnswer2}
-                </p>
+                  <textarea
+                    value={whatToSay}
+                    onChange={(e) => setWhatToSay(e.target.value)}
+                    className="min-h-24 w-full rounded-xl border border-[#DCCCF8] p-3 focus:border-[#9B7BE8] focus:outline-none"
+                  />
+                </div>
 
-                {reminder && (
-                  <p className="mt-2 text-[#6B5A95]">
-                    <strong>Recordatorio:</strong> {reminder}
-                  </p>
-                )}
+                <div>
+                  <label className="mb-2 block font-bold text-green-700">
+                    Respuesta correcta
+                  </label>
+
+                  <input
+                    type="text"
+                    value={correctAnswer}
+                    onChange={(e) => setCorrectAnswer(e.target.value)}
+                    className="w-full rounded-xl border border-green-200 p-3 focus:border-green-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block font-bold text-red-600">
+                    Respuesta incorrecta 1
+                  </label>
+
+                  <input
+                    type="text"
+                    value={wrongAnswer1}
+                    onChange={(e) => setWrongAnswer1(e.target.value)}
+                    className="w-full rounded-xl border border-red-200 p-3 focus:border-red-400 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block font-bold text-red-600">
+                    Respuesta incorrecta 2
+                  </label>
+
+                  <input
+                    type="text"
+                    value={wrongAnswer2}
+                    onChange={(e) => setWrongAnswer2(e.target.value)}
+                    className="w-full rounded-xl border border-red-200 p-3 focus:border-red-400 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-2 block font-bold text-[#4B367C]">
+                    Recordatorio
+                  </label>
+
+                  <textarea
+                    value={reminder}
+                    onChange={(e) => setReminder(e.target.value)}
+                    className="min-h-20 w-full rounded-xl border border-[#DCCCF8] p-3 focus:border-[#9B7BE8] focus:outline-none"
+                  />
+                </div>
               </div>
             )}
 
@@ -764,7 +829,7 @@ const PersonaDetalle = () => {
 
                       {conversation.managed_by_parent && (
                         <p className="mt-2 inline-flex rounded-full bg-[#EAF8EF] px-3 py-1 text-sm font-bold text-[#2F6B4F]">
-                          Conversación del niño/a
+                          Agregada por cuidador
                         </p>
                       )}
                     </div>

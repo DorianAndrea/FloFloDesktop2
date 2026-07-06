@@ -1,4 +1,5 @@
 import api from "./api";
+import { validateChildId } from "../utils/validateChildId";
 
 /*
   Lugares propios del usuario conectado.
@@ -79,7 +80,9 @@ export const getChildPlaces = async (
   search = "",
   order = "recientes",
 ) => {
-  const response = await api.get(`/places/children/${childId}`, {
+  const cleanChildId = validateChildId(childId);
+
+  const response = await api.get(`/places/children/${cleanChildId}`, {
     params: {
       search,
       order,
@@ -90,12 +93,16 @@ export const getChildPlaces = async (
 };
 
 export const getChildPlaceById = async (childId, id) => {
-  const response = await api.get(`/places/children/${childId}/${id}`);
+  const cleanChildId = validateChildId(childId);
+
+  const response = await api.get(`/places/children/${cleanChildId}/${id}`);
   return response.data;
 };
 
 export const createChildPlace = async (childId, placeData) => {
-  const response = await api.post(`/places/children/${childId}`, placeData, {
+  const cleanChildId = validateChildId(childId);
+
+  const response = await api.post(`/places/children/${cleanChildId}`, placeData, {
     headers: {
       "Content-Type": "multipart/form-data",
     },
@@ -105,8 +112,10 @@ export const createChildPlace = async (childId, placeData) => {
 };
 
 export const updateChildPlace = async (childId, id, placeData) => {
+  const cleanChildId = validateChildId(childId);
+
   const response = await api.put(
-    `/places/children/${childId}/${id}`,
+    `/places/children/${cleanChildId}/${id}`,
     placeData,
     {
       headers: {
@@ -119,26 +128,37 @@ export const updateChildPlace = async (childId, id, placeData) => {
 };
 
 export const deleteChildPlace = async (childId, id) => {
-  const response = await api.delete(`/places/children/${childId}/${id}`);
+  const cleanChildId = validateChildId(childId);
+
+  const response = await api.delete(`/places/children/${cleanChildId}/${id}`);
   return response.data;
 };
 
 export const completeChildPlace = async (childId, id) => {
-  const response = await api.post(`/places/children/${childId}/${id}/complete`);
+  const cleanChildId = validateChildId(childId);
+
+  const response = await api.post(
+    `/places/children/${cleanChildId}/${id}/complete`,
+  );
+
   return response.data;
 };
 
 export const getChildPlaceSteps = async (childId, placeId) => {
+  const cleanChildId = validateChildId(childId);
+
   const response = await api.get(
-    `/places/children/${childId}/${placeId}/steps`,
+    `/places/children/${cleanChildId}/${placeId}/steps`,
   );
 
   return response.data;
 };
 
 export const createChildPlaceStep = async (childId, placeId, stepData) => {
+  const cleanChildId = validateChildId(childId);
+
   const response = await api.post(
-    `/places/children/${childId}/${placeId}/steps`,
+    `/places/children/${cleanChildId}/${placeId}/steps`,
     stepData,
   );
 
@@ -146,8 +166,10 @@ export const createChildPlaceStep = async (childId, placeId, stepData) => {
 };
 
 export const replaceChildPlaceSteps = async (childId, placeId, steps) => {
+  const cleanChildId = validateChildId(childId);
+
   const response = await api.put(
-    `/places/children/${childId}/${placeId}/steps/replace`,
+    `/places/children/${cleanChildId}/${placeId}/steps/replace`,
     {
       steps,
     },

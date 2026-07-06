@@ -1,5 +1,11 @@
 import api from "./api";
 
+/*
+  Generación IA.
+  Estas funciones solo envían datos del formulario y reciben una sugerencia.
+  No deben guardar datos ni mandar parentId/userId desde frontend.
+*/
+
 export const generatePlaceSteps = async (placeData) => {
   const response = await api.post("/ai/generate-place-steps", placeData);
   return response.data;

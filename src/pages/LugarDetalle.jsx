@@ -200,6 +200,10 @@ const LugarDetalle = () => {
       if (isParent && loadingChildren) {
         return;
       }
+      if (isParent && esDemo) {
+        navigate("/lugares", { replace: true });
+        return;
+      }
 
       if (esDemo) {
         setLoading(true);
@@ -359,29 +363,29 @@ const LugarDetalle = () => {
   };
 
   const handleImageChange = (e) => {
-  const file = e.target.files?.[0];
+    const file = e.target.files?.[0];
 
-  if (!file) {
-    setImageFile(null);
-    setImagePreview(null);
-    return;
-  }
+    if (!file) {
+      setImageFile(null);
+      setImagePreview(null);
+      return;
+    }
 
-  const validation = validateImageFile(file);
+    const validation = validateImageFile(file);
 
-  if (!validation.isValid) {
-    e.target.value = "";
-    setImageFile(null);
-    setImagePreview(null);
+    if (!validation.isValid) {
+      e.target.value = "";
+      setImageFile(null);
+      setImagePreview(null);
 
-    showFeedback(validation.feedback);
+      showFeedback(validation.feedback);
 
-    return;
-  }
+      return;
+    }
 
-  setImageFile(file);
-  setImagePreview(URL.createObjectURL(file));
-};
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
 
   const handleGenerateStepsAI = async () => {
     if (!form.nombre.trim()) {
@@ -494,6 +498,21 @@ const LugarDetalle = () => {
       return;
     }
 
+    const pasosValidos = editingSteps
+      .map((step) => String(step || "").trim())
+      .filter((step) => step !== "");
+
+    if (pasosValidos.length === 0) {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Faltan pasos",
+        title: "Agrega al menos un paso",
+        message: "El lugar necesita al menos un paso de preparación.",
+      });
+      return;
+    }
+
     try {
       const formData = new FormData();
 
@@ -505,16 +524,14 @@ const LugarDetalle = () => {
       formData.append("transport", form.transporte.trim());
       formData.append("estimated_duration", form.duracion.trim());
       formData.append("tips", form.consejos.trim());
+
       if (imageFile) {
         formData.append("image", imageFile);
       }
       const updated = isParentMode
         ? await updateChildPlace(selectedChildId, id, formData)
         : await updatePlace(id, formData);
-
-      const pasosValidos = editingSteps
-        .map((step) => String(step || "").trim())
-        .filter((step) => step !== "");
+      const updatedPlace = updated?.place || updated?.data || updated;
 
       if (isParentMode) {
         await replaceChildPlaceSteps(selectedChildId, id, pasosValidos);
@@ -524,28 +541,28 @@ const LugarDetalle = () => {
 
       const lugarActualizado = {
         ...lugar,
-        nombre: updated.name,
-        direccion: updated.address,
-        descripcion: updated.description,
-        actividad: updated.activity,
-        personas: updated.people_present,
-        transporte: updated.transport,
-        duracion: updated.estimated_duration,
-        consejos: updated.tips,
-        imagen: updated.image,
+        nombre: updatedPlace.name,
+        direccion: updatedPlace.address,
+        descripcion: updatedPlace.description,
+        actividad: updatedPlace.activity,
+        personas: updatedPlace.people_present,
+        transporte: updatedPlace.transport,
+        duracion: updatedPlace.estimated_duration,
+        consejos: updatedPlace.tips,
+        imagen: updatedPlace.image,
         pasos: pasosValidos,
-        managed_by_parent: updated.managed_by_parent,
+        managed_by_parent: updatedPlace.managed_by_parent,
       };
 
       const formActualizado = {
-        nombre: updated.name || "",
-        direccion: updated.address || "",
-        descripcion: updated.description || "",
-        actividad: updated.activity || "",
-        personas: updated.people_present || "",
-        transporte: updated.transport || "",
-        duracion: updated.estimated_duration || "",
-        consejos: updated.tips || "",
+        nombre: updatedPlace.name || "",
+        direccion: updatedPlace.address || "",
+        descripcion: updatedPlace.description || "",
+        actividad: updatedPlace.activity || "",
+        personas: updatedPlace.people_present || "",
+        transporte: updatedPlace.transport || "",
+        duracion: updatedPlace.estimated_duration || "",
+        consejos: updatedPlace.tips || "",
       };
 
       setLugar(lugarActualizado);

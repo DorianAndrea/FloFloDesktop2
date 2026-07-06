@@ -41,8 +41,13 @@ const CrearLugar = () => {
   const navigate = useNavigate();
   const { user } = useFloFlo();
 
-  const { isParent, selectedChild, selectedChildId, getChildDisplayName } =
-    useSelectedChild();
+  const {
+    isParent,
+    selectedChild,
+    selectedChildId,
+    loadingChildren,
+    getChildDisplayName,
+  } = useSelectedChild();
 
   const { showFeedback } = useFeedback();
 
@@ -227,6 +232,17 @@ const CrearLugar = () => {
       return;
     }
 
+    if (pasosValidos.length === 0) {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Faltan pasos",
+        title: "Agrega al menos un paso",
+        message: "El lugar necesita al menos un paso de preparación.",
+      });
+      return;
+    }
+
     try {
       setSaving(true);
 
@@ -249,6 +265,13 @@ const CrearLugar = () => {
         ? await createChildPlace(selectedChildId, formData)
         : await createPlace(formData);
 
+      const placeId =
+        lugarCreado?.id || lugarCreado?.place?.id || lugarCreado?.data?.id;
+
+      if (!placeId) {
+        throw new Error("No se pudo obtener el ID del lugar creado.");
+      }
+
       const pasosValidos = steps
         .map((step) => String(step || "").trim())
         .filter((step) => step !== "");
@@ -261,13 +284,9 @@ const CrearLugar = () => {
         };
 
         if (isParentMode) {
-          await createChildPlaceStep(
-            selectedChildId,
-            lugarCreado.id,
-            stepPayload,
-          );
+          await createChildPlaceStep(selectedChildId, placeId, stepPayload);
         } else {
-          await createPlaceStep(lugarCreado.id, stepPayload);
+          await createPlaceStep(placeId, stepPayload);
         }
       }
 
@@ -298,6 +317,16 @@ const CrearLugar = () => {
       setSaving(false);
     }
   };
+  
+  if (isParent && loadingChildren) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-[#F3ECFF] px-6 py-10">
+        <p className="text-2xl font-bold text-[#4B367C]">
+          Cargando niño/a seleccionado...
+        </p>
+      </main>
+    );
+  }
 
   if (isParentWithoutChild) {
     return (

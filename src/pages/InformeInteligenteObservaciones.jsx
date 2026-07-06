@@ -328,14 +328,11 @@ const InformeInteligenteObservaciones = ({ selectedChild }) => {
     try {
       setDownloading(true);
       setError("");
-
+      
       if (selectedReportId) {
         await downloadIntelligentObservationPdfById(childId, selectedReportId);
       } else {
-        await downloadLatestIntelligentObservationPdf(childId, {
-          childName: latestReport?.childName || childName,
-          createdAt: latestReport?.createdAt || latestReport?.generatedAt,
-        });
+        await downloadLatestIntelligentObservationPdf(childId);
       }
     } catch (error) {
       console.error("Error descargando PDF:", error);
@@ -632,7 +629,7 @@ const InformeInteligenteObservaciones = ({ selectedChild }) => {
                   <article
                     key={item.id}
                     className={`rounded-2xl p-4 border transition ${
-                      selectedReportId === item.id
+                      Number(selectedReportId) === Number(item.id)
                         ? "bg-violet-50 border-violet-200 shadow-sm"
                         : "bg-slate-50 border-slate-100"
                     }`}
@@ -640,11 +637,11 @@ const InformeInteligenteObservaciones = ({ selectedChild }) => {
                     <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                       <div>
                         <p className="font-bold text-purple-700">
-                          {formatDate(item.createdAt)}
+                          {formatDate(getReportCreatedAt(item))}
                         </p>
 
                         <p className="text-sm text-slate-500">
-                          Período: últimos {item.periodDays} días
+                          Período: últimos {getReportPeriodDays(item)} días
                         </p>
 
                         {item.reportPreview && (
@@ -660,7 +657,7 @@ const InformeInteligenteObservaciones = ({ selectedChild }) => {
                           onClick={() => handleViewHistoryReport(item.id)}
                           className="bg-violet-100 text-violet-800 border border-violet-200 rounded-xl px-4 py-2 text-sm font-bold hover:bg-violet-200 transition"
                         >
-                          {selectedReportId === item.id
+                          {Number(selectedReportId) === Number(item.id)
                             ? "Viendo"
                             : "Ver informe"}
                         </button>

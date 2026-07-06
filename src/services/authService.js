@@ -1,5 +1,13 @@
 import api from "./api";
 
+const getApiError = (error, fallbackMessage) => {
+  return (
+    error.response?.data || {
+      message: fallbackMessage,
+    }
+  );
+};
+
 export const login = async (email, password) => {
   try {
     const response = await api.post("/auth/login", {
@@ -9,23 +17,51 @@ export const login = async (email, password) => {
 
     return response.data;
   } catch (error) {
-    throw error.response?.data || { message: "Error al iniciar sesión" };
+    throw getApiError(error, "Error al iniciar sesión");
   }
 };
 
 export const register = async (userData) => {
-  const response = await api.post("/auth/register", userData);
-  return response.data;
+  try {
+    const response = await api.post("/auth/register", userData, {
+      headers:
+        userData instanceof FormData
+          ? {
+              "Content-Type": "multipart/form-data",
+            }
+          : undefined,
+    });
+
+    return response.data;
+  } catch (error) {
+    throw getApiError(error, "Error al registrar usuario");
+  }
 };
 
 export const getMe = async () => {
-  const response = await api.get("/auth/me");
-  return response.data;
+  try {
+    const response = await api.get("/auth/me");
+    return response.data;
+  } catch (error) {
+    throw getApiError(error, "Error obteniendo perfil");
+  }
 };
 
 export const updateMe = async (userData) => {
-  const response = await api.put("/auth/me", userData);
-  return response.data;
+  try {
+    const response = await api.put("/auth/me", userData, {
+      headers:
+        userData instanceof FormData
+          ? {
+              "Content-Type": "multipart/form-data",
+            }
+          : undefined,
+    });
+
+    return response.data;
+  } catch (error) {
+    throw getApiError(error, "Error actualizando perfil");
+  }
 };
 
 export const changePassword = async (currentPassword, newPassword) => {
@@ -37,11 +73,7 @@ export const changePassword = async (currentPassword, newPassword) => {
 
     return response.data;
   } catch (error) {
-    throw (
-      error.response?.data || {
-        message: "Error cambiando contraseña",
-      }
-    );
+    throw getApiError(error, "Error cambiando contraseña");
   }
 };
 
@@ -53,10 +85,9 @@ export const forgotPassword = async (email) => {
 
     return response.data;
   } catch (error) {
-    throw (
-      error.response?.data || {
-        message: "Error solicitando recuperación de contraseña",
-      }
+    throw getApiError(
+      error,
+      "Error solicitando recuperación de contraseña",
     );
   }
 };
@@ -70,10 +101,6 @@ export const resetPassword = async (token, newPassword) => {
 
     return response.data;
   } catch (error) {
-    throw (
-      error.response?.data || {
-        message: "Error restableciendo contraseña",
-      }
-    );
+    throw getApiError(error, "Error restableciendo contraseña");
   }
 };

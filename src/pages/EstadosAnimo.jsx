@@ -157,6 +157,10 @@ const EstadosAnimo = () => {
     loadMoods();
   }, [user?.id, user?.role, selectedChildId, loadingChildren]);
 
+  useEffect(() => {
+  setEstadoSeleccionado(null);
+}, [selectedChildId, user?.id]);
+
   const seleccionarEstado = async (estado) => {
     if (!user) {
       showFeedback({

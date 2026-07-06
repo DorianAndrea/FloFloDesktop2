@@ -87,7 +87,15 @@ const Lugares = () => {
         ? await getChildPlaces(selectedChildId, busquedaDebounce, orden)
         : await getPlaces(busquedaDebounce, orden);
 
-      const lugaresFormateados = data.map((lugar) => ({
+      const safeData = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.places)
+          ? data.places
+          : Array.isArray(data?.data)
+            ? data.data
+            : [];
+
+      const lugaresFormateados = safeData.map((lugar) => ({
         id: lugar.id,
         nombre: lugar.name,
         descripcion: lugar.description,
@@ -191,12 +199,14 @@ const Lugares = () => {
             </p>
           </div>
 
-          <Link
-            to="/lugares/crear"
-            className="rounded-full bg-[#9B7BE8] px-6 py-3 font-bold text-white transition hover:bg-[#8B6FD6]"
-          >
-            {isParentMode ? "Crear lugar para niño/a" : "Crear lugar"}
-          </Link>
+          {!isParentWithoutChild && (
+            <Link
+              to="/lugares/crear"
+              className="rounded-full bg-[#9B7BE8] px-6 py-3 font-bold text-white transition hover:bg-[#8B6FD6]"
+            >
+              {isParentMode ? "Crear lugar para niño/a" : "Crear lugar"}
+            </Link>
+          )}
         </div>
 
         {isParent && (
@@ -315,10 +325,10 @@ const Lugares = () => {
                         <p className="mt-2 text-[#6B5A95]">
                           {lugar.descripcion || "Sin descripción"}
                         </p>
-
+                        
                         {lugar.managed_by_parent && (
                           <p className="mt-4 inline-flex rounded-full bg-[#EAF8EF] px-3 py-1 text-sm font-bold text-[#2F6B4F]">
-                            Lugar del niño/a
+                            Agregado por cuidador
                           </p>
                         )}
                       </Link>

@@ -9,7 +9,6 @@ import {
   getChildEvolutionDashboard,
 } from "../services/parentDashboardService";
 import { getCachedData, setCachedData } from "../utils/cache";
-import InformeInteligenteObservaciones from "../pages/InformeInteligenteObservaciones";
 
 const PanelPadres = () => {
   const { user } = useFloFlo();
@@ -194,11 +193,13 @@ const PanelPadres = () => {
   const saveSelectedChild = (child) => {
     if (!child) {
       localStorage.removeItem("selectedChild");
+      localStorage.removeItem("floflo_selected_child_id");
       window.dispatchEvent(new Event("selectedChildChanged"));
       return;
     }
 
     localStorage.setItem("selectedChild", JSON.stringify(child));
+    localStorage.setItem("floflo_selected_child_id", String(child.id));
     window.dispatchEvent(new Event("selectedChildChanged"));
   };
 
@@ -481,6 +482,27 @@ const PanelPadres = () => {
     }
   };
 
+  if (!user) {
+    return <p className="text-center mt-10">Cargando usuario...</p>;
+  }
+
+  if (user.role !== "parent") {
+    return (
+      <main className="min-h-screen bg-purple-50 p-6">
+        <section className="max-w-5xl mx-auto bg-white rounded-3xl p-6 shadow-md text-center">
+          <h1 className="text-3xl font-bold text-purple-700 mb-3">
+            Acceso solo para cuidadores
+          </h1>
+
+          <p className="text-gray-600">
+            Esta sección está disponible solo para cuentas de padre, madre o
+            cuidador.
+          </p>
+        </section>
+      </main>
+    );
+  }
+
   if (loading) {
     return <p className="text-center mt-10">Cargando panel...</p>;
   }
@@ -734,6 +756,10 @@ const PanelPadres = () => {
 
         {dashboard.weeklySupportPlan && (
           <WeeklySupportPlanCard plan={dashboard.weeklySupportPlan} />
+        )}
+
+        {user?.role === "parent" && selectedChild && (
+          <WeeklySupportPlanHistory history={weeklyPlanHistory} />
         )}
 
         {user?.role === "parent" && selectedChild && (

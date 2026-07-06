@@ -153,41 +153,6 @@ const normalizeBoolean = (value) => {
   return value === true || value === "true" || value === 1 || value === "1";
 };
 
-const generarOpcionesConIA = async (whatToSay, situation) => {
-  try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "claude-sonnet-4-6",
-        max_tokens: 300,
-        messages: [
-          {
-            role: "user",
-            content: `Eres un asistente para una app de habilidades sociales para niños con autismo.
-Dado este escenario: "${situation}"
-Y la respuesta CORRECTA que debe decir Félix: "${whatToSay}"
-
-Genera exactamente 2 respuestas INCORRECTAS que Félix NO debería decir en esta situación.
-Las respuestas incorrectas deben ser cortas, simples y claramente inadecuadas para el contexto.
-
-Responde SOLO con JSON válido, sin texto adicional, sin backticks:
-{"wrong_1": "...", "wrong_2": "..."}`,
-          },
-        ],
-      }),
-    });
-
-    const data = await response.json();
-    const text = data.content?.[0]?.text || "";
-    const parsed = JSON.parse(text.trim());
-
-    return [parsed.wrong_1, parsed.wrong_2];
-  } catch (e) {
-    return ["Me quedo en silencio.", "Me alejo sin responder."];
-  }
-};
-
 const Conversaciones = () => {
   const {
     user,
@@ -327,7 +292,6 @@ const Conversaciones = () => {
   const [regenerandoConversationId, setRegenerandoConversationId] =
     useState(null);
   const [newAchievement, setNewAchievement] = useState(null);
-  const [cargandoOpciones, setCargandoOpciones] = useState(false);
   const [cargandoPagina, setCargandoPagina] = useState(true);
 
   const [paginaActual, setPaginaActual] = useState(1);
@@ -486,19 +450,6 @@ const Conversaciones = () => {
             busquedaDebounce,
             orden,
           );
-      console.table(
-        data.conversations
-          .filter((item) => item.tipo === "contacto")
-          .map((item) => ({
-            id: item.id,
-            title: item.title,
-            tipo: item.tipo,
-            managed_by_parent: item.managed_by_parent,
-            managedByParent: item.managedByParent,
-            tipoManagedSnake: typeof item.managed_by_parent,
-            tipoManagedCamel: typeof item.managedByParent,
-          })),
-      );
       const conversacionesMapeadas = data.conversations.map((item) => {
         const base = contenidoBasePorTitulo[item.title];
         const esContacto = item.tipo === "contacto";
@@ -628,6 +579,20 @@ const Conversaciones = () => {
   ]);
 
   useEffect(() => {
+    setConversacionSeleccionada(null);
+    setRespuestaSeleccionada(null);
+    setEditando(false);
+    setPaginaActual(1);
+
+    setFormIA({
+      topic: "",
+      situation: "",
+      person: "",
+      emotion: "",
+    });
+  }, [selectedChildId, user?.id]);
+
+  useEffect(() => {
     const timer = setTimeout(() => {
       setBusquedaDebounce(busqueda);
       setPaginaActual(1);
@@ -635,49 +600,6 @@ const Conversaciones = () => {
 
     return () => clearTimeout(timer);
   }, [busqueda]);
-
-  useEffect(() => {
-    if (
-      conversacionSeleccionada?.tipo === "contacto" &&
-      conversacionSeleccionada?.ejercicio?.opciones?.length === 0 &&
-      conversacionSeleccionada?.what_to_say
-    ) {
-      const generarOpciones = async () => {
-        setCargandoOpciones(true);
-
-        const [wrong1, wrong2] = await generarOpcionesConIA(
-          conversacionSeleccionada.what_to_say,
-          conversacionSeleccionada.escenario,
-        );
-
-        const nuevasOpciones = [
-          { texto: conversacionSeleccionada.what_to_say, correcta: true },
-          { texto: wrong1, correcta: false },
-          { texto: wrong2, correcta: false },
-        ].sort(() => Math.random() - 0.5);
-
-        setConversacionSeleccionada((prev) => ({
-          ...prev,
-          ejercicio: { ...prev.ejercicio, opciones: nuevasOpciones },
-        }));
-
-        setConversaciones((prev) =>
-          prev.map((c) =>
-            c.id === conversacionSeleccionada.id
-              ? {
-                  ...c,
-                  ejercicio: { ...c.ejercicio, opciones: nuevasOpciones },
-                }
-              : c,
-          ),
-        );
-
-        setCargandoOpciones(false);
-      };
-
-      generarOpciones();
-    }
-  }, [conversacionSeleccionada?.id]);
 
   const progreso =
     totalConversaciones > 0
@@ -1882,23 +1804,7 @@ const Conversaciones = () => {
                   </h3>
 
                   <div className="grid grid-cols-1 gap-4">
-                    {cargandoOpciones ? (
-                      <div className="flex items-center gap-3 rounded-2xl bg-[#F3ECFF] p-5">
-                        <motion.div
-                          animate={{ rotate: 360 }}
-                          transition={{
-                            duration: 1,
-                            repeat: Infinity,
-                            ease: "linear",
-                          }}
-                          className="h-6 w-6 rounded-full border-4 border-[#9B7BE8] border-t-transparent"
-                        />
-
-                        <p className="font-semibold text-[#4B367C]">
-                          Félix está preparando las opciones...
-                        </p>
-                      </div>
-                    ) : opcionesNivel2.length === 0 ? (
+                    {opcionesNivel2.length === 0 ? (
                       <p className="rounded-2xl bg-[#FFE1E1] p-4 font-bold text-[#8A3A3A]">
                         Esta conversación aún no tiene respuestas preparadas.
                       </p>

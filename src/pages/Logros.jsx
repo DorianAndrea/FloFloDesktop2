@@ -8,6 +8,10 @@ import { useSelectedChild } from "../context/SelectedChildContext";
 import { useFeedback } from "../context/FeedbackContext";
 import { getCachedData, setCachedData } from "../utils/cache";
 
+const normalizeBoolean = (value) => {
+  return value === true || value === "true" || value === 1 || value === "1";
+};
+
 const Logros = () => {
   const [achievements, setAchievements] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -86,12 +90,12 @@ const Logros = () => {
     loadAchievements();
   }, [user?.id, user?.role, selectedChildId, loadingChildren]);
 
-  const unlockedAchievements = achievements.filter(
-    (achievement) => achievement.unlocked,
+  const unlockedAchievements = achievements.filter((achievement) =>
+    normalizeBoolean(achievement.unlocked),
   );
 
   const lockedAchievements = achievements.filter(
-    (achievement) => !achievement.unlocked,
+    (achievement) => !normalizeBoolean(achievement.unlocked),
   );
 
   if (loading) {

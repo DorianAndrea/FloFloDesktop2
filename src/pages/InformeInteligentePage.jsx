@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import InformeInteligenteObservaciones from "./InformeInteligenteObservaciones";
-
+import { useFloFlo } from "../context/FloFloContext";
+import { useFeedback } from "../context/FeedbackContext";
 import api from "../services/api";
 
 const getChildFullName = (child) => {
@@ -13,11 +14,26 @@ const getChildFullName = (child) => {
 };
 
 const InformeInteligentePage = () => {
+  const { user } = useFloFlo();
+  const { showFeedback } = useFeedback();
   const [children, setChildren] = useState([]);
   const [searchParams] = useSearchParams();
   const childIdFromUrl = Number(searchParams.get("childId"));
   const [selectedChild, setSelectedChild] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const saveSelectedChild = (child) => {
+    if (!child) {
+      localStorage.removeItem("selectedChild");
+      localStorage.removeItem("floflo_selected_child_id");
+      window.dispatchEvent(new Event("selectedChildChanged"));
+      return;
+    }
+
+    localStorage.setItem("selectedChild", JSON.stringify(child));
+    localStorage.setItem("floflo_selected_child_id", String(child.id));
+    window.dispatchEvent(new Event("selectedChildChanged"));
+  };
 
   const loadChildren = async () => {
     try {
@@ -54,24 +70,65 @@ const InformeInteligentePage = () => {
           (child) => Number(child.id) === childIdFromUrl,
         );
 
-        setSelectedChild(childFromUrl || childrenData[0]);
+        const childToSelect = childFromUrl || childrenData[0];
+
+        setSelectedChild(childToSelect);
+        saveSelectedChild(childToSelect);
+      } else {
+        setSelectedChild(null);
+        saveSelectedChild(null);
       }
     } catch (error) {
       console.error("Error cargando niños asociados:", error);
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudieron cargar los niños asociados",
+        message:
+          error.response?.data?.message ||
+          "Intenta nuevamente en unos segundos.",
+      });
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadChildren();
-  }, [childIdFromUrl]);
+    if (user?.role === "parent") {
+      loadChildren();
+    }
+  }, [user?.id, user?.role, childIdFromUrl]);
 
   const handleChildChange = (e) => {
     const childId = Number(e.target.value);
     const child = children.find((item) => Number(item.id) === childId);
+
     setSelectedChild(child || null);
+    saveSelectedChild(child || null);
   };
+
+  if (!user) {
+    return <p className="text-center mt-10">Cargando usuario...</p>;
+  }
+
+  if (user.role !== "parent") {
+    return (
+      <main className="min-h-screen bg-purple-50 p-6">
+        <section className="max-w-5xl mx-auto bg-white rounded-3xl p-6 shadow-md text-center">
+          <h1 className="text-3xl font-bold text-purple-700 mb-3">
+            Acceso solo para cuidadores
+          </h1>
+
+          <p className="text-gray-600">
+            Esta sección está disponible solo para cuentas de padre, madre o
+            cuidador.
+          </p>
+        </section>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-purple-50 via-violet-50 to-teal-50 px-5 py-8">

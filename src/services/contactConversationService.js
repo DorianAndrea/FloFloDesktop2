@@ -1,4 +1,5 @@
 import api from "./api";
+import { validateChildId } from "../utils/validateChildId";
 
 /*
   Conversaciones de contactos propias del usuario conectado.
@@ -51,7 +52,12 @@ export const toggleFavoriteContactConversation = async (id) => {
 */
 
 export const getChildAllContactConversations = async (childId) => {
-  const response = await api.get(`/contact-conversations/children/${childId}`);
+  const cleanChildId = validateChildId(childId);
+
+  const response = await api.get(
+    `/contact-conversations/children/${cleanChildId}`,
+  );
+
   return response.data;
 };
 
@@ -59,16 +65,20 @@ export const getChildContactConversationsByContactId = async (
   childId,
   contactId,
 ) => {
+  const cleanChildId = validateChildId(childId);
+
   const response = await api.get(
-    `/contact-conversations/children/${childId}/contact/${contactId}`,
+    `/contact-conversations/children/${cleanChildId}/contact/${contactId}`,
   );
 
   return response.data;
 };
 
 export const createChildContactConversation = async (childId, conversation) => {
+  const cleanChildId = validateChildId(childId);
+
   const response = await api.post(
-    `/contact-conversations/children/${childId}`,
+    `/contact-conversations/children/${cleanChildId}`,
     conversation,
   );
 
@@ -80,8 +90,10 @@ export const updateChildContactConversation = async (
   id,
   conversation,
 ) => {
+  const cleanChildId = validateChildId(childId);
+
   const response = await api.put(
-    `/contact-conversations/children/${childId}/${id}`,
+    `/contact-conversations/children/${cleanChildId}/${id}`,
     conversation,
   );
 
@@ -89,32 +101,40 @@ export const updateChildContactConversation = async (
 };
 
 export const deleteChildContactConversation = async (childId, id) => {
+  const cleanChildId = validateChildId(childId);
+
   const response = await api.delete(
-    `/contact-conversations/children/${childId}/${id}`,
+    `/contact-conversations/children/${cleanChildId}/${id}`,
   );
 
   return response.data;
 };
 
 export const completeChildContactConversation = async (childId, id) => {
+  const cleanChildId = validateChildId(childId);
+
   const response = await api.post(
-    `/contact-conversations/children/${childId}/${id}/complete`,
+    `/contact-conversations/children/${cleanChildId}/${id}/complete`,
   );
 
   return response.data;
 };
 
 export const getChildContactConversationProgress = async (childId) => {
+  const cleanChildId = validateChildId(childId);
+
   const response = await api.get(
-    `/contact-conversations/children/${childId}/progress`,
+    `/contact-conversations/children/${cleanChildId}/progress`,
   );
 
   return response.data;
 };
 
 export const toggleFavoriteChildContactConversation = async (childId, id) => {
+  const cleanChildId = validateChildId(childId);
+
   const response = await api.post(
-    `/contact-conversations/children/${childId}/${id}/favorite`,
+    `/contact-conversations/children/${cleanChildId}/${id}/favorite`,
   );
 
   return response.data;

@@ -1,10 +1,7 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import ProtectedRoute from "./components/ProtectedRoute";
-import { useFloFlo } from "./context/FloFloContext";
-
 import EstadosAnimo from "./pages/EstadosAnimo";
 import Rutinas from "./pages/Rutinas";
 import Amigos from "./pages/Amigos";
@@ -25,20 +22,6 @@ import ResetPassword from "./pages/ResetPassword";
 import { FeedbackProvider } from "./context/FeedbackContext";
 import { SelectedChildProvider } from "./context/SelectedChildContext";
 import InformeInteligentePage from "./pages/InformeInteligentePage";
-
-const ProtectedParentRoute = ({ children }) => {
-  const { user } = useFloFlo();
-
-  if (!user) {
-    return <Navigate to="/login" />;
-  }
-
-  if (user.role !== "parent") {
-    return <Navigate to="/" />;
-  }
-
-  return children;
-};
 
 function App() {
   return (
@@ -72,7 +55,7 @@ function App() {
                 <Route
                   path="/emociones"
                   element={
-                    <ProtectedRoute>
+                    <ProtectedRoute requireSelectedChild>
                       <EstadosAnimo />
                     </ProtectedRoute>
                   }
@@ -81,7 +64,7 @@ function App() {
                 <Route
                   path="/rutinas"
                   element={
-                    <ProtectedRoute>
+                    <ProtectedRoute requireSelectedChild>
                       <Rutinas />
                     </ProtectedRoute>
                   }
@@ -90,7 +73,7 @@ function App() {
                 <Route
                   path="/amigos"
                   element={
-                    <ProtectedRoute>
+                    <ProtectedRoute requireSelectedChild>
                       <Amigos />
                     </ProtectedRoute>
                   }
@@ -99,7 +82,7 @@ function App() {
                 <Route
                   path="/amigos/:id"
                   element={
-                    <ProtectedRoute>
+                    <ProtectedRoute requireSelectedChild>
                       <PersonaDetalle />
                     </ProtectedRoute>
                   }
@@ -108,7 +91,7 @@ function App() {
                 <Route
                   path="/conversaciones"
                   element={
-                    <ProtectedRoute>
+                    <ProtectedRoute requireSelectedChild>
                       <Conversaciones />
                     </ProtectedRoute>
                   }
@@ -117,7 +100,7 @@ function App() {
                 <Route
                   path="/lugares"
                   element={
-                    <ProtectedRoute>
+                    <ProtectedRoute requireSelectedChild>
                       <Lugares />
                     </ProtectedRoute>
                   }
@@ -126,7 +109,7 @@ function App() {
                 <Route
                   path="/lugares/crear"
                   element={
-                    <ProtectedRoute>
+                    <ProtectedRoute requireSelectedChild>
                       <CrearLugar />
                     </ProtectedRoute>
                   }
@@ -135,7 +118,7 @@ function App() {
                 <Route
                   path="/lugares/:id"
                   element={
-                    <ProtectedRoute>
+                    <ProtectedRoute requireSelectedChild>
                       <LugarDetalle />
                     </ProtectedRoute>
                   }
@@ -144,7 +127,7 @@ function App() {
                 <Route
                   path="/logros"
                   element={
-                    <ProtectedRoute>
+                    <ProtectedRoute requireSelectedChild>
                       <Logros />
                     </ProtectedRoute>
                   }
@@ -153,17 +136,18 @@ function App() {
                 <Route
                   path="/panel-padres"
                   element={
-                    <ProtectedParentRoute>
+                    <ProtectedRoute allowedRoles={["parent"]}>
                       <PanelPadres />
-                    </ProtectedParentRoute>
+                    </ProtectedRoute>
                   }
                 />
-                 <Route
+
+                <Route
                   path="/informe-inteligente"
                   element={
-                    <ProtectedParentRoute>
+                    <ProtectedRoute allowedRoles={["parent"]}>
                       <InformeInteligentePage />
-                    </ProtectedParentRoute>
+                    </ProtectedRoute>
                   }
                 />
 

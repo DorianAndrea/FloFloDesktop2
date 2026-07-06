@@ -9,6 +9,7 @@ import {
   getMySensoryProfileHistory,
   getChildSensoryProfileHistory,
   saveChildSensoryProfile,
+  updateChildSensoryProfile,
 } from "../services/sensoryProfileService";
 import { getCachedData, setCachedData } from "../utils/cache";
 
@@ -348,9 +349,17 @@ const PerfilSensorial = () => {
           return;
         }
 
-        await saveChildSensoryProfile(selectedChildId, payload);
+        if (hasProfileData) {
+          await updateChildSensoryProfile(selectedChildId, payload);
+        } else {
+          await saveChildSensoryProfile(selectedChildId, payload);
+        }
       } else {
-        await saveMySensoryProfile(payload);
+        if (hasProfileData) {
+          await updateMySensoryProfile(payload);
+        } else {
+          await saveMySensoryProfile(payload);
+        }
       }
 
       showFeedback({
@@ -399,11 +408,7 @@ const PerfilSensorial = () => {
             <p className="text-gray-600">
               Estás viendo el perfil sensorial de{" "}
               <span className="font-bold text-purple-700">
-                {selectedChild
-                  ? `${selectedChild.firstName || ""} ${
-                      selectedChild.lastName || ""
-                    }`
-                  : "un niño seleccionado"}
+                {selectedChild ? childName : "un niño seleccionado"}
               </span>
               .
             </p>

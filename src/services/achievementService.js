@@ -1,4 +1,10 @@
 import api from "./api";
+import { validateChildId } from "../utils/validateChildId";
+
+/*
+  Logros propios del usuario conectado.
+  Esto lo usa el niño/a.
+*/
 
 export const getAchievements = async () => {
   const response = await api.get("/achievements");
@@ -14,8 +20,15 @@ export const getAchievements = async () => {
   return [];
 };
 
+/*
+  Logros de un hijo/a asociado.
+  Esto lo usa el padre/cuidador cuando está viendo un niño activo.
+*/
+
 export const getChildAchievements = async (childId) => {
-  const response = await api.get(`/achievements/children/${childId}`);
+  const cleanChildId = validateChildId(childId);
+
+  const response = await api.get(`/achievements/children/${cleanChildId}`);
 
   if (Array.isArray(response.data)) {
     return response.data;

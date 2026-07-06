@@ -219,6 +219,10 @@ const Rutinas = () => {
     loadRoutines();
   }, [user?.id, user?.role, selectedChildId, loadingChildren]);
 
+  useEffect(() => {
+    resetForm();
+  }, [selectedChildId, user?.id]);
+
   const resetForm = () => {
     setName("");
     setStartTime("");
@@ -905,7 +909,7 @@ const Rutinas = () => {
 
             <div className="rounded-[2rem] bg-white p-6 shadow-lg md:p-8">
               <h2 className="text-3xl font-extrabold text-[#4B367C]">
-                Todas mis rutinas
+                {isParentMode ? `Rutinas de ${childName}` : "Todas mis rutinas"}
               </h2>
 
               <p className="mt-2 text-[#6B5A95]">

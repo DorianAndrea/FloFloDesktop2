@@ -139,6 +139,10 @@ const Amigos = () => {
   ]);
 
   useEffect(() => {
+    resetForm();
+  }, [selectedChildId, user?.id]);
+
+  useEffect(() => {
     const timer = setTimeout(() => {
       setBusquedaDebounce(busqueda);
     }, 500);
@@ -179,29 +183,29 @@ const Amigos = () => {
     return true;
   };
 
- const handleImageChange = (e) => {
-  const file = e.target.files[0];
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
 
-  if (!file) {
-    setImage(null);
-    return;
-  }
+    if (!file) {
+      setImage(null);
+      return;
+    }
 
-  const validation = validateImageFile(file);
+    const validation = validateImageFile(file);
 
-  if (!validation.isValid) {
-    e.target.value = "";
-    setImage(null);
-    setPreview("");
+    if (!validation.isValid) {
+      e.target.value = "";
+      setImage(null);
+      setPreview("");
 
-    showFeedback(validation.feedback);
+      showFeedback(validation.feedback);
 
-    return;
-  }
+      return;
+    }
 
-  setImage(file);
-  setPreview(URL.createObjectURL(file));
-};
+    setImage(file);
+    setPreview(URL.createObjectURL(file));
+  };
 
   const handleEdit = (contact) => {
     setEditingContactId(contact.id);
@@ -428,9 +432,12 @@ const Amigos = () => {
           <div className="grid grid-cols-1 items-center gap-12 md:grid-cols-2">
             <div className="mx-auto w-full max-w-md">
               <p className="mb-3 text-center text-lg font-bold text-[#9B7BE8]">
-                {isParentMode ? "Personas del niño/a" : "Personas importantes"}
+                {editingContactId
+                  ? "Editando persona"
+                  : isParentMode
+                    ? "Personas del niño/a"
+                    : "Personas importantes"}
               </p>
-
               <h1 className="mb-10 text-center text-4xl font-light text-black">
                 {isParentMode
                   ? `Personas importantes para ${childName}`
@@ -596,7 +603,7 @@ const Amigos = () => {
 
                       {contact.managed_by_parent && (
                         <p className="mt-3 inline-flex rounded-full bg-[#EAF8EF] px-3 py-1 text-sm font-bold text-[#2F6B4F]">
-                          Personas conocidas del niño/a
+                          Agregado por cuidador
                         </p>
                       )}
                     </div>

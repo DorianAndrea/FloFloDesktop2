@@ -1,4 +1,5 @@
 import api from "./api";
+import { validateChildId } from "../utils/validateChildId";
 
 /*
   Contactos propios del usuario conectado.
@@ -56,7 +57,9 @@ export const getChildContacts = async (
   search = "",
   order = "recientes",
 ) => {
-  const response = await api.get(`/contacts/children/${childId}`, {
+  const cleanChildId = validateChildId(childId);
+
+  const response = await api.get(`/contacts/children/${cleanChildId}`, {
     params: {
       search,
       order,
@@ -67,12 +70,16 @@ export const getChildContacts = async (
 };
 
 export const getChildContactById = async (childId, id) => {
-  const response = await api.get(`/contacts/children/${childId}/${id}`);
+  const cleanChildId = validateChildId(childId);
+
+  const response = await api.get(`/contacts/children/${cleanChildId}/${id}`);
   return response.data;
 };
 
 export const createChildContact = async (childId, contact) => {
-  const response = await api.post(`/contacts/children/${childId}`, contact, {
+  const cleanChildId = validateChildId(childId);
+
+  const response = await api.post(`/contacts/children/${cleanChildId}`, contact, {
     headers: {
       "Content-Type": "multipart/form-data",
     },
@@ -82,16 +89,24 @@ export const createChildContact = async (childId, contact) => {
 };
 
 export const updateChildContact = async (childId, id, contact) => {
-  const response = await api.put(`/contacts/children/${childId}/${id}`, contact, {
-    headers: {
-      "Content-Type": "multipart/form-data",
+  const cleanChildId = validateChildId(childId);
+
+  const response = await api.put(
+    `/contacts/children/${cleanChildId}/${id}`,
+    contact,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
     },
-  });
+  );
 
   return response.data;
 };
 
 export const deleteChildContact = async (childId, id) => {
-  const response = await api.delete(`/contacts/children/${childId}/${id}`);
+  const cleanChildId = validateChildId(childId);
+
+  const response = await api.delete(`/contacts/children/${cleanChildId}/${id}`);
   return response.data;
 };
