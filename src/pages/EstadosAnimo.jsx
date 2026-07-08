@@ -22,6 +22,7 @@ import sparkle from "../assets/sounds/sparkle.mp3";
 
 import AchievementPopup from "../components/AchievementPopup";
 import { getCachedData, setCachedData } from "../utils/cache";
+import { showUnlockedAchievements } from "../utils/showUnlockedAchievements";
 
 const EstadosAnimo = () => {
   const { setMood, user } = useFloFlo();
@@ -101,65 +102,65 @@ const EstadosAnimo = () => {
   ];
 
   const loadMoods = async ({ useCache = true } = {}) => {
-  try {
-    if (!user) return;
+    try {
+      if (!user) return;
 
-    if (isParent && loadingChildren) return;
+      if (isParent && loadingChildren) return;
 
-    const ownerId = isParentMode ? selectedChildId : user.id;
-    const cacheKey = `floflo_moods_${ownerId}`;
+      const ownerId = isParentMode ? selectedChildId : user.id;
+      const cacheKey = `floflo_moods_${ownerId}`;
 
-    if (isParentWithoutChild) {
-      setMoods([]);
-      setLoading(false);
-      return;
-    }
-
-    if (useCache) {
-      const cachedMoods = getCachedData(cacheKey);
-
-      if (Array.isArray(cachedMoods)) {
-        setMoods(cachedMoods);
+      if (isParentWithoutChild) {
+        setMoods([]);
         setLoading(false);
+        return;
+      }
+
+      if (useCache) {
+        const cachedMoods = getCachedData(cacheKey);
+
+        if (Array.isArray(cachedMoods)) {
+          setMoods(cachedMoods);
+          setLoading(false);
+        } else {
+          setLoading(true);
+        }
       } else {
         setLoading(true);
       }
-    } else {
-      setLoading(true);
+
+      const data = isParentMode
+        ? await getChildMoods(selectedChildId)
+        : await getMoods();
+
+      const safeMoods = Array.isArray(data) ? data : [];
+
+      setMoods(safeMoods);
+      setCachedData(cacheKey, safeMoods);
+    } catch (error) {
+      console.error(error);
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Algo salió mal",
+        title: "No se pudo cargar el historial",
+        message:
+          error.response?.data?.message ||
+          "Intenta nuevamente en unos segundos.",
+      });
+    } finally {
+      setLoading(false);
     }
-
-    const data = isParentMode
-      ? await getChildMoods(selectedChildId)
-      : await getMoods();
-
-    const safeMoods = Array.isArray(data) ? data : [];
-
-    setMoods(safeMoods);
-    setCachedData(cacheKey, safeMoods);
-  } catch (error) {
-    console.error(error);
-
-    showFeedback({
-      type: "error",
-      icon: "❌",
-      label: "Algo salió mal",
-      title: "No se pudo cargar el historial",
-      message:
-        error.response?.data?.message ||
-        "Intenta nuevamente en unos segundos.",
-    });
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   useEffect(() => {
     loadMoods();
   }, [user?.id, user?.role, selectedChildId, loadingChildren]);
 
   useEffect(() => {
-  setEstadoSeleccionado(null);
-}, [selectedChildId, user?.id]);
+    setEstadoSeleccionado(null);
+  }, [selectedChildId, user?.id]);
 
   const seleccionarEstado = async (estado) => {
     if (!user) {
@@ -207,28 +208,32 @@ const EstadosAnimo = () => {
         ? await createChildMood(selectedChildId, payload)
         : await createMood(payload);
 
-      if (isParentMode) {
+      const ownerId = isParentMode ? selectedChildId : user.id;
+      localStorage.removeItem(`floflo_achievements_${ownerId}`);
+
+      const unlockedAchievements = Array.isArray(response?.unlockedAchievements)
+        ? response.unlockedAchievements
+        : [];
+
+      if (unlockedAchievements.length > 0) {
+        showUnlockedAchievements(showFeedback, unlockedAchievements);
+
+        setNewAchievement(unlockedAchievements[0]);
+
+        setTimeout(() => {
+          setNewAchievement(null);
+        }, 5000);
+      } else {
         showFeedback({
           type: "success",
-          icon: "✅",
-          label: "Observación guardada",
-          title: "Estado emocional registrado",
-          message: `La observación emocional fue guardada para ${childName}.`,
-        });
-      } else if (response.unlockedAchievements?.length > 0) {
-        setNewAchievement(response.unlockedAchievements[0]);
-      } else {
-        setNewAchievement({
-          icon: "😊",
-          name: "Emoción registrada",
-          description:
-            "Félix guardó cómo te sientes hoy. Ganaste una estrella.",
+          icon: isParentMode ? "✅" : "⭐",
+          label: isParentMode ? "Observación guardada" : "Emoción registrada",
+          title: isParentMode ? "Estado emocional registrado" : "¡Muy bien!",
+          message: isParentMode
+            ? `La observación emocional fue guardada para ${childName}.`
+            : "Félix guardó cómo te sientes hoy. Ganaste una estrella.",
         });
       }
-
-      setTimeout(() => {
-        setNewAchievement(null);
-      }, 5000);
 
       await loadMoods({ useCache: false });
     } catch (error) {

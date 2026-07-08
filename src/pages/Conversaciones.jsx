@@ -40,6 +40,7 @@ import felixFeliz from "../assets/svg/felix_feliz.svg";
 import successSound from "../assets/sounds/kid_success.mp3";
 import wrongSound from "../assets/sounds/error.mp3";
 import { getCachedData, setCachedData } from "../utils/cache";
+import { showUnlockedAchievements } from "../utils/showUnlockedAchievements";
 
 const contenidoBasePorTitulo = {
   Saludar: {
@@ -652,7 +653,6 @@ const Conversaciones = () => {
         : `normal-${idNumerico}`;
 
     if (completedConversations.includes(progressKey)) return;
-
     try {
       const response =
         conversacionSeleccionada.tipo === "contacto"
@@ -666,20 +666,45 @@ const Conversaciones = () => {
             ? await completeChildConversation(selectedChildId, idNumerico)
             : await completeConversation(idNumerico);
 
-      setNewAchievement(
-        response.unlockedAchievements?.[0] || {
-          icon: "⭐",
-          name: "¡Muy bien!",
-          description:
-            conversacionSeleccionada.tipo === "contacto"
-              ? "Practicaste una conversación personalizada."
-              : "Ganaste una estrella por completar la conversación.",
-        },
-      );
+      const ownerId = isParentMode ? selectedChildId : user.id;
+      localStorage.removeItem(`floflo_achievements_${ownerId}`);
 
-      setCompletedConversations((prev) => [...prev, progressKey]);
+      const unlockedAchievements = Array.isArray(response?.unlockedAchievements)
+        ? response.unlockedAchievements
+        : [];
 
-      setTimeout(() => setNewAchievement(null), 5000);
+      const completedCountAfter = completedConversations.length + 1;
+
+      const fallbackAchievement =
+        unlockedAchievements.length === 0 && completedCountAfter === 10
+          ? {
+              icon: "🏆",
+              name: "Súper comunicador",
+              description: "Completaste 10 conversaciones.",
+            }
+          : null;
+
+      const achievementsToShow =
+        unlockedAchievements.length > 0
+          ? unlockedAchievements
+          : fallbackAchievement
+            ? [fallbackAchievement]
+            : [];
+
+      if (achievementsToShow.length > 0) {
+        showUnlockedAchievements(showFeedback, achievementsToShow);
+
+        setNewAchievement(achievementsToShow[0]);
+
+        setTimeout(() => {
+          setNewAchievement(null);
+        }, 5000);
+      }
+
+      setCompletedConversations((prev) => {
+        if (prev.includes(progressKey)) return prev;
+        return [...prev, progressKey];
+      });
 
       await cargarProgreso();
       await cargarUserProgress();

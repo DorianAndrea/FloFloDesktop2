@@ -23,6 +23,8 @@ import { useFeedback } from "../context/FeedbackContext";
 import felix from "../assets/webp/felix_respirando.webp";
 import { getCachedData, setCachedData, removeCachedData } from "../utils/cache";
 import { validateImageFile } from "../utils/validateImageFile";
+import AchievementPopup from "../components/AchievementPopup";
+import { showUnlockedAchievements } from "../utils/showUnlockedAchievements";
 
 const lugaresDemo = [
   {
@@ -140,6 +142,7 @@ const LugarDetalle = () => {
 
   const [lugar, setLugar] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [newAchievement, setNewAchievement] = useState(null);
   const [modoPreparacion, setModoPreparacion] = useState(false);
   const [pasoActual, setPasoActual] = useState(0);
   const [editing, setEditing] = useState(false);
@@ -706,15 +709,34 @@ const LugarDetalle = () => {
     if (!validateParentChildSelection()) return;
 
     try {
+      let response = null;
+
       if (!esDemo) {
-        if (isParentMode) {
-          await completeChildPlace(selectedChildId, id);
-        } else {
-          await completePlace(id);
-        }
+        response = isParentMode
+          ? await completeChildPlace(selectedChildId, id)
+          : await completePlace(id);
       }
 
+      const ownerId = isParentMode ? selectedChildId : user.id;
+      localStorage.removeItem(`floflo_achievements_${ownerId}`);
+
       markPlaceAsVisited();
+
+      const unlockedAchievements = Array.isArray(response?.unlockedAchievements)
+        ? response.unlockedAchievements
+        : [];
+
+      if (unlockedAchievements.length > 0) {
+        showUnlockedAchievements(showFeedback, unlockedAchievements);
+
+        setNewAchievement(unlockedAchievements[0]);
+
+        setTimeout(() => {
+          setNewAchievement(null);
+        }, 5000);
+
+        return;
+      }
 
       showFeedback({
         type: "success",
@@ -821,6 +843,7 @@ const LugarDetalle = () => {
   if (modoPreparacion) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#F3ECFF] px-6 py-10">
+        <AchievementPopup achievement={newAchievement} />
         <section className="w-full max-w-3xl rounded-[2.5rem] bg-white p-8 text-center shadow-lg">
           <p className="mb-4 font-bold text-[#9B7BE8]">
             Paso {pasoActual + 1} de {lugar.pasos.length}
@@ -883,6 +906,7 @@ const LugarDetalle = () => {
 
   return (
     <main className="min-h-screen bg-[#F3ECFF] px-6 py-10">
+      <AchievementPopup achievement={newAchievement} />
       <section className="mx-auto max-w-6xl">
         <Link
           to="/lugares"

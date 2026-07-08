@@ -7,6 +7,7 @@ import { useFloFlo } from "../context/FloFloContext";
 import { useSelectedChild } from "../context/SelectedChildContext";
 import { useFeedback } from "../context/FeedbackContext";
 import { getCachedData, setCachedData } from "../utils/cache";
+import { getUserProgress, getChildProgress } from "../services/progressService";
 
 const normalizeBoolean = (value) => {
   return value === true || value === "true" || value === 1 || value === "1";
@@ -14,6 +15,7 @@ const normalizeBoolean = (value) => {
 
 const Logros = () => {
   const [achievements, setAchievements] = useState([]);
+  const [progress, setProgress] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const { user } = useFloFlo();
@@ -45,6 +47,7 @@ const Logros = () => {
 
       if (isParentWithoutChild) {
         setAchievements([]);
+        setProgress(null);
         setLoading(false);
         return;
       }
@@ -61,13 +64,19 @@ const Logros = () => {
         setLoading(true);
       }
 
-      const data = isParentMode
-        ? await getChildAchievements(selectedChildId)
-        : await getAchievements();
+      const [achievementsData, progressData] = await Promise.all([
+        isParentMode
+          ? getChildAchievements(selectedChildId)
+          : getAchievements(),
+        isParentMode ? getChildProgress(selectedChildId) : getUserProgress(),
+      ]);
 
-      const safeAchievements = Array.isArray(data) ? data : [];
+      const safeAchievements = Array.isArray(achievementsData)
+        ? achievementsData
+        : [];
 
       setAchievements(safeAchievements);
+      setProgress(progressData || null);
       setCachedData(cacheKey, safeAchievements);
     } catch (error) {
       console.error(error);
@@ -97,6 +106,7 @@ const Logros = () => {
   const lockedAchievements = achievements.filter(
     (achievement) => !normalizeBoolean(achievement.unlocked),
   );
+  const earnedStars = Number(progress?.points || 0);
 
   if (loading) {
     return (
@@ -150,19 +160,31 @@ const Logros = () => {
         )}
 
         <div className="mb-10 rounded-[2rem] border-2 border-[#E4D8FF] bg-white p-6 shadow-md">
-          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-            <div>
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+            <div className="rounded-[1.5rem] bg-[#F3ECFF] p-5">
               <p className="mb-1 font-bold text-[#9B7BE8]">
-                Progreso de logros
+                Logros desbloqueados
               </p>
 
               <h2 className="text-3xl font-extrabold text-[#4B367C]">
-                ⭐ {unlockedAchievements.length} desbloqueados
+                🏆 {unlockedAchievements.length} logros
               </h2>
+
+              <p className="mt-2 font-semibold text-[#6B5A95]">
+                de {achievements.length} logros disponibles
+              </p>
             </div>
 
-            <div className="rounded-full bg-[#FFF3C4] px-6 py-4 text-xl font-bold text-[#5C4A00]">
-              Total: {achievements.length}
+            <div className="rounded-[1.5rem] bg-[#FFF3C4] p-5">
+              <p className="mb-1 font-bold text-[#8A6A00]">Estrellas ganadas</p>
+
+              <h2 className="text-3xl font-extrabold text-[#5C4A00]">
+                ⭐ {earnedStars} estrellas
+              </h2>
+
+              <p className="mt-2 font-semibold text-[#7A5A00]">
+                Has ganado {earnedStars} estrellas completando actividades.
+              </p>
             </div>
           </div>
         </div>

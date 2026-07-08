@@ -21,6 +21,7 @@ import { useSelectedChild } from "../context/SelectedChildContext";
 import { useFeedback } from "../context/FeedbackContext";
 import AchievementPopup from "../components/AchievementPopup";
 import { getCachedData, setCachedData } from "../utils/cache";
+import { showUnlockedAchievements } from "../utils/showUnlockedAchievements";
 
 const DAYS = [
   { key: "monday", label: "Lun", fullLabel: "Lunes" },
@@ -464,6 +465,9 @@ const Rutinas = () => {
         ? await completeChildRoutine(selectedChildId, routine.id)
         : await completeRoutine(routine.id);
 
+      const ownerId = isParentMode ? selectedChildId : user.id;
+      localStorage.removeItem(`floflo_achievements_${ownerId}`);
+
       if (response.alreadyCompleted) {
         showFeedback({
           type: "info",
@@ -472,8 +476,19 @@ const Rutinas = () => {
           title: "Esta rutina ya estaba completada hoy",
           message: "Mañana podrás volver a completarla.",
         });
-      } else if (response.unlockedAchievements?.length > 0) {
-        setNewAchievement(response.unlockedAchievements[0]);
+
+        await loadRoutines({ useCache: false });
+        return;
+      }
+
+      const unlockedAchievements = Array.isArray(response?.unlockedAchievements)
+        ? response.unlockedAchievements
+        : [];
+
+      if (unlockedAchievements.length > 0) {
+        showUnlockedAchievements(showFeedback, unlockedAchievements);
+
+        setNewAchievement(unlockedAchievements[0]);
 
         setTimeout(() => {
           setNewAchievement(null);

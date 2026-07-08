@@ -194,130 +194,130 @@ const CrearLugar = () => {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+ const handleSubmit = async (e) => {
+  e.preventDefault();
 
-    if (!user) {
-      showFeedback({
-        type: "warning",
-        icon: "⚠️",
-        label: "Sesión requerida",
-        title: "Debes iniciar sesión",
-        message: "Inicia sesión para crear un lugar.",
-      });
-      return;
+  if (!user) {
+    showFeedback({
+      type: "warning",
+      icon: "⚠️",
+      label: "Sesión requerida",
+      title: "Debes iniciar sesión",
+      message: "Inicia sesión para crear un lugar.",
+    });
+    return;
+  }
+
+  if (!validateParentChildSelection()) return;
+
+  if (!form.nombre.trim()) {
+    showFeedback({
+      type: "warning",
+      icon: "⚠️",
+      label: "Falta información",
+      title: "Nombre obligatorio",
+      message: "Debes ingresar el nombre del lugar antes de guardar.",
+    });
+    return;
+  }
+
+  if (!form.descripcion.trim()) {
+    showFeedback({
+      type: "warning",
+      icon: "⚠️",
+      label: "Falta información",
+      title: "Descripción obligatoria",
+      message: "Agrega una descripción simple del lugar antes de guardar.",
+    });
+    return;
+  }
+
+  const pasosValidos = steps
+    .map((step) => String(step || "").trim())
+    .filter((step) => step !== "");
+
+  if (pasosValidos.length === 0) {
+    showFeedback({
+      type: "warning",
+      icon: "⚠️",
+      label: "Faltan pasos",
+      title: "Agrega al menos un paso",
+      message: "El lugar necesita al menos un paso de preparación.",
+    });
+    return;
+  }
+
+  try {
+    setSaving(true);
+
+    const formData = new FormData();
+
+    formData.append("name", form.nombre.trim());
+    formData.append("address", form.direccion.trim());
+    formData.append("description", form.descripcion.trim());
+    formData.append("activity", form.actividad.trim());
+    formData.append("people_present", form.personas.trim());
+    formData.append("transport", form.transporte.trim());
+    formData.append("estimated_duration", form.duracion.trim());
+    formData.append("tips", form.consejos.trim());
+
+    if (imagen) {
+      formData.append("image", imagen);
     }
 
-    if (!validateParentChildSelection()) return;
+    const lugarCreado = isParentMode
+      ? await createChildPlace(selectedChildId, formData)
+      : await createPlace(formData);
 
-    if (!form.nombre.trim()) {
-      showFeedback({
-        type: "warning",
-        icon: "⚠️",
-        label: "Falta información",
-        title: "Nombre obligatorio",
-        message: "Debes ingresar el nombre del lugar antes de guardar.",
-      });
-      return;
+    const placeId =
+      lugarCreado?.id || lugarCreado?.place?.id || lugarCreado?.data?.id;
+
+    if (!placeId) {
+      throw new Error("No se pudo obtener el ID del lugar creado.");
     }
 
-    if (!form.descripcion.trim()) {
-      showFeedback({
-        type: "warning",
-        icon: "⚠️",
-        label: "Falta información",
-        title: "Descripción obligatoria",
-        message: "Agrega una descripción simple del lugar antes de guardar.",
-      });
-      return;
-    }
+    for (let i = 0; i < pasosValidos.length; i++) {
+      const stepPayload = {
+        step_order: i + 1,
+        title: `Paso ${i + 1}`,
+        description: pasosValidos[i],
+      };
 
-    if (pasosValidos.length === 0) {
-      showFeedback({
-        type: "warning",
-        icon: "⚠️",
-        label: "Faltan pasos",
-        title: "Agrega al menos un paso",
-        message: "El lugar necesita al menos un paso de preparación.",
-      });
-      return;
-    }
-
-    try {
-      setSaving(true);
-
-      const formData = new FormData();
-
-      formData.append("name", form.nombre.trim());
-      formData.append("address", form.direccion.trim());
-      formData.append("description", form.descripcion.trim());
-      formData.append("activity", form.actividad.trim());
-      formData.append("people_present", form.personas.trim());
-      formData.append("transport", form.transporte.trim());
-      formData.append("estimated_duration", form.duracion.trim());
-      formData.append("tips", form.consejos.trim());
-
-      if (imagen) {
-        formData.append("image", imagen);
+      if (isParentMode) {
+        await createChildPlaceStep(selectedChildId, placeId, stepPayload);
+      } else {
+        await createPlaceStep(placeId, stepPayload);
       }
-
-      const lugarCreado = isParentMode
-        ? await createChildPlace(selectedChildId, formData)
-        : await createPlace(formData);
-
-      const placeId =
-        lugarCreado?.id || lugarCreado?.place?.id || lugarCreado?.data?.id;
-
-      if (!placeId) {
-        throw new Error("No se pudo obtener el ID del lugar creado.");
-      }
-
-      const pasosValidos = steps
-        .map((step) => String(step || "").trim())
-        .filter((step) => step !== "");
-
-      for (let i = 0; i < pasosValidos.length; i++) {
-        const stepPayload = {
-          step_order: i + 1,
-          title: `Paso ${i + 1}`,
-          description: pasosValidos[i],
-        };
-
-        if (isParentMode) {
-          await createChildPlaceStep(selectedChildId, placeId, stepPayload);
-        } else {
-          await createPlaceStep(placeId, stepPayload);
-        }
-      }
-
-      showFeedback({
-        type: "success",
-        icon: "✅",
-        label: "Lugar creado",
-        title: "Guardado correctamente",
-        message: isParentMode
-          ? `El lugar fue creado para ${childName}.`
-          : "El lugar fue creado y ya está disponible en FloFlo.",
-      });
-
-      navigate("/lugares");
-    } catch (error) {
-      console.error(error);
-
-      showFeedback({
-        type: "error",
-        icon: "❌",
-        label: "Algo salió mal",
-        title: "No se pudo crear el lugar",
-        message:
-          error.response?.data?.message ||
-          "Revisa los datos e intenta nuevamente.",
-      });
-    } finally {
-      setSaving(false);
     }
-  };
-  
+
+    showFeedback({
+      type: "success",
+      icon: "✅",
+      label: "Lugar creado",
+      title: "Guardado correctamente",
+      message: isParentMode
+        ? `El lugar fue creado para ${childName}.`
+        : "El lugar fue creado y ya está disponible en FloFlo.",
+    });
+
+    navigate("/lugares");
+  } catch (error) {
+    console.error(error);
+
+    showFeedback({
+      type: "error",
+      icon: "❌",
+      label: "Algo salió mal",
+      title: "No se pudo crear el lugar",
+      message:
+        error.response?.data?.message ||
+        "Revisa los datos e intenta nuevamente.",
+    });
+  } finally {
+    setSaving(false);
+  }
+};
+
   if (isParent && loadingChildren) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#F3ECFF] px-6 py-10">
