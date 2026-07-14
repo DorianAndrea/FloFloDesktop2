@@ -5,6 +5,11 @@ import { useFloFlo } from "../context/FloFloContext";
 import { useFeedback } from "../context/FeedbackContext";
 import { formatRut } from "../utils/formatRut";
 import { validateImageFile } from "../utils/validateImageFile";
+import {
+  calculateAge,
+  isBirthdayToday,
+  formatAgeLabel,
+} from "../utils/birthdayUtils";
 
 const User = () => {
   const [firstName, setFirstName] = useState("");
@@ -21,6 +26,9 @@ const User = () => {
   const navigate = useNavigate();
   const { setUser } = useFloFlo();
   const { showFeedback } = useFeedback();
+  const age = calculateAge(birthDate);
+  const birthdayToday = isBirthdayToday(birthDate);
+  const todayDate = new Date().toISOString().slice(0, 10);
 
   const cleanRut = (value) => {
     return value.replace(/\./g, "").replace(/-/g, "");
@@ -90,6 +98,17 @@ const User = () => {
         label: "Falta información",
         title: "Fecha de nacimiento obligatoria",
         message: "Debes ingresar la fecha de nacimiento.",
+      });
+      return;
+    }
+
+    if (age === null) {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Fecha inválida",
+        title: "Revisa la fecha de nacimiento",
+        message: "La fecha de nacimiento no puede ser futura.",
       });
       return;
     }
@@ -225,9 +244,24 @@ const User = () => {
             <input
               type="date"
               value={birthDate}
+              max={todayDate}
               onChange={(e) => setBirthDate(e.target.value)}
               className="w-full py-3 text-gray-900 placeholder-gray-400 bg-transparent border-b border-gray-300 focus:outline-none focus:border-cyan-700"
             />
+            {birthDate && age !== null && (
+              <div className="rounded-2xl border border-[#DCCCF8] bg-[#F3ECFF] p-4">
+                <p className="font-bold text-[#4B367C]">
+                  🎈 Edad: {formatAgeLabel(age)}
+                </p>
+
+                {birthdayToday && (
+                  <p className="mt-2 font-bold text-[#5C4A00]">
+                    🎂 ¡Hoy es su cumpleaños! Que tenga un día muy especial en
+                    FloFlo.
+                  </p>
+                )}
+              </div>
+            )}
 
             <select
               value={role}

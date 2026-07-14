@@ -5,6 +5,11 @@ import { useFeedback } from "../context/FeedbackContext";
 import { formatRut, cleanRut } from "../utils/formatRut";
 import { validateImageFile } from "../utils/validateImageFile";
 import { createMyLinkCode } from "../services/parentChildService";
+import {
+  calculateAge,
+  isBirthdayToday,
+  formatAgeLabel,
+} from "../utils/birthdayUtils";
 
 const getAvatarUrl = (avatarValue) => {
   if (!avatarValue) return null;
@@ -48,6 +53,11 @@ const MiPerfil = () => {
   const [changingPassword, setChangingPassword] = useState(false);
   const [linkCodeData, setLinkCodeData] = useState(null);
   const [generatingLinkCode, setGeneratingLinkCode] = useState(false);
+  const profileAge = calculateAge(user.birth_date);
+  const profileBirthdayToday = isBirthdayToday(user.birth_date);
+  const editAge = calculateAge(birthDate);
+  const editBirthdayToday = isBirthdayToday(birthDate);
+  const todayDate = new Date().toISOString().slice(0, 10);
 
   const loadProfile = async () => {
     try {
@@ -403,9 +413,21 @@ const MiPerfil = () => {
 
                   <p className="text-xl font-semibold">
                     {user.birth_date
-                      ? new Date(user.birth_date).toLocaleDateString()
+                      ? new Date(user.birth_date).toLocaleDateString("es-CL")
                       : "No registrada"}
                   </p>
+
+                  {profileAge !== null && (
+                    <p className="mt-2 font-bold text-[#4B367C]">
+                      🎈 Edad: {formatAgeLabel(profileAge)}
+                    </p>
+                  )}
+
+                  {profileBirthdayToday && (
+                    <p className="mt-2 rounded-xl bg-[#FFF3C4] px-4 py-2 font-bold text-[#5C4A00]">
+                      🎂 ¡Feliz cumpleaños!
+                    </p>
+                  )}
                 </div>
 
                 <div className="bg-[#FDFBFF] border border-[#E4D8FF] rounded-2xl p-5 md:col-span-2">
@@ -619,9 +641,24 @@ const MiPerfil = () => {
                 name="birthDate"
                 type="date"
                 value={birthDate}
+                max={todayDate}
                 onChange={(e) => setBirthDate(e.target.value)}
                 className="w-full py-3 text-gray-900 bg-transparent border-b border-gray-300 focus:outline-none focus:border-[#9B7BE8]"
               />
+
+              {birthDate && editAge !== null && (
+                <div className="rounded-2xl border border-[#DCCCF8] bg-[#F3ECFF] p-4">
+                  <p className="font-bold text-[#4B367C]">
+                    🎈 Edad: {formatAgeLabel(editAge)}
+                  </p>
+
+                  {editBirthdayToday && (
+                    <p className="mt-2 font-bold text-[#5C4A00]">
+                      🎂 ¡Hoy es su cumpleaños!
+                    </p>
+                  )}
+                </div>
+              )}
 
               <div className="flex flex-wrap gap-4 pt-4">
                 <button

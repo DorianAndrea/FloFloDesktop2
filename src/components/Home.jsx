@@ -2,11 +2,31 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { useFloFlo } from "../context/FloFloContext";
+import { useSelectedChild } from "../context/SelectedChildContext";
 import { getProfile } from "../services/profileService";
 import felix from "../assets/svg/felix_feliz.svg";
+import {
+  calculateAge,
+  isBirthdayToday,
+  formatAgeLabel,
+} from "../utils/birthdayUtils";
+
+const getBirthDateValue = (person) => {
+  return (
+    person?.birth_date ||
+    person?.birthDate ||
+    person?.date_of_birth ||
+    person?.birthdate ||
+    null
+  );
+};
 
 const Home = () => {
   const { mood, user, setPoints } = useFloFlo();
+
+  const { isParent, selectedChild, selectedChildId, getChildDisplayName } =
+    useSelectedChild();
+
   const [profile, setProfile] = useState(null);
 
   const accesos = [
@@ -72,9 +92,83 @@ const Home = () => {
 
   const progress = profile?.progress;
 
+  const caregiverBirthDate = getBirthDateValue(profile) || getBirthDateValue(user);
+
+  const caregiverName =
+    user?.firstName ||
+    user?.first_name ||
+    profile?.firstName ||
+    profile?.first_name ||
+    "amigo/a";
+
+  const caregiverAge = calculateAge(caregiverBirthDate);
+  const caregiverBirthdayToday = isBirthdayToday(caregiverBirthDate);
+
+  const selectedChildBirthDate = getBirthDateValue(selectedChild);
+
+  const selectedChildName = selectedChild
+    ? getChildDisplayName(selectedChild)
+    : "el niño/a seleccionado";
+
+  const selectedChildAge = calculateAge(selectedChildBirthDate);
+
+  const selectedChildBirthdayToday =
+    isParent && selectedChildId && isBirthdayToday(selectedChildBirthDate);
+
   return (
     <main className="min-h-screen bg-[#F3ECFF] px-6 py-10">
       <section className="max-w-7xl mx-auto">
+        {caregiverBirthdayToday && (
+          <motion.div
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="mb-8 rounded-[2rem] border-2 border-[#F7D774] bg-[#FFF3C4] p-6 text-center shadow-md"
+          >
+            <p className="text-5xl">🎂</p>
+
+            <h2 className="mt-3 text-3xl font-extrabold text-[#4B367C] md:text-4xl">
+              ¡Feliz cumpleaños, {caregiverName}!
+            </h2>
+
+            {caregiverAge !== null && (
+              <p className="mt-3 text-xl font-bold text-[#5C4A00]">
+                Hoy cumples {formatAgeLabel(caregiverAge)} 🎉
+              </p>
+            )}
+
+            <p className="mx-auto mt-3 max-w-2xl text-lg font-semibold text-[#6B5A95]">
+              FloFlo te desea un día lleno de alegría, calma y momentos bonitos.
+            </p>
+          </motion.div>
+        )}
+
+        {selectedChildBirthdayToday && (
+          <motion.div
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="mb-8 rounded-[2rem] border-2 border-[#F7D774] bg-[#FFF3C4] p-6 text-center shadow-md"
+          >
+            <p className="text-5xl">🎈</p>
+
+            <h2 className="mt-3 text-3xl font-extrabold text-[#4B367C] md:text-4xl">
+              ¡Hoy es el cumpleaños de {selectedChildName}!
+            </h2>
+
+            {selectedChildAge !== null && (
+              <p className="mt-3 text-xl font-bold text-[#5C4A00]">
+                Hoy cumple {formatAgeLabel(selectedChildAge)} 🎉
+              </p>
+            )}
+
+            <p className="mx-auto mt-3 max-w-2xl text-lg font-semibold text-[#6B5A95]">
+              FloFlo puede acompañar este día especial con calma, anticipación y
+              alegría.
+            </p>
+          </motion.div>
+        )}
+
         <p className="text-[#6B5A95] mb-4">
           Estado actual: {mood || "Sin seleccionar"}
         </p>
