@@ -92,13 +92,14 @@ const Home = () => {
 
   const progress = profile?.progress;
 
-  const caregiverBirthDate = getBirthDateValue(profile) || getBirthDateValue(user);
+  const caregiverBirthDate =
+    getBirthDateValue(profile) || getBirthDateValue(user);
 
   const caregiverName =
-    user?.firstName ||
-    user?.first_name ||
     profile?.firstName ||
     profile?.first_name ||
+    user?.firstName ||
+    user?.first_name ||
     "amigo/a";
 
   const caregiverAge = calculateAge(caregiverBirthDate);

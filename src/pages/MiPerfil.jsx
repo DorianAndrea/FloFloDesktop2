@@ -53,11 +53,6 @@ const MiPerfil = () => {
   const [changingPassword, setChangingPassword] = useState(false);
   const [linkCodeData, setLinkCodeData] = useState(null);
   const [generatingLinkCode, setGeneratingLinkCode] = useState(false);
-  const profileAge = calculateAge(user.birth_date);
-  const profileBirthdayToday = isBirthdayToday(user.birth_date);
-  const editAge = calculateAge(birthDate);
-  const editBirthdayToday = isBirthdayToday(birthDate);
-  const todayDate = new Date().toISOString().slice(0, 10);
 
   const loadProfile = async () => {
     try {
@@ -310,27 +305,6 @@ const MiPerfil = () => {
     }
   };
 
-  const getAvatarUrl = (avatarValue) => {
-    if (!avatarValue) return null;
-
-    const avatarString = String(avatarValue).trim();
-
-    if (!avatarString) return null;
-
-    if (avatarString.startsWith("http")) {
-      return avatarString;
-    }
-
-    if (avatarString.startsWith("/uploads")) {
-      const apiBase = import.meta.env.VITE_API_URL || "";
-      const backendBase = apiBase.replace("/api", "");
-
-      return `${backendBase}${avatarString}`;
-    }
-
-    return null;
-  };
-
   if (!user) {
     return (
       <div className="min-h-screen bg-[#F6F0FF] flex justify-center items-center text-[#4B367C] font-bold">
@@ -338,7 +312,15 @@ const MiPerfil = () => {
       </div>
     );
   }
+
+
   const avatarUrl = getAvatarUrl(user.avatar);
+
+  const profileAge = calculateAge(user.birth_date);
+  const profileBirthdayToday = isBirthdayToday(user.birth_date);
+  const editAge = calculateAge(birthDate);
+  const editBirthdayToday = isBirthdayToday(birthDate);
+  const todayDate = new Date().toISOString().slice(0, 10);
 
   return (
     <div className="min-h-screen bg-[#F6F0FF] py-10 px-6">
