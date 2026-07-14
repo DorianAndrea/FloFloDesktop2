@@ -9,6 +9,7 @@ import {
   calculateAge,
   isBirthdayToday,
   formatAgeLabel,
+  formatLocalDate,
 } from "../utils/birthdayUtils";
 
 const getAvatarUrl = (avatarValue) => {
@@ -313,7 +314,6 @@ const MiPerfil = () => {
     );
   }
 
-
   const avatarUrl = getAvatarUrl(user.avatar);
 
   const profileAge = calculateAge(user.birth_date);
@@ -394,9 +394,7 @@ const MiPerfil = () => {
                   <p className="text-gray-500">Fecha nacimiento</p>
 
                   <p className="text-xl font-semibold">
-                    {user.birth_date
-                      ? new Date(user.birth_date).toLocaleDateString("es-CL")
-                      : "No registrada"}
+                    {formatLocalDate(user.birth_date)}
                   </p>
 
                   {profileAge !== null && (

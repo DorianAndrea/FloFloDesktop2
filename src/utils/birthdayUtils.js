@@ -54,3 +54,15 @@ export const formatAgeLabel = (age) => {
 
   return age === 1 ? "1 año" : `${age} años`;
 };
+
+export const formatLocalDate = (dateValue) => {
+  const parsedDate = parseLocalDate(dateValue);
+
+  if (!parsedDate) return "No registrada";
+
+  return parsedDate.toLocaleDateString("es-CL", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
+};
