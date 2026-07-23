@@ -6,6 +6,41 @@ import { useSelectedChild } from "../context/SelectedChildContext";
 import { useFeedback } from "../context/FeedbackContext";
 import { getCachedData, setCachedData } from "../utils/cache";
 
+const RELATIONSHIP_LABELS = {
+  primary_caregiver: "Cuidador/a principal",
+  caregiver: "Cuidador/a",
+  family: "Familiar",
+  occupational_therapist: "Terapeuta ocupacional",
+  psychologist: "Psicólogo/a",
+  speech_therapist: "Fonoaudiólogo/a",
+  teacher: "Profesor/a",
+  other_professional: "Otro profesional",
+};
+
+const ACCESS_PROFILE_LABELS = {
+  primary_caregiver: "Cuidador/a principal",
+  caregiver: "Cuidador/a",
+  family: "Familiar",
+  therapist: "Profesional de terapia",
+  teacher: "Profesor/a",
+  professional: "Otro profesional",
+  child: "Niño/a",
+};
+
+const getSupportProfileLabel = (relationshipKey, accessProfile) => {
+  return (
+    RELATIONSHIP_LABELS[relationshipKey] ||
+    ACCESS_PROFILE_LABELS[accessProfile] ||
+    "Adulto/a de apoyo"
+  );
+};
+
+const getFullName = (firstName, lastName) => {
+  const fullName = `${firstName || ""} ${lastName || ""}`.trim();
+
+  return fullName || "Usuario FloFlo";
+};
+
 const lugaresPredeterminados = [
   {
     id: "demo-1",
@@ -45,12 +80,42 @@ const Lugares = () => {
     selectedChildId,
     loadingChildren,
     getChildDisplayName,
+
+    selectedAccessProfile,
+    canManageSelectedChildTeam,
+
+    isCaregiver,
+    isTherapist,
+    isTeacher,
+    isFamily,
+    isProfessional,
   } = useSelectedChild();
 
   const { showFeedback } = useFeedback();
 
   const isParentMode = isParent && Boolean(selectedChildId);
   const isParentWithoutChild = isParent && !selectedChildId;
+
+  const canCreateOrEditPlaces =
+    !isParent ||
+    [
+      "primary_caregiver",
+      "caregiver",
+      "therapist",
+      "teacher",
+      "professional",
+    ].includes(selectedAccessProfile);
+
+  const supportModeLabel = (() => {
+    if (canManageSelectedChildTeam) return "Modo cuidador principal";
+    if (isTherapist) return "Modo profesional";
+    if (isTeacher) return "Modo educativo";
+    if (isFamily) return "Modo familiar";
+    if (isProfessional) return "Modo profesional";
+    if (isCaregiver) return "Modo cuidador";
+
+    return "Modo adulto de apoyo";
+  })();
 
   const childName = selectedChild
     ? getChildDisplayName(selectedChild)
@@ -102,7 +167,20 @@ const Lugares = () => {
         imagen: lugar.image,
         emoji: "📍",
         esDemo: false,
-        managed_by_parent: lugar.managed_by_parent,
+
+        created_by: lugar.created_by,
+        creator_first_name: lugar.creator_first_name,
+        creator_last_name: lugar.creator_last_name,
+        creator_access_profile: lugar.creator_access_profile,
+        creator_relationship_key: lugar.creator_relationship_key,
+
+        updated_by: lugar.updated_by,
+        updater_first_name: lugar.updater_first_name,
+        updater_last_name: lugar.updater_last_name,
+        updater_access_profile: lugar.updater_access_profile,
+        updater_relationship_key: lugar.updater_relationship_key,
+
+        managed_by_adult: lugar.managed_by_adult,
       }));
 
       setLugaresBD(lugaresFormateados);
@@ -185,7 +263,9 @@ const Lugares = () => {
         <div className="mb-10 flex flex-col items-center justify-between gap-6 md:flex-row">
           <div>
             <p className="mb-2 text-lg font-bold text-[#9B7BE8]">
-              {isParentMode ? "Modo cuidador activo" : "Prepárate con Félix"}
+              {isParentMode
+                ? `${supportModeLabel} activo`
+                : "Prepárate con Félix"}
             </p>
 
             <h1 className="text-5xl font-extrabold text-[#4B367C]">
@@ -194,12 +274,14 @@ const Lugares = () => {
 
             <p className="mt-2 text-xl text-[#6B5A95]">
               {isParentMode
-                ? "Crea y revisa lugares para preparar al niño/a antes de una visita."
+                ? canCreateOrEditPlaces
+                  ? `Crea y revisa lugares para preparar a ${childName} antes de una visita.`
+                  : `Consulta los lugares preparados para ${childName}.`
                 : "Prepárate con Félix antes de visitar un lugar."}
             </p>
           </div>
 
-          {!isParentWithoutChild && (
+          {!isParentWithoutChild && canCreateOrEditPlaces && (
             <Link
               to="/lugares/crear"
               className="rounded-full bg-[#9B7BE8] px-6 py-3 font-bold text-white transition hover:bg-[#8B6FD6]"
@@ -211,11 +293,15 @@ const Lugares = () => {
 
         {isParent && (
           <div className="mb-8 rounded-[2rem] border-2 border-[#9ED5B3] bg-[#EAF8EF] p-5 text-center shadow-sm">
-            <p className="font-bold text-[#2F6B4F]">Modo cuidador</p>
+            <p className="font-bold text-[#2F6B4F]">
+              {supportModeLabel} activo
+            </p>
 
             <p className="mt-1 text-[#2F6B4F]">
               {selectedChild
-                ? `Estás viendo y gestionando lugares de ${childName}.`
+                ? canCreateOrEditPlaces
+                  ? `Estás viendo y gestionando lugares de ${childName}.`
+                  : `Estás consultando los lugares de ${childName}.`
                 : "No hay un niño/a activo seleccionado."}
             </p>
           </div>
@@ -274,7 +360,9 @@ const Lugares = () => {
 
                 <p className="mt-3 text-[#6B5A95]">
                   {isParentMode
-                    ? `Puedes crear el primer lugar para ${childName}.`
+                    ? canCreateOrEditPlaces
+                      ? `Puedes crear el primer lugar para ${childName}.`
+                      : `Todavía no hay lugares preparados para ${childName}.`
                     : "Puedes crear tu primer lugar para prepararte con Félix."}
                 </p>
               </div>
@@ -325,11 +413,47 @@ const Lugares = () => {
                         <p className="mt-2 text-[#6B5A95]">
                           {lugar.descripcion || "Sin descripción"}
                         </p>
-                        
-                        {lugar.managed_by_parent && (
-                          <p className="mt-4 inline-flex rounded-full bg-[#EAF8EF] px-3 py-1 text-sm font-bold text-[#2F6B4F]">
-                            Agregado por cuidador
-                          </p>
+
+                        {!lugar.esDemo && (
+                          <div className="mt-4 rounded-2xl border border-[#E4D8FF] bg-[#F7F3FF] px-4 py-3">
+                            {lugar.creator_first_name ||
+                            lugar.creator_access_profile ||
+                            lugar.creator_relationship_key ? (
+                              <>
+                                <p className="text-xs font-bold uppercase tracking-wide text-[#9B7BE8]">
+                                  Creado por
+                                </p>
+
+                                <p className="mt-1 font-bold text-[#4B367C]">
+                                  {getFullName(
+                                    lugar.creator_first_name,
+                                    lugar.creator_last_name,
+                                  )}
+                                </p>
+
+                                <p className="text-sm font-semibold text-[#6B5A95]">
+                                  {getSupportProfileLabel(
+                                    lugar.creator_relationship_key,
+                                    lugar.creator_access_profile,
+                                  )}
+                                </p>
+                              </>
+                            ) : (
+                              <>
+                                <p className="text-xs font-bold uppercase tracking-wide text-[#9B7BE8]">
+                                  Creado anteriormente
+                                </p>
+
+                                <p className="mt-1 font-bold text-[#4B367C]">
+                                  Por una cuenta cuidadora
+                                </p>
+
+                                <p className="text-sm text-[#8A7BB0]">
+                                  Registro anterior
+                                </p>
+                              </>
+                            )}
+                          </div>
                         )}
                       </Link>
                     );

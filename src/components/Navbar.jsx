@@ -238,7 +238,7 @@ const Navbar = () => {
                     }`
                   }
                 >
-                  Panel Padres
+                  Panel de Apoyo
                 </NavLink>
               )}
               {isParent && (
@@ -386,7 +386,7 @@ const Navbar = () => {
                     onClick={closeMenus}
                     className="bg-[#CFEFD9] text-[#2F6B4F] border border-[#9ED5B3] font-bold px-4 py-3 rounded-full w-fit"
                   >
-                    👨‍👩‍👧 Panel Padres
+                    👨‍👩‍👧 Panel de Apoyo
                   </NavLink>
                 )}
                 {isParent && (

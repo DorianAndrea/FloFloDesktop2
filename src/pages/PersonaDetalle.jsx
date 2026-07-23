@@ -31,6 +31,7 @@ const PersonaDetalle = () => {
     selectedChildId,
     loadingChildren,
     getChildDisplayName,
+    canManageSelectedChildTeam,
   } = useSelectedChild();
 
   const { showFeedback, showConfirm } = useFeedback();
@@ -38,6 +39,9 @@ const PersonaDetalle = () => {
 
   const isParentMode = isParent && Boolean(selectedChildId);
   const isParentWithoutChild = isParent && !selectedChildId;
+
+  const canDeleteConversations =
+    isParentMode && Boolean(canManageSelectedChildTeam);
 
   const childName = selectedChild
     ? getChildDisplayName(selectedChild)
@@ -80,7 +84,7 @@ const PersonaDetalle = () => {
         label: "Falta niño/a activo",
         title: "Selecciona un niño/a",
         message:
-          "Para gestionar conversaciones como cuidador, primero debes tener un niño/a asociado y seleccionado.",
+          "Para gestionar conversaciones desde tu perfil, primero debes tener un niño/a asociado y seleccionado.",
       });
 
       return false;
@@ -487,6 +491,19 @@ const PersonaDetalle = () => {
   const handleDeleteConversation = async (conversation) => {
     if (!validateParentChildSelection()) return;
 
+    if (!canDeleteConversations) {
+      showFeedback({
+        type: "warning",
+        icon: "🔒",
+        label: "Acción restringida",
+        title: "No puedes eliminar conversaciones",
+        message:
+          "Solo el administrador del grupo puede eliminar conversaciones.",
+      });
+
+      return;
+    }
+
     const confirmed = await showConfirm({
       type: "danger",
       icon: "🗑️",
@@ -536,6 +553,37 @@ const PersonaDetalle = () => {
           "Intenta nuevamente en unos segundos.",
       });
     }
+  };
+
+  const getRoleLabel = (relationshipKey, accessProfile) => {
+    const role = relationshipKey || accessProfile;
+
+    if (!role) return "";
+
+    const labels = {
+      child: "Niño/a",
+      primary_caregiver: "Cuidador principal",
+      caregiver: "Cuidador/a",
+      family: "Familiar",
+      therapist: "Terapeuta",
+      occupational_therapist: "Terapeuta ocupacional",
+      psychologist: "Psicólogo/a",
+      speech_therapist: "Fonoaudiólogo/a",
+      special_educator: "Educador/a diferencial",
+      teacher: "Profesor/a",
+      professional: "Profesional",
+    };
+
+    return (
+      labels[role] ||
+      String(role)
+        .replaceAll("_", " ")
+        .replace(/^./, (letter) => letter.toUpperCase())
+    );
+  };
+
+  const getFullName = (firstName, lastName) => {
+    return [firstName, lastName].filter(Boolean).join(" ");
   };
 
   if (loading) {
@@ -608,7 +656,11 @@ const PersonaDetalle = () => {
 
         {isParentMode && (
           <div className="mb-8 rounded-[2rem] border-2 border-[#9ED5B3] bg-[#EAF8EF] p-5 text-center shadow-sm">
-            <p className="font-bold text-[#2F6B4F]">Modo cuidador activo</p>
+            <p className="font-bold text-[#2F6B4F]">
+              {canManageSelectedChildTeam
+                ? "Administrador del grupo activo"
+                : "Perfil de apoyo activo"}
+            </p>
 
             <p className="mt-1 text-[#2F6B4F]">
               Estás viendo y gestionando conversaciones de {childName}.
@@ -628,9 +680,25 @@ const PersonaDetalle = () => {
 
             <p className="mt-6 text-xl">📍 {contact.where_met}</p>
 
-            {contact.managed_by_parent && (
+            {getRoleLabel(
+              contact.creator_relationship_key,
+              contact.creator_access_profile,
+            ) && (
               <p className="mt-4 inline-flex rounded-full bg-[#EAF8EF] px-3 py-1 text-sm font-bold text-[#2F6B4F]">
-                Agregada por cuidador
+                👤 Creado por:{" "}
+                {getRoleLabel(
+                  contact.creator_relationship_key,
+                  contact.creator_access_profile,
+                )}
+                {getFullName(
+                  contact.creator_first_name,
+                  contact.creator_last_name,
+                )
+                  ? ` · ${getFullName(
+                      contact.creator_first_name,
+                      contact.creator_last_name,
+                    )}`
+                  : ""}
               </p>
             )}
 
@@ -826,12 +894,47 @@ const PersonaDetalle = () => {
                       <h3 className="text-2xl font-bold text-[#4B367C]">
                         {conversation.title}
                       </h3>
-
-                      {conversation.managed_by_parent && (
+                      {getRoleLabel(
+                        conversation.creator_relationship_key,
+                        conversation.creator_access_profile,
+                      ) && (
                         <p className="mt-2 inline-flex rounded-full bg-[#EAF8EF] px-3 py-1 text-sm font-bold text-[#2F6B4F]">
-                          Agregada por cuidador
+                          👤 Creada por:{" "}
+                          {getRoleLabel(
+                            conversation.creator_relationship_key,
+                            conversation.creator_access_profile,
+                          )}
+                          {getFullName(
+                            conversation.creator_first_name,
+                            conversation.creator_last_name,
+                          )
+                            ? ` · ${getFullName(
+                                conversation.creator_first_name,
+                                conversation.creator_last_name,
+                              )}`
+                            : ""}
                         </p>
                       )}
+                      {conversation.updated_by &&
+                        Number(conversation.updated_by) !==
+                          Number(conversation.created_by) && (
+                          <p className="mt-2 inline-flex rounded-full bg-[#E8F1FF] px-3 py-1 text-sm font-bold text-[#345A8A]">
+                            ✏️ Editada por:{" "}
+                            {getRoleLabel(
+                              conversation.updater_relationship_key,
+                              conversation.updater_access_profile,
+                            ) || "Integrante"}
+                            {getFullName(
+                              conversation.updater_first_name,
+                              conversation.updater_last_name,
+                            )
+                              ? ` · ${getFullName(
+                                  conversation.updater_first_name,
+                                  conversation.updater_last_name,
+                                )}`
+                              : ""}
+                          </p>
+                        )}
                     </div>
                   </div>
 
@@ -873,13 +976,15 @@ const PersonaDetalle = () => {
                       Editar
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteConversation(conversation)}
-                      className="rounded-xl bg-red-500 px-5 py-2 font-bold text-white"
-                    >
-                      Eliminar
-                    </button>
+                    {canDeleteConversations && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteConversation(conversation)}
+                        className="rounded-xl bg-red-500 px-5 py-2 font-bold text-white"
+                      >
+                        Eliminar
+                      </button>
+                    )}
                   </div>
                 </div>
               ))

@@ -32,6 +32,12 @@ const normalizeChild = (child) => {
       child.childLastName ||
       "",
     email: child.email || child.child_email || child.childEmail || "",
+
+    relationship_key: child.relationship_key || child.relationshipKey || null,
+
+    access_profile: child.access_profile || child.accessProfile || null,
+
+    can_manage_team: Boolean(child.can_manage_team ?? child.canManageTeam),
   };
 };
 
@@ -79,6 +85,39 @@ export const SelectedChildProvider = ({ children }) => {
       ) || null
     );
   }, [parentChildren, selectedChildId]);
+
+  const selectedAccessProfile =
+    selectedChild?.access_profile || selectedChild?.accessProfile || null;
+
+  const selectedRelationshipKey =
+    selectedChild?.relationship_key || selectedChild?.relationshipKey || null;
+
+  const canManageSelectedChildTeam = Boolean(
+    selectedChild?.can_manage_team ?? selectedChild?.canManageTeam,
+  );
+
+  const isPrimaryCaregiver = selectedAccessProfile === "primary_caregiver";
+
+  const isCaregiver = ["primary_caregiver", "caregiver"].includes(
+    selectedAccessProfile,
+  );
+
+  const isTherapist = selectedAccessProfile === "therapist";
+
+  const isTeacher = selectedAccessProfile === "teacher";
+
+  const isFamily = selectedAccessProfile === "family";
+
+  const isProfessional = selectedAccessProfile === "professional";
+
+  const observationProfileLabel = (() => {
+    if (isTherapist) return "Observación profesional";
+    if (isTeacher) return "Observación educativa";
+    if (isProfessional) return "Observación profesional";
+    if (isFamily) return "Observación familiar";
+
+    return "Observación del cuidador";
+  })();
 
   const syncSelectedChildStorage = (childId, childrenList = parentChildren) => {
     const cleanId = childId ? String(childId) : "";
@@ -183,9 +222,24 @@ export const SelectedChildProvider = ({ children }) => {
     selectedChild,
     selectedChildId,
     loadingChildren,
+
+    selectedAccessProfile,
+    selectedRelationshipKey,
+    canManageSelectedChildTeam,
+
+    isPrimaryCaregiver,
+    isCaregiver,
+    isTherapist,
+    isTeacher,
+    isFamily,
+    isProfessional,
+
+    observationProfileLabel,
+
     selectChild,
     reloadParentChildren: loadParentChildren,
     getChildDisplayName,
+
     isViewingChild: isParent && Boolean(selectedChild),
   };
 

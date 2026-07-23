@@ -22,6 +22,8 @@ import ResetPassword from "./pages/ResetPassword";
 import { FeedbackProvider } from "./context/FeedbackContext";
 import { SelectedChildProvider } from "./context/SelectedChildContext";
 import InformeInteligentePage from "./pages/InformeInteligentePage";
+import EquipoFloFlo from "./pages/EquipoFloFlo";
+import InvitacionEquipoFloFlo from "./pages/InvitacionEquipoFloFlo";
 
 function App() {
   return (
@@ -158,6 +160,22 @@ function App() {
                       <PerfilSensorial />
                     </ProtectedRoute>
                   }
+                />
+                <Route
+                  path="/equipo-floflo"
+                  element={
+                    <ProtectedRoute
+                      allowedRoles={["parent"]}
+                      requireSelectedChild
+                    >
+                      <EquipoFloFlo />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/equipo-floflo/invitacion/:token"
+                  element={<InvitacionEquipoFloFlo />}
                 />
               </Routes>
             </main>

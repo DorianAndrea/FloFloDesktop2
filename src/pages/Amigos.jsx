@@ -23,16 +23,6 @@ const Amigos = () => {
   const [memoryNote, setMemoryNote] = useState("");
   const [image, setImage] = useState("");
   const [preview, setPreview] = useState("");
-  const { showFeedback, showConfirm } = useFeedback();
-  const { user } = useFloFlo();
-
-  const {
-    isParent,
-    selectedChild,
-    selectedChildId,
-    loadingChildren,
-    getChildDisplayName,
-  } = useSelectedChild();
 
   const [contacts, setContacts] = useState([]);
   const [relationshipTypes, setRelationshipTypes] = useState([]);
@@ -47,17 +37,56 @@ const Amigos = () => {
 
   const fileInputRef = useRef(null);
 
-  const isParentMode = isParent && Boolean(selectedChildId);
-  const isParentWithoutChild = isParent && !selectedChildId;
+  const { showFeedback, showConfirm } = useFeedback();
+  const { user } = useFloFlo();
+
+  const {
+    isParent,
+    selectedChild,
+    selectedChildId,
+    loadingChildren,
+    getChildDisplayName,
+    canManageSelectedChildTeam,
+  } = useSelectedChild();
+
+  /*
+   * Técnicamente, todas las cuentas adultas siguen teniendo role "parent",
+   * aunque sean terapeutas, profesores, familiares u otros profesionales.
+   */
+  const isSupportMode = isParent && Boolean(selectedChildId);
+  const isSupportWithoutChild = isParent && !selectedChildId;
+
+  /*
+   * Todos pueden crear y editar.
+   * Solo el administrador del grupo puede eliminar.
+   * El niño/a tampoco puede eliminar.
+   */
+  const canDeleteContacts =
+    isSupportMode && Boolean(canManageSelectedChildTeam);
 
   const childName = selectedChild
     ? getChildDisplayName(selectedChild)
     : "el niño/a seleccionado";
 
+  const resetForm = () => {
+    setName("");
+    setRelationshipTypeId("");
+    setWhereMet("");
+    setMemoryNote("");
+    setImage("");
+    setPreview("");
+    setEditingContactId(null);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   const loadRelationshipTypes = async () => {
     try {
       const data = await getRelationshipTypes();
-      setRelationshipTypes(data);
+
+      setRelationshipTypes(Array.isArray(data) ? data : []);
     } catch (error) {
       console.error(error);
 
@@ -73,21 +102,27 @@ const Amigos = () => {
 
   const loadContacts = async () => {
     try {
-      if (!user) return;
+      if (!user) {
+        setContacts([]);
+        setLoadingContacts(false);
+        return;
+      }
 
       if (isParent && loadingChildren) {
         return;
       }
 
-      const ownerId = isParentMode ? selectedChildId : user.id;
-      const searchKey = busquedaDebounce.trim() || "all";
-      const cacheKey = `floflo_contacts_${ownerId}_${searchKey}_${orden}`;
-
-      if (isParentWithoutChild) {
+      if (isSupportWithoutChild) {
         setContacts([]);
         setLoadingContacts(false);
         return;
       }
+
+      const ownerId = isSupportMode ? selectedChildId : user.id;
+
+      const searchKey = busquedaDebounce.trim() || "all";
+
+      const cacheKey = `floflo_contacts_${ownerId}_${searchKey}_${orden}`;
 
       const cachedContacts = getCachedData(cacheKey);
 
@@ -98,7 +133,7 @@ const Amigos = () => {
         setLoadingContacts(true);
       }
 
-      const data = isParentMode
+      const data = isSupportMode
         ? await getChildContacts(selectedChildId, busquedaDebounce, orden)
         : await getContacts(busquedaDebounce, orden);
 
@@ -150,21 +185,7 @@ const Amigos = () => {
     return () => clearTimeout(timer);
   }, [busqueda]);
 
-  const resetForm = () => {
-    setName("");
-    setRelationshipTypeId("");
-    setWhereMet("");
-    setMemoryNote("");
-    setImage("");
-    setPreview("");
-    setEditingContactId(null);
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
-
-  const validateParentChildSelection = () => {
+  const validateSelectedChild = () => {
     if (!isParent) return true;
 
     if (!selectedChildId) {
@@ -174,7 +195,7 @@ const Amigos = () => {
         label: "Falta niño/a activo",
         title: "Selecciona un niño/a",
         message:
-          "Para gestionar personas importantes como cuidador, primero debes tener un niño/a asociado y seleccionado.",
+          "Para gestionar personas importantes desde tu perfil, primero debes tener un niño/a asociado y seleccionado.",
       });
 
       return false;
@@ -183,23 +204,24 @@ const Amigos = () => {
     return true;
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
+  const handleImageChange = (event) => {
+    const file = event.target.files?.[0];
 
     if (!file) {
-      setImage(null);
+      setImage("");
+      setPreview("");
       return;
     }
 
     const validation = validateImageFile(file);
 
     if (!validation.isValid) {
-      e.target.value = "";
-      setImage(null);
+      event.target.value = "";
+
+      setImage("");
       setPreview("");
 
       showFeedback(validation.feedback);
-
       return;
     }
 
@@ -223,16 +245,29 @@ const Amigos = () => {
   };
 
   const handleDelete = async (contact) => {
-    if (!validateParentChildSelection()) return;
+    if (!validateSelectedChild()) return;
+
+    if (!canDeleteContacts) {
+      showFeedback({
+        type: "warning",
+        icon: "🔒",
+        label: "Acción restringida",
+        title: "No puedes eliminar personas",
+        message: "Solo el administrador del grupo puede eliminar contactos.",
+      });
+
+      return;
+    }
 
     const confirmed = await showConfirm({
       type: "danger",
       icon: "🗑️",
       label: "Eliminar persona",
       title: "¿Eliminar esta persona?",
-      message: isParentMode
-        ? `Estás por eliminar a "${contact.name}" del perfil de ${childName}. Esta acción no se puede deshacer.`
-        : `Estás por eliminar a "${contact.name}". Esta acción no se puede deshacer.`,
+      message:
+        `Estás por eliminar a "${contact.name}" del perfil de ${childName}. ` +
+        "También se eliminarán sus conversaciones relacionadas. " +
+        "Esta acción no se puede deshacer.",
       confirmText: "Sí, eliminar",
       cancelText: "Cancelar",
     });
@@ -240,20 +275,14 @@ const Amigos = () => {
     if (!confirmed) return;
 
     try {
-      if (isParentMode) {
-        await deleteChildContact(selectedChildId, contact.id);
-      } else {
-        await deleteContact(contact.id);
-      }
+      await deleteChildContact(selectedChildId, contact.id);
 
       showFeedback({
         type: "success",
         icon: "✅",
         label: "Persona eliminada",
         title: "Eliminada correctamente",
-        message: isParentMode
-          ? `La persona fue eliminada para ${childName}.`
-          : "La persona fue eliminada de FloFlo.",
+        message: `La persona fue eliminada del perfil de ${childName}.`,
       });
 
       if (Number(editingContactId) === Number(contact.id)) {
@@ -276,8 +305,8 @@ const Amigos = () => {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
 
     if (!user) {
       showFeedback({
@@ -287,10 +316,11 @@ const Amigos = () => {
         title: "Debes iniciar sesión",
         message: "Inicia sesión para guardar personas importantes.",
       });
+
       return;
     }
 
-    if (!validateParentChildSelection()) return;
+    if (!validateSelectedChild()) return;
 
     if (!name.trim()) {
       showFeedback({
@@ -300,6 +330,7 @@ const Amigos = () => {
         title: "Nombre obligatorio",
         message: "Debes ingresar el nombre de la persona.",
       });
+
       return;
     }
 
@@ -309,8 +340,9 @@ const Amigos = () => {
         icon: "⚠️",
         label: "Falta información",
         title: "Selecciona quién es",
-        message: "Debes seleccionar la relación que tienes con esta persona.",
+        message: "Debes seleccionar la relación con esta persona.",
       });
+
       return;
     }
 
@@ -319,9 +351,10 @@ const Amigos = () => {
         type: "warning",
         icon: "⚠️",
         label: "Falta información",
-        title: "Indica dónde la conociste",
+        title: "Indica dónde la conoció",
         message: "Esto ayuda a Félix a recordar mejor a la persona.",
       });
+
       return;
     }
 
@@ -331,8 +364,9 @@ const Amigos = () => {
         icon: "⚠️",
         label: "Falta información",
         title: "Agrega una pista para recordarla",
-        message: "Escribe cómo puedes recordar a esta persona.",
+        message: "Escribe una pista que permita recordar a esta persona.",
       });
+
       return;
     }
 
@@ -354,12 +388,12 @@ const Amigos = () => {
       }
 
       if (editingContactId) {
-        if (isParentMode) {
+        if (isSupportMode) {
           await updateChildContact(selectedChildId, editingContactId, formData);
         } else {
           await updateContact(editingContactId, formData);
         }
-      } else if (isParentMode) {
+      } else if (isSupportMode) {
         await createChildContact(selectedChildId, formData);
       } else {
         await createContact(formData);
@@ -374,10 +408,10 @@ const Amigos = () => {
         label: wasEditing ? "Cambios guardados" : "Persona guardada",
         title: wasEditing ? "Persona actualizada" : "Guardada correctamente",
         message: wasEditing
-          ? isParentMode
+          ? isSupportMode
             ? `Los datos de ${contactName}, contacto de ${childName}, se actualizaron correctamente.`
             : `Los datos de ${contactName} se actualizaron correctamente.`
-          : isParentMode
+          : isSupportMode
             ? `${contactName} fue guardado/a como contacto de ${childName}.`
             : `${contactName} fue guardado/a y ya está disponible en FloFlo.`,
       });
@@ -398,7 +432,17 @@ const Amigos = () => {
     }
   };
 
-  if (isParentWithoutChild) {
+  if (isParent && loadingChildren) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-white px-8 py-10">
+        <p className="text-xl font-bold text-[#4B367C]">
+          Cargando niño/a seleccionado...
+        </p>
+      </div>
+    );
+  }
+
+  if (isSupportWithoutChild) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-white px-8 py-10">
         <section className="max-w-xl rounded-[2rem] bg-[#F3ECFF] p-8 text-center shadow-lg">
@@ -407,24 +451,69 @@ const Amigos = () => {
           </h1>
 
           <p className="mt-4 text-[#6B5A95]">
-            Para gestionar personas importantes como cuidador, primero debes
+            Para gestionar personas importantes desde tu perfil, primero debes
             seleccionar un niño/a activo.
           </p>
         </section>
       </div>
     );
   }
+  const getCreatorRoleLabel = (contact) => {
+    const role =
+      contact.creator_relationship_key || contact.creator_access_profile;
+
+    if (!role) return "";
+
+    const roleLabels = {
+      child: "Niño/a",
+      primary_caregiver: "Cuidador principal",
+      caregiver: "Cuidador/a",
+      family: "Familiar",
+      therapist: "Terapeuta",
+      occupational_therapist: "Terapeuta ocupacional",
+      psychologist: "Psicólogo/a",
+      speech_therapist: "Fonoaudiólogo/a",
+      special_educator: "Educador/a diferencial",
+      teacher: "Profesor/a",
+      professional: "Profesional",
+    };
+
+    return (
+      roleLabels[role] ||
+      String(role)
+        .replaceAll("_", " ")
+        .replace(/^./, (letter) => letter.toUpperCase())
+    );
+  };
+
+  const getCreatorName = (contact) => {
+    return [contact.creator_first_name, contact.creator_last_name]
+      .filter(Boolean)
+      .join(" ");
+  };
 
   return (
     <div className="min-h-screen bg-[#F3ECFF]">
       <div className="mx-auto w-full max-w-6xl">
-        {isParentMode && (
+        {isSupportMode && (
           <div className="mb-8 rounded-[2rem] border-2 border-[#9ED5B3] bg-[#EAF8EF] p-5 text-center shadow-sm">
-            <p className="font-bold text-[#2F6B4F]">Modo cuidador activo</p>
+            <p className="font-bold text-[#2F6B4F]">
+              {canManageSelectedChildTeam
+                ? "Administrador del grupo activo"
+                : "Perfil de apoyo activo"}
+            </p>
 
             <p className="mt-1 text-[#2F6B4F]">
-              Estás viendo y gestionando personas importantes de {childName}.
+              Estás viendo y gestionando las personas importantes de {childName}
+              .
             </p>
+
+            {!canDeleteContacts && (
+              <p className="mt-2 text-sm text-[#2F6B4F]">
+                Puedes crear y editar contactos. Solo el administrador puede
+                eliminarlos.
+              </p>
+            )}
           </div>
         )}
 
@@ -434,12 +523,13 @@ const Amigos = () => {
               <p className="mb-3 text-center text-lg font-bold text-[#9B7BE8]">
                 {editingContactId
                   ? "Editando persona"
-                  : isParentMode
+                  : isSupportMode
                     ? "Personas del niño/a"
                     : "Personas importantes"}
               </p>
+
               <h1 className="mb-10 text-center text-4xl font-light text-black">
-                {isParentMode
+                {isSupportMode
                   ? `Personas importantes para ${childName}`
                   : "Personas importantes que recordar."}
               </h1>
@@ -448,14 +538,16 @@ const Amigos = () => {
                 <input
                   type="text"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(event) => setName(event.target.value)}
                   placeholder="Nombre"
                   className="w-full border-b border-[#D6D1E8] bg-transparent px-1 py-4 text-[#4B367C] placeholder:text-[#9A91B5] focus:border-[#9B7BE8] focus:outline-none"
                 />
 
                 <select
                   value={relationshipTypeId}
-                  onChange={(e) => setRelationshipTypeId(e.target.value)}
+                  onChange={(event) =>
+                    setRelationshipTypeId(event.target.value)
+                  }
                   className={`w-full border-b border-gray-300 bg-transparent py-3 focus:border-cyan-700 focus:outline-none ${
                     relationshipTypeId ? "text-gray-900" : "text-[#9A91B5]"
                   }`}
@@ -478,15 +570,15 @@ const Amigos = () => {
                 <input
                   type="text"
                   value={whereMet}
-                  onChange={(e) => setWhereMet(e.target.value)}
-                  placeholder="Dónde lo conocí"
+                  onChange={(event) => setWhereMet(event.target.value)}
+                  placeholder="Dónde lo conoció"
                   className="w-full border-b border-gray-300 bg-transparent py-3 text-gray-900 placeholder-gray-400 focus:border-cyan-700 focus:outline-none"
                 />
 
                 <textarea
                   value={memoryNote}
-                  onChange={(e) => setMemoryNote(e.target.value)}
-                  placeholder="¿Cómo puedo recordar a esta persona?"
+                  onChange={(event) => setMemoryNote(event.target.value)}
+                  placeholder="¿Cómo puede recordar a esta persona?"
                   className="w-full border-b border-gray-300 bg-transparent py-3 text-gray-900 placeholder-gray-400 focus:border-cyan-700 focus:outline-none"
                 />
 
@@ -507,9 +599,9 @@ const Amigos = () => {
                     ? "Guardando..."
                     : editingContactId
                       ? "Actualizar"
-                      : isParentMode
-                        ? "Guardar para niño/a"
-                        : "Enviar"}
+                      : isSupportMode
+                        ? `Guardar para ${childName}`
+                        : "Guardar"}
                 </button>
 
                 {editingContactId && (
@@ -547,7 +639,7 @@ const Amigos = () => {
               name="buscar-amigo"
               type="text"
               value={busqueda}
-              onChange={(e) => setBusqueda(e.target.value)}
+              onChange={(event) => setBusqueda(event.target.value)}
               placeholder="🔍 Buscar por nombre, relación o lugar..."
               className="w-full rounded-2xl border-2 border-[#DCCCF8] p-4 focus:border-[#9B7BE8] focus:outline-none"
             />
@@ -556,11 +648,13 @@ const Amigos = () => {
               id="orden-amigos"
               name="orden-amigos"
               value={orden}
-              onChange={(e) => setOrden(e.target.value)}
+              onChange={(event) => setOrden(event.target.value)}
               className="w-full rounded-2xl border-2 border-[#DCCCF8] p-4 focus:border-[#9B7BE8] focus:outline-none"
             >
               <option value="recientes">Más recientes</option>
+
               <option value="antiguos">Más antiguos</option>
+
               <option value="az">A-Z</option>
               <option value="za">Z-A</option>
             </select>
@@ -569,7 +663,7 @@ const Amigos = () => {
 
         <section className="mx-auto mb-10 max-w-6xl rounded-[2rem] bg-white px-8 py-10 shadow-sm md:px-12">
           <h2 className="mb-8 text-center text-3xl font-bold">
-            {isParentMode
+            {isSupportMode
               ? `Personas que conoce ${childName}`
               : "Personas que conozco"}
           </h2>
@@ -593,19 +687,24 @@ const Amigos = () => {
                         {contact.name}
                       </h3>
 
-                      <p className="mt-1 font-medium text-[#6B5A95]">
-                        {contact.relationship_name}
-                      </p>
+                      <span className="mt-2 inline-flex rounded-full bg-[#EDE4FF] px-3 py-1 text-sm font-bold text-[#5B3E96]">
+                        {contact.relationship_name || "Persona importante"}
+                      </span>
+                      
+                      {getCreatorRoleLabel(contact) && (
+                        <div className="mt-3">
+                          <span className="inline-flex rounded-full bg-[#EAF8EF] px-3 py-1 text-sm font-bold text-[#2F6B4F]">
+                            👤 Creado por: {getCreatorRoleLabel(contact)}
+                            {getCreatorName(contact)
+                              ? ` · ${getCreatorName(contact)}`
+                              : ""}
+                          </span>
+                        </div>
+                      )}
 
                       <p className="mt-2 text-gray-600">
-                        📍 {contact.where_met}
+                        📍 {contact.where_met || "Sin información"}
                       </p>
-
-                      {contact.managed_by_parent && (
-                        <p className="mt-3 inline-flex rounded-full bg-[#EAF8EF] px-3 py-1 text-sm font-bold text-[#2F6B4F]">
-                          Agregado por cuidador
-                        </p>
-                      )}
                     </div>
 
                     {contact.image ? (
@@ -623,7 +722,7 @@ const Amigos = () => {
 
                   <div className="mt-4 rounded-xl bg-[#F3ECFF] p-4">
                     <p className="mb-1 text-sm font-semibold text-[#4B367C]">
-                      ¿Cómo puedo recordarlo?
+                      ¿Cómo puede recordarlo?
                     </p>
 
                     <p className="text-gray-700">
@@ -640,13 +739,15 @@ const Amigos = () => {
                       Editar
                     </button>
 
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(contact)}
-                      className="rounded-lg bg-red-500 px-4 py-2 text-white hover:bg-red-600"
-                    >
-                      Eliminar
-                    </button>
+                    {canDeleteContacts && (
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(contact)}
+                        className="rounded-lg bg-red-500 px-4 py-2 text-white hover:bg-red-600"
+                      >
+                        Eliminar
+                      </button>
+                    )}
 
                     <Link
                       to={`/amigos/${contact.id}`}

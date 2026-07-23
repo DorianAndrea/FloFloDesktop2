@@ -173,12 +173,16 @@ const Conversaciones = () => {
     selectedChildId,
     loadingChildren,
     getChildDisplayName,
+    canManageSelectedChildTeam,
   } = useSelectedChild();
 
   const { showFeedback, showConfirm } = useFeedback();
 
   const isParentMode = isParent && Boolean(selectedChildId);
   const isParentWithoutChild = isParent && !selectedChildId;
+
+  const canDeleteConversations =
+    isParentMode && Boolean(canManageSelectedChildTeam);
 
   const childName = selectedChild
     ? getChildDisplayName(selectedChild)
@@ -190,6 +194,76 @@ const Conversaciones = () => {
         .trim()
         .split(" ")[0] || ""
     );
+  };
+
+  const getCreatorRoleLabel = (conversation) => {
+    const role =
+      conversation.creator_relationship_key ||
+      conversation.creator_access_profile;
+
+    if (!role) return "";
+
+    const labels = {
+      child: "Niño/a",
+      primary_caregiver: "Cuidador principal",
+      caregiver: "Cuidador/a",
+      family: "Familiar",
+      therapist: "Terapeuta",
+      occupational_therapist: "Terapeuta ocupacional",
+      psychologist: "Psicólogo/a",
+      speech_therapist: "Fonoaudiólogo/a",
+      special_educator: "Educador/a diferencial",
+      teacher: "Profesor/a",
+      professional: "Profesional",
+    };
+
+    return (
+      labels[role] ||
+      String(role)
+        .replaceAll("_", " ")
+        .replace(/^./, (letter) => letter.toUpperCase())
+    );
+  };
+
+  const getCreatorName = (conversation) => {
+    return [conversation.creator_first_name, conversation.creator_last_name]
+      .filter(Boolean)
+      .join(" ");
+  };
+
+  const getUpdaterRoleLabel = (conversation) => {
+    const role =
+      conversation?.updater_relationship_key ||
+      conversation?.updater_access_profile;
+
+    if (!role) return "";
+
+    const labels = {
+      child: "Niño/a",
+      primary_caregiver: "Cuidador principal",
+      caregiver: "Cuidador/a",
+      family: "Familiar",
+      therapist: "Terapeuta",
+      occupational_therapist: "Terapeuta ocupacional",
+      psychologist: "Psicólogo/a",
+      speech_therapist: "Fonoaudiólogo/a",
+      special_educator: "Educador/a diferencial",
+      teacher: "Profesor/a",
+      professional: "Profesional",
+    };
+
+    return (
+      labels[role] ||
+      String(role)
+        .replaceAll("_", " ")
+        .replace(/^./, (letter) => letter.toUpperCase())
+    );
+  };
+
+  const getUpdaterName = (conversation) => {
+    return [conversation?.updater_first_name, conversation?.updater_last_name]
+      .filter(Boolean)
+      .join(" ");
   };
 
   const getCleanAdultLabel = (personValue) => {
@@ -500,6 +574,17 @@ const Conversaciones = () => {
           tipo: esContacto ? "contacto" : "normal",
           user_id: item.user_id,
           user_contact_id: item.user_contact_id,
+          created_by: item.created_by || null,
+          creator_access_profile: item.creator_access_profile || "",
+          creator_relationship_key: item.creator_relationship_key || "",
+          creator_first_name: item.creator_first_name || "",
+          creator_last_name: item.creator_last_name || "",
+          updated_by: item.updated_by || null,
+          updater_access_profile: item.updater_access_profile || "",
+          updater_relationship_key: item.updater_relationship_key || "",
+          updater_first_name: item.updater_first_name || "",
+          updater_last_name: item.updater_last_name || "",
+
           titulo: item.title,
           emoji: esContacto ? "✨" : getEmojiByTitle(item.title),
           escenario: item.situation,
@@ -779,15 +864,44 @@ const Conversaciones = () => {
         conversationId: savedId,
         tipo: "normal",
         user_id: savedConversation.conversation.user_id,
+
+        creator_access_profile:
+          savedConversation.conversation.creator_access_profile || "",
+        creator_relationship_key:
+          savedConversation.conversation.creator_relationship_key || "",
+        creator_first_name:
+          savedConversation.conversation.creator_first_name ||
+          user?.firstName ||
+          "",
+        creator_last_name:
+          savedConversation.conversation.creator_last_name ||
+          user?.lastName ||
+          "",
+
+        updater_access_profile:
+          savedConversation.conversation.updater_access_profile || "",
+        updater_relationship_key:
+          savedConversation.conversation.updater_relationship_key || "",
+        updater_first_name:
+          savedConversation.conversation.updater_first_name ||
+          user?.firstName ||
+          "",
+        updater_last_name:
+          savedConversation.conversation.updater_last_name ||
+          user?.lastName ||
+          "",
+
         titulo: data.title || formIA.topic,
         emoji: "✨",
         escenario: formIA.situation,
         habilidad: `Conversación generada con IA sobre ${formIA.topic}`,
         managed_by_parent: isParentMode,
+
         dialogo: normalizedContent.messages.map((msg) => ({
           personaje: msg.speaker,
           texto: msg.text,
         })),
+
         ejercicio: {
           pregunta: normalizedContent.exercise.question,
           opciones: normalizedContent.exercise.options.map((op) => ({
@@ -1299,7 +1413,7 @@ const Conversaciones = () => {
           </h1>
 
           <p className="mt-4 text-[#6B5A95]">
-            Para gestionar conversaciones como cuidador, primero debes
+            Para gestionar conversaciones desde tu perfil, primero debes
             seleccionar un niño/a activo.
           </p>
         </section>
@@ -1328,7 +1442,7 @@ const Conversaciones = () => {
           <div className="flex flex-wrap items-center justify-center gap-3">
             {isParentMode ? (
               <div className="rounded-full bg-[#EAF8EF] px-6 py-3 font-bold text-[#2F6B4F] shadow-sm">
-                👨‍👩‍👧 Modo cuidador · {childName}
+                👥 Perfil de apoyo · {childName}
               </div>
             ) : (
               <div className="rounded-full bg-[#FFF3C4] px-5 py-3 font-bold text-[#5C4A00] shadow-sm">
@@ -1356,11 +1470,21 @@ const Conversaciones = () => {
 
         {isParentMode && (
           <div className="mb-10 rounded-[2rem] border-2 border-[#9ED5B3] bg-[#EAF8EF] p-5 text-center shadow-sm">
-            <p className="font-bold text-[#2F6B4F]">Modo cuidador activo</p>
+            <p className="font-bold text-[#2F6B4F]">
+              {canManageSelectedChildTeam
+                ? "Administrador del grupo activo"
+                : "Perfil de apoyo activo"}
+            </p>
             <p className="mt-1 text-[#2F6B4F]">
               Estás viendo, creando y editando conversaciones del niño/a
               seleccionado: {childName}.
             </p>
+            {!canDeleteConversations && (
+              <p className="mt-2 text-sm text-[#2F6B4F]">
+                Puedes crear y editar conversaciones. Solo el administrador
+                puede eliminarlas.
+              </p>
+            )}
           </div>
         )}
 
@@ -1519,22 +1643,30 @@ const Conversaciones = () => {
                         <span className="text-4xl">{item.emoji}</span>
 
                         <div className="flex flex-col items-end gap-2">
-                          {item.tipo === "contacto" && (
-                            <>
-                              <span
-                                className={`rounded-full px-3 py-1 text-sm font-bold ${
-                                  item.managed_by_parent
-                                    ? "bg-[#EAF8EF] text-[#2F6B4F]"
-                                    : "bg-[#FFF3C4] text-[#5C4A00]"
-                                }`}
-                              >
-                                {item.managed_by_parent ? "Cuidador" : "Niño"}
+                          {getCreatorRoleLabel(item) && (
+                            <span className="rounded-full bg-[#EAF8EF] px-3 py-1 text-sm font-bold text-[#2F6B4F]">
+                              👤 Creada por: {getCreatorRoleLabel(item)}
+                              {getCreatorName(item)
+                                ? ` · ${getCreatorName(item)}`
+                                : ""}
+                            </span>
+                          )}
+                          {item.updated_by &&
+                            Number(item.updated_by) !==
+                              Number(item.created_by) && (
+                              <span className="rounded-full bg-[#E8F1FF] px-3 py-1 text-sm font-bold text-[#345A8A]">
+                                ✏️ Editada por:{" "}
+                                {getUpdaterRoleLabel(item) || "Integrante"}
+                                {getUpdaterName(item)
+                                  ? ` · ${getUpdaterName(item)}`
+                                  : ""}
                               </span>
+                            )}
 
-                              <span className="rounded-full bg-[#F3ECFF] px-3 py-1 text-sm font-bold text-[#6B4FC3]">
-                                👥 Desde Amigos
-                              </span>
-                            </>
+                          {item.tipo === "contacto" && (
+                            <span className="rounded-full bg-[#F3ECFF] px-3 py-1 text-sm font-bold text-[#6B4FC3]">
+                              👥 Desde Amigos
+                            </span>
                           )}
 
                           {completada && (
@@ -1554,7 +1686,20 @@ const Conversaciones = () => {
                       </p>
 
                       <div className="mt-6 grid grid-cols-1 gap-2">
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                          {item.tipo === "normal" && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                abrirEditor(item);
+                              }}
+                              className="rounded-xl bg-[#EAF8EF] px-4 py-3 font-bold text-[#2F6B4F] hover:bg-[#D7F1E1]"
+                            >
+                              ✏️ Editar
+                            </button>
+                          )}
+
                           <button
                             type="button"
                             onClick={(e) => {
@@ -1569,16 +1714,18 @@ const Conversaciones = () => {
                               : "✨ Regenerar"}
                           </button>
 
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteConversation(item);
-                            }}
-                            className="rounded-xl bg-red-100 px-4 py-3 font-bold text-red-600 hover:bg-red-200"
-                          >
-                            Eliminar
-                          </button>
+                          {canDeleteConversations && item.tipo === "normal" && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDeleteConversation(item);
+                              }}
+                              className="rounded-xl bg-red-100 px-4 py-3 font-bold text-red-600 hover:bg-red-200 sm:col-span-2"
+                            >
+                              Eliminar
+                            </button>
+                          )}
                         </div>
 
                         <button

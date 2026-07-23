@@ -263,14 +263,27 @@ const User = () => {
               </div>
             )}
 
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              className="w-full py-3 text-gray-900 bg-transparent border-b border-gray-300 focus:outline-none focus:border-cyan-700"
-            >
-              <option value="child">Niño</option>
-              <option value="parent">Padre/Cuidador</option>
-            </select>
+            <div>
+              <label className="block mb-2 font-bold text-[#4B367C]">
+                Tipo de cuenta
+              </label>
+
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                className="w-full py-3 text-gray-900 bg-transparent border-b border-gray-300 focus:outline-none focus:border-cyan-700"
+              >
+                <option value="child">Niño/a</option>
+                <option value="parent">Adulto/a de apoyo</option>
+              </select>
+
+              {role === "parent" && (
+                <p className="mt-3 rounded-2xl border border-[#DCCCF8] bg-[#F3ECFF] px-4 py-3 text-sm font-semibold text-[#6B5A95]">
+                  Para familiares, cuidadores, terapeutas, profesores y otros
+                  profesionales.
+                </p>
+              )}
+            </div>
 
             <input
               type="email"

@@ -10,6 +10,7 @@ import {
   getChildSensoryProfileHistory,
   saveChildSensoryProfile,
   updateChildSensoryProfile,
+  updateMySensoryProfile,
 } from "../services/sensoryProfileService";
 import { getCachedData, setCachedData } from "../utils/cache";
 
@@ -28,6 +29,20 @@ const emptyProfile = {
   stress_signals: "",
   support_strategies: "",
   notes: "",
+
+  created_by: null,
+  creator_access_profile: "",
+  creator_relationship_key: "",
+  creator_first_name: "",
+  creator_last_name: "",
+
+  updated_by: null,
+  updater_access_profile: "",
+  updater_relationship_key: "",
+  updater_first_name: "",
+  updater_last_name: "",
+
+  created_at: null,
   updated_at: null,
 };
 
@@ -149,6 +164,37 @@ const fieldGroups = [
 
 const fields = fieldGroups.flatMap((group) => group.fields);
 
+const getRoleLabel = (relationshipKey, accessProfile) => {
+  const role = relationshipKey || accessProfile;
+
+  if (!role) return "";
+
+  const labels = {
+    child: "Niño/a",
+    primary_caregiver: "Cuidador principal",
+    caregiver: "Cuidador/a",
+    family: "Familiar",
+    therapist: "Terapeuta",
+    occupational_therapist: "Terapeuta ocupacional",
+    psychologist: "Psicólogo/a",
+    speech_therapist: "Fonoaudiólogo/a",
+    special_educator: "Educador/a diferencial",
+    teacher: "Profesor/a",
+    professional: "Profesional",
+  };
+
+  return (
+    labels[role] ||
+    String(role)
+      .replaceAll("_", " ")
+      .replace(/^./, (letter) => letter.toUpperCase())
+  );
+};
+
+const getFullName = (firstName, lastName) => {
+  return [firstName, lastName].filter(Boolean).join(" ");
+};
+
 const PerfilSensorial = () => {
   const { user } = useFloFlo();
   const {
@@ -190,6 +236,20 @@ const PerfilSensorial = () => {
 
     return {
       ...normalized,
+
+      created_by: data.created_by || null,
+      creator_access_profile: data.creator_access_profile || "",
+      creator_relationship_key: data.creator_relationship_key || "",
+      creator_first_name: data.creator_first_name || "",
+      creator_last_name: data.creator_last_name || "",
+
+      updated_by: data.updated_by || null,
+      updater_access_profile: data.updater_access_profile || "",
+      updater_relationship_key: data.updater_relationship_key || "",
+      updater_first_name: data.updater_first_name || "",
+      updater_last_name: data.updater_last_name || "",
+
+      created_at: data.created_at || null,
       updated_at: data.updated_at || null,
     };
   };
@@ -439,7 +499,7 @@ const PerfilSensorial = () => {
                     Resumen sensorial actual
                   </h2>
 
-                  <LastUpdatedInfo date={lastUpdatedAt} />
+                  <LastUpdatedInfo date={lastUpdatedAt} profile={profile} />
                 </div>
 
                 <button
@@ -471,7 +531,7 @@ const PerfilSensorial = () => {
                     Mi resumen sensorial actual
                   </h2>
 
-                  <LastUpdatedInfo date={lastUpdatedAt} />
+                  <LastUpdatedInfo date={lastUpdatedAt} profile={profile} />
                 </div>
 
                 <button
@@ -515,7 +575,7 @@ const PerfilSensorial = () => {
                     sensorial.
                   </p>
 
-                  <LastUpdatedInfo date={lastUpdatedAt} />
+                  <LastUpdatedInfo date={lastUpdatedAt} profile={profile} />
                 </div>
 
                 {hasProfileData && (
@@ -626,10 +686,10 @@ const FieldGroupsForm = ({ profile, onChange }) => {
     </div>
   );
 };
-const LastUpdatedInfo = ({ date }) => {
+const LastUpdatedInfo = ({ date, profile }) => {
   if (!date) {
     return (
-      <p className="text-sm text-gray-500 mt-2">
+      <p className="mt-2 text-sm text-gray-500">
         Última actualización: sin registros todavía.
       </p>
     );
@@ -640,11 +700,30 @@ const LastUpdatedInfo = ({ date }) => {
     timeStyle: "short",
   });
 
+  const updaterRole = getRoleLabel(
+    profile?.updater_relationship_key || profile?.creator_relationship_key,
+    profile?.updater_access_profile || profile?.creator_access_profile,
+  );
+
+  const updaterName = getFullName(
+    profile?.updater_first_name || profile?.creator_first_name,
+    profile?.updater_last_name || profile?.creator_last_name,
+  );
+
   return (
-    <p className="text-sm text-gray-500 mt-2">
-      Última actualización:{" "}
-      <span className="font-bold text-purple-700">{formattedDate}</span>
-    </p>
+    <div className="mt-2">
+      <p className="text-sm text-gray-500">
+        Última actualización:{" "}
+        <span className="font-bold text-purple-700">{formattedDate}</span>
+      </p>
+
+      {updaterRole && (
+        <p className="mt-2 inline-flex rounded-full bg-[#E8F1FF] px-3 py-1 text-sm font-bold text-[#345A8A]">
+          ✏️ Actualizado por: {updaterRole}
+          {updaterName ? ` · ${updaterName}` : ""}
+        </p>
+      )}
+    </div>
   );
 };
 
@@ -811,6 +890,24 @@ const HistoryCard = ({ item, index }) => {
           </div>
 
           <p className="text-sm text-gray-500">Guardada el {date}</p>
+          {getRoleLabel(
+            item.creator_relationship_key,
+            item.creator_access_profile,
+          ) && (
+            <p className="mt-2 inline-flex rounded-full bg-[#EAF8EF] px-3 py-1 text-sm font-bold text-[#2F6B4F]">
+              👤 Versión registrada por:{" "}
+              {getRoleLabel(
+                item.creator_relationship_key,
+                item.creator_access_profile,
+              )}
+              {getFullName(item.creator_first_name, item.creator_last_name)
+                ? ` · ${getFullName(
+                    item.creator_first_name,
+                    item.creator_last_name,
+                  )}`
+                : ""}
+            </p>
+          )}
 
           <p className="text-sm text-gray-600 mt-3 line-clamp-2">
             {mainSummary}

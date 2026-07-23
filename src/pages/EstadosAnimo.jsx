@@ -24,6 +24,35 @@ import AchievementPopup from "../components/AchievementPopup";
 import { getCachedData, setCachedData } from "../utils/cache";
 import { showUnlockedAchievements } from "../utils/showUnlockedAchievements";
 
+const getCreatorProfileLabel = (mood) => {
+  const relationshipLabels = {
+    primary_caregiver: "Cuidador/a principal",
+    caregiver: "Cuidador/a",
+    family: "Familiar",
+    occupational_therapist: "Terapeuta ocupacional",
+    psychologist: "Psicólogo/a",
+    speech_therapist: "Fonoaudiólogo/a",
+    teacher: "Profesor/a",
+    other_professional: "Otro profesional",
+  };
+
+  if (mood?.source === "child") {
+    return "Registro del niño/a";
+  }
+
+  return (
+    relationshipLabels[mood?.creator_relationship_key] || "Adulto/a de apoyo"
+  );
+};
+
+const getCreatorName = (mood) => {
+  const fullName = `${mood?.creator_first_name || ""} ${
+    mood?.creator_last_name || ""
+  }`.trim();
+
+  return fullName || "Usuario FloFlo";
+};
+
 const EstadosAnimo = () => {
   const { setMood, user } = useFloFlo();
 
@@ -33,6 +62,13 @@ const EstadosAnimo = () => {
     selectedChildId,
     loadingChildren,
     getChildDisplayName,
+
+    isCaregiver,
+    isTherapist,
+    isTeacher,
+    isFamily,
+    isProfessional,
+    observationProfileLabel,
   } = useSelectedChild();
 
   const { showFeedback } = useFeedback();
@@ -43,6 +79,51 @@ const EstadosAnimo = () => {
   const childName = selectedChild
     ? getChildDisplayName(selectedChild)
     : "el niño/a seleccionado";
+
+  const supportModeLabel = (() => {
+    if (isTherapist) return "Modo profesional activo";
+    if (isTeacher) return "Modo educativo activo";
+    if (isFamily) return "Modo familiar activo";
+    if (isProfessional) return "Modo profesional activo";
+
+    return "Modo cuidador activo";
+  })();
+
+  const supportObservationDescription = (() => {
+    if (isTherapist) {
+      return `Registrarás una observación profesional sobre el estado emocional de ${childName}.`;
+    }
+
+    if (isTeacher) {
+      return `Registrarás una observación educativa sobre el estado emocional de ${childName}.`;
+    }
+
+    if (isFamily) {
+      return `Registrarás una observación familiar sobre el estado emocional de ${childName}.`;
+    }
+
+    if (isProfessional) {
+      return `Registrarás una observación profesional sobre el estado emocional de ${childName}.`;
+    }
+
+    return `Registrarás una observación emocional como cuidador/a para ${childName}.`;
+  })();
+
+  const observationSuccessMessage = (() => {
+    if (isTherapist || isProfessional) {
+      return `La observación profesional fue guardada para ${childName}.`;
+    }
+
+    if (isTeacher) {
+      return `La observación educativa fue guardada para ${childName}.`;
+    }
+
+    if (isFamily) {
+      return `La observación familiar fue guardada para ${childName}.`;
+    }
+
+    return `La observación emocional fue guardada para ${childName}.`;
+  })();
 
   const [estadoSeleccionado, setEstadoSeleccionado] = useState(null);
   const [moods, setMoods] = useState([]);
@@ -200,7 +281,7 @@ const EstadosAnimo = () => {
       const payload = {
         mood_type_id: estado.id,
         comment: isParentMode
-          ? `Hoy ${childName} se mostró ${estado.nombre.toLowerCase()}.`
+          ? `${observationProfileLabel}: hoy ${childName} se mostró ${estado.nombre.toLowerCase()}.`
           : `Hoy me siento ${estado.nombre}`,
       };
 
@@ -228,9 +309,11 @@ const EstadosAnimo = () => {
           type: "success",
           icon: isParentMode ? "✅" : "⭐",
           label: isParentMode ? "Observación guardada" : "Emoción registrada",
-          title: isParentMode ? "Estado emocional registrado" : "¡Muy bien!",
+          title: isParentMode
+            ? `${observationProfileLabel} registrada`
+            : "¡Muy bien!",
           message: isParentMode
-            ? `La observación emocional fue guardada para ${childName}.`
+            ? observationSuccessMessage
             : "Félix guardó cómo te sientes hoy. Ganaste una estrella.",
         });
       }
@@ -277,7 +360,7 @@ const EstadosAnimo = () => {
           </h1>
 
           <p className="mt-4 text-[#6B5A95]">
-            Para ver o registrar emociones como cuidador, primero debes
+            Para ver o registrar observaciones emocionales, primero debes
             seleccionar un niño/a activo.
           </p>
         </section>
@@ -306,11 +389,11 @@ const EstadosAnimo = () => {
 
         {isParentMode && (
           <div className="mx-auto mb-10 max-w-3xl rounded-[2rem] border-2 border-[#9ED5B3] bg-[#EAF8EF] p-5 shadow-sm">
-            <p className="font-bold text-[#2F6B4F]">Modo cuidador activo</p>
+            <p className="font-bold text-[#2F6B4F]">{supportModeLabel}</p>
 
             <p className="mt-1 text-[#2F6B4F]">
-              Registrarás una observación emocional para {childName}. Esta
-              observación no suma estrellas al niño/a.
+              {supportObservationDescription} Esta observación no suma estrellas
+              al niño/a.
             </p>
           </div>
         )}
@@ -392,7 +475,8 @@ const EstadosAnimo = () => {
             <p className="text-[#6B5A95]">Aún no hay emociones registradas.</p>
           ) : (
             moods.map((mood) => {
-              const isParentObservation = mood.source === "parent";
+              const isAdultObservation =
+                mood.source === "adult" || mood.source === "parent";
 
               return (
                 <div
@@ -411,15 +495,19 @@ const EstadosAnimo = () => {
 
                   <div
                     className={`mx-auto mt-2 inline-flex rounded-full px-3 py-1 text-sm font-bold ${
-                      isParentObservation
+                      isAdultObservation
                         ? "bg-[#EAF8EF] text-[#2F6B4F]"
                         : "bg-[#F3ECFF] text-[#4B367C]"
                     }`}
                   >
-                    {isParentObservation
-                      ? "Observación del cuidador"
-                      : "Registro del niño/a"}
+                    {getCreatorProfileLabel(mood)}
                   </div>
+
+                  {isAdultObservation && (
+                    <p className="mt-2 text-sm font-semibold text-[#6B5A95]">
+                      Registrado por {getCreatorName(mood)}
+                    </p>
+                  )}
 
                   <p className="mt-3 text-[#6B5A95]">{mood.comment}</p>
 

@@ -512,7 +512,7 @@ const PanelPadres = () => {
       <main className="min-h-screen bg-purple-50 p-6">
         <section className="max-w-5xl mx-auto bg-white rounded-3xl p-6 shadow-md">
           <h1 className="text-3xl font-bold text-purple-700 mb-3">
-            Panel para Padres
+            Panel de Apoyo
           </h1>
 
           <p className="text-gray-600 mb-5">
@@ -545,7 +545,7 @@ const PanelPadres = () => {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold text-purple-700 mb-2">
-              Panel para Padres
+              Panel de Apoyo
             </h1>
 
             <p className="text-gray-600">
@@ -611,6 +611,36 @@ const PanelPadres = () => {
             )}
           </button>
         </div>
+
+        {selectedChild && (
+          <Link
+            to="/equipo-floflo"
+            className="mb-8 block rounded-[2rem] border-2 border-[#DCCCF8] bg-white p-6 shadow-md transition hover:-translate-y-1 hover:shadow-lg"
+          >
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-4">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-[#F3ECFF] text-4xl">
+                  🤝
+                </div>
+
+                <div>
+                  <h2 className="text-2xl font-extrabold text-[#4B367C]">
+                    Equipo FloFlo
+                  </h2>
+
+                  <p className="mt-1 text-gray-600">
+                    Invita a familiares y profesionales que acompañan a{" "}
+                    {getChildFirstName(selectedChild)}.
+                  </p>
+                </div>
+              </div>
+
+              <span className="rounded-2xl bg-[#9B7BE8] px-5 py-3 text-center font-extrabold text-white">
+                Ver equipo
+              </span>
+            </div>
+          </Link>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           <Card titulo="Emociones" valor={dashboard.emotions} emoji="😊" />

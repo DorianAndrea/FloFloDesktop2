@@ -50,6 +50,41 @@ const formatTime = (time) => {
   return String(time).slice(0, 5);
 };
 
+const RELATIONSHIP_LABELS = {
+  primary_caregiver: "Cuidador/a principal",
+  caregiver: "Cuidador/a",
+  family: "Familiar",
+  occupational_therapist: "Terapeuta ocupacional",
+  psychologist: "Psicólogo/a",
+  speech_therapist: "Fonoaudiólogo/a",
+  teacher: "Profesor/a",
+  other_professional: "Otro profesional",
+};
+
+const ACCESS_PROFILE_LABELS = {
+  primary_caregiver: "Cuidador/a principal",
+  caregiver: "Cuidador/a",
+  family: "Familiar",
+  therapist: "Profesional de terapia",
+  teacher: "Profesor/a",
+  professional: "Otro profesional",
+  child: "Niño/a",
+};
+
+const getSupportProfileLabel = (relationshipKey, accessProfile) => {
+  return (
+    RELATIONSHIP_LABELS[relationshipKey] ||
+    ACCESS_PROFILE_LABELS[accessProfile] ||
+    "Adulto/a de apoyo"
+  );
+};
+
+const getFullName = (firstName, lastName) => {
+  const fullName = `${firstName || ""} ${lastName || ""}`.trim();
+
+  return fullName || "Usuario FloFlo";
+};
+
 const formatDays = (days = []) => {
   if (!Array.isArray(days) || days.length === 0) {
     return "Todos los días";
@@ -100,12 +135,47 @@ const Rutinas = () => {
     selectedChildId,
     loadingChildren,
     getChildDisplayName,
+
+    selectedAccessProfile,
+    selectedRelationshipKey,
+    canManageSelectedChildTeam,
+
+    isCaregiver,
+    isTherapist,
+    isTeacher,
+    isFamily,
+    isProfessional,
   } = useSelectedChild();
 
   const { showFeedback, showConfirm } = useFeedback();
 
   const isParentMode = isParent && Boolean(selectedChildId);
   const isParentWithoutChild = isParent && !selectedChildId;
+
+  const canCreateOrEditRoutines =
+    !isParent ||
+    [
+      "primary_caregiver",
+      "caregiver",
+      "therapist",
+      "teacher",
+      "professional",
+    ].includes(selectedAccessProfile);
+
+  const canDeleteRoutines =
+    !isParent ||
+    ["primary_caregiver", "caregiver"].includes(selectedAccessProfile);
+
+  const supportModeLabel = (() => {
+    if (canManageSelectedChildTeam) return "Modo cuidador principal";
+    if (isTherapist) return "Modo profesional";
+    if (isTeacher) return "Modo educativo";
+    if (isFamily) return "Modo familiar";
+    if (isProfessional) return "Modo profesional";
+    if (isCaregiver) return "Modo cuidador";
+
+    return "Modo adulto de apoyo";
+  })();
 
   const childName = selectedChild
     ? getChildDisplayName(selectedChild)
@@ -286,6 +356,19 @@ const Rutinas = () => {
 
     if (!validateParentChildSelection()) return;
 
+    if (!canCreateOrEditRoutines) {
+      showFeedback({
+        type: "warning",
+        icon: "🔒",
+        label: "Acceso de consulta",
+        title: "No puedes modificar rutinas",
+        message:
+          "Tu perfil puede revisar y completar rutinas, pero no crear ni editar actividades.",
+      });
+
+      return;
+    }
+
     if (!name.trim()) {
       showFeedback({
         type: "warning",
@@ -396,6 +479,18 @@ const Rutinas = () => {
 
   const handleDeleteRoutine = async (routine) => {
     if (!validateParentChildSelection()) return;
+
+    if (!canDeleteRoutines) {
+      showFeedback({
+        type: "warning",
+        icon: "🔒",
+        label: "Acción restringida",
+        title: "No puedes eliminar rutinas",
+        message: "Solo una cuenta cuidadora puede eliminar rutinas del niño/a.",
+      });
+
+      return;
+    }
 
     const confirmed = await showConfirm({
       type: "danger",
@@ -548,17 +643,51 @@ const Rutinas = () => {
   const renderRoutineCard = (routine, options = {}) => {
     const { showCompleteButton = false, compact = false } = options;
 
+    const creatorName = getFullName(
+      routine.creator_first_name,
+      routine.creator_last_name,
+    );
+
+    const creatorProfile = getSupportProfileLabel(
+      routine.creator_relationship_key,
+      routine.creator_access_profile,
+    );
+
+    const completerName = getFullName(
+      routine.today_completer_first_name,
+      routine.today_completer_last_name,
+    );
+
+    const completerProfile = getSupportProfileLabel(
+      routine.today_completer_relationship_key,
+      routine.today_completer_access_profile,
+    );
+
+    const hasCreatorInformation = Boolean(
+      routine.created_by ||
+      routine.creator_first_name ||
+      routine.creator_access_profile ||
+      routine.creator_relationship_key,
+    );
+
+    const hasCompleterInformation = Boolean(
+      routine.today_completed_by ||
+      routine.today_completer_first_name ||
+      routine.today_completer_access_profile ||
+      routine.today_completer_relationship_key,
+    );
+
     return (
       <div
         key={routine.id}
-        className={`border-2 rounded-3xl p-5 transition ${
+        className={`rounded-3xl border-2 p-5 transition ${
           routine.completed_today
             ? "border-green-200 bg-green-50"
             : "border-[#DCCCF8] bg-white"
         }`}
       >
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div>
+          <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h3 className="text-xl font-bold text-[#4B367C]">
                 {routine.name}
@@ -595,17 +724,69 @@ const Rutinas = () => {
               <p className="mt-3 text-[#6B5A95]">{routine.description}</p>
             )}
 
+            <div className="mt-3 rounded-2xl border border-[#E4D8FF] bg-[#F7F3FF] px-4 py-3">
+              {hasCreatorInformation ? (
+                <>
+                  <p className="text-xs font-bold uppercase tracking-wide text-[#9B7BE8]">
+                    Creada por
+                  </p>
+
+                  <p className="mt-1 font-bold text-[#4B367C]">{creatorName}</p>
+
+                  <p className="text-sm font-semibold text-[#6B5A95]">
+                    {creatorProfile}
+                  </p>
+                </>
+              ) : (
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide text-[#9B7BE8]">
+                    Creada anteriormente
+                  </p>
+
+                  <p className="mt-1 font-bold text-[#4B367C]">
+                    Por una cuenta cuidadora
+                  </p>
+
+                  <p className="text-sm font-semibold text-[#8A7BB0]">
+                    Registro anterior
+                  </p>
+                </div>
+              )}
+            </div>
+
             {routine.today_completed_at && (
-              <p className="mt-3 text-sm font-semibold text-green-700">
-                Completada hoy a las{" "}
-                {new Date(routine.today_completed_at).toLocaleTimeString(
-                  "es-CL",
-                  {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  },
+              <div className="mt-3 rounded-2xl border border-green-200 bg-green-50 px-4 py-3">
+                <p className="font-semibold text-green-700">
+                  Completada hoy a las{" "}
+                  {new Date(routine.today_completed_at).toLocaleTimeString(
+                    "es-CL",
+                    {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    },
+                  )}
+                </p>
+
+                {hasCompleterInformation ? (
+                  <>
+                    <p className="mt-2 text-sm font-bold text-[#4B367C]">
+                      Marcada como realizada por {completerName}
+                    </p>
+
+                    <p className="text-sm font-semibold text-[#6B5A95]">
+                      {completerProfile}
+                    </p>
+                  </>
+                ) : (
+                  <div className="mt-2">
+                    <p className="text-sm font-bold text-[#4B367C]">
+                      Marcada como realizada desde una cuenta cuidadora
+                    </p>
+
+                    <p className="text-sm text-[#8A7BB0]">Registro anterior</p>
+                  </div>
                 )}
-              </p>
+              </div>
             )}
           </div>
 
@@ -625,21 +806,25 @@ const Rutinas = () => {
               </button>
             )}
 
-            <button
-              type="button"
-              onClick={() => handleEdit(routine)}
-              className="rounded-2xl bg-[#9B7BE8] px-4 py-2 font-bold text-white transition hover:bg-[#8B6FD6]"
-            >
-              Editar
-            </button>
+            {canCreateOrEditRoutines && (
+              <button
+                type="button"
+                onClick={() => handleEdit(routine)}
+                className="rounded-2xl bg-[#9B7BE8] px-4 py-2 font-bold text-white transition hover:bg-[#8B6FD6]"
+              >
+                Editar
+              </button>
+            )}
 
-            <button
-              type="button"
-              onClick={() => handleDeleteRoutine(routine)}
-              className="rounded-2xl bg-red-400 px-4 py-2 font-bold text-white transition hover:bg-red-500"
-            >
-              Eliminar
-            </button>
+            {canDeleteRoutines && (
+              <button
+                type="button"
+                onClick={() => handleDeleteRoutine(routine)}
+                className="rounded-2xl bg-red-400 px-4 py-2 font-bold text-white transition hover:bg-red-500"
+              >
+                Eliminar
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -668,18 +853,24 @@ const Rutinas = () => {
 
           <p className="mx-auto mt-4 max-w-2xl text-lg text-[#6B5A95]">
             {isParentMode
-              ? "Gestiona las rutinas del niño/a seleccionado desde el modo cuidador."
+              ? canCreateOrEditRoutines
+                ? `Gestiona las rutinas de ${childName} desde tu perfil de apoyo.`
+                : `Consulta las rutinas de ${childName} y revisa su avance.`
               : "Crea rutinas por día, marca las actividades realizadas y revisa tu avance diario."}
           </p>
         </div>
 
         {isParent && (
           <div className="mb-8 rounded-[2rem] border-2 border-[#9ED5B3] bg-[#EAF8EF] p-5 text-center shadow-sm">
-            <p className="font-bold text-[#2F6B4F]">Modo cuidador activo</p>
+            <p className="font-bold text-[#2F6B4F]">
+              {supportModeLabel} activo
+            </p>
 
             <p className="mt-1 text-[#2F6B4F]">
               {selectedChild
-                ? `Estás viendo y gestionando rutinas de ${childName}.`
+                ? canCreateOrEditRoutines
+                  ? `Estás viendo y gestionando rutinas de ${childName}.`
+                  : `Estás consultando las rutinas de ${childName}.`
                 : "No hay un niño/a activo seleccionado."}
             </p>
           </div>
@@ -720,147 +911,164 @@ const Rutinas = () => {
         </div>
 
         <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr]">
-          <section className="rounded-[2rem] bg-white p-6 shadow-lg md:p-8">
-            <h2 className="text-3xl font-extrabold text-[#4B367C]">
-              {editingId ? "Editar rutina" : "Nueva rutina"}
-            </h2>
+          {canCreateOrEditRoutines ? (
+            <section className="rounded-[2rem] bg-white p-6 shadow-lg md:p-8">
+              <h2 className="text-3xl font-extrabold text-[#4B367C]">
+                {editingId ? "Editar rutina" : "Nueva rutina"}
+              </h2>
 
-            <p className="mt-2 text-[#6B5A95]">
-              {isParentMode
-                ? `Esta rutina se guardará para ${childName}.`
-                : "Elige el horario y los días en que se repetirá."}
-            </p>
+              <p className="mt-2 text-[#6B5A95]">
+                {isParentMode
+                  ? `Esta rutina se guardará para ${childName}.`
+                  : "Elige el horario y los días en que se repetirá."}
+              </p>
 
-            <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-              <div>
-                <label className="mb-2 block font-semibold text-[#4B367C]">
-                  Nombre de la rutina
-                </label>
-
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="Ej: Lavarse los dientes"
-                  className="w-full rounded-2xl border-2 border-[#DCCCF8] p-4 transition focus:border-[#9B7BE8] focus:outline-none"
-                />
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
+              <form onSubmit={handleSubmit} className="mt-8 space-y-6">
                 <div>
                   <label className="mb-2 block font-semibold text-[#4B367C]">
-                    Hora de inicio
+                    Nombre de la rutina
                   </label>
 
                   <input
-                    type="time"
-                    value={startTime}
-                    onChange={(e) => setStartTime(e.target.value)}
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="Ej: Lavarse los dientes"
                     className="w-full rounded-2xl border-2 border-[#DCCCF8] p-4 transition focus:border-[#9B7BE8] focus:outline-none"
                   />
                 </div>
 
-                <div>
-                  <label className="mb-2 block font-semibold text-[#4B367C]">
-                    Hora de término
-                  </label>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-2 block font-semibold text-[#4B367C]">
+                      Hora de inicio
+                    </label>
 
-                  <input
-                    type="time"
-                    value={endTime}
-                    onChange={(e) => setEndTime(e.target.value)}
-                    className="w-full rounded-2xl border-2 border-[#DCCCF8] p-4 transition focus:border-[#9B7BE8] focus:outline-none"
-                  />
-                </div>
-              </div>
+                    <input
+                      type="time"
+                      value={startTime}
+                      onChange={(e) => setStartTime(e.target.value)}
+                      className="w-full rounded-2xl border-2 border-[#DCCCF8] p-4 transition focus:border-[#9B7BE8] focus:outline-none"
+                    />
+                  </div>
 
-              <div>
-                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                  <label className="font-semibold text-[#4B367C]">
-                    Días de la semana
-                  </label>
+                  <div>
+                    <label className="mb-2 block font-semibold text-[#4B367C]">
+                      Hora de término
+                    </label>
 
-                  <div className="flex flex-wrap gap-2">
-                    <button
-                      type="button"
-                      onClick={selectAllDays}
-                      className="rounded-full bg-[#F3ECFF] px-3 py-1 text-sm font-bold text-[#6B5A95] transition hover:bg-[#E8DDFF]"
-                    >
-                      Todos
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={selectWeekDays}
-                      className="rounded-full bg-[#F3ECFF] px-3 py-1 text-sm font-bold text-[#6B5A95] transition hover:bg-[#E8DDFF]"
-                    >
-                      Lun a vie
-                    </button>
+                    <input
+                      type="time"
+                      value={endTime}
+                      onChange={(e) => setEndTime(e.target.value)}
+                      className="w-full rounded-2xl border-2 border-[#DCCCF8] p-4 transition focus:border-[#9B7BE8] focus:outline-none"
+                    />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
-                  {DAYS.map((day) => {
-                    const isSelected = selectedDays.includes(day.key);
+                <div>
+                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                    <label className="font-semibold text-[#4B367C]">
+                      Días de la semana
+                    </label>
 
-                    return (
+                    <div className="flex flex-wrap gap-2">
                       <button
-                        key={day.key}
                         type="button"
-                        onClick={() => toggleDay(day.key)}
-                        className={`rounded-2xl border-2 px-3 py-3 text-sm font-extrabold transition ${
-                          isSelected
-                            ? "border-[#9B7BE8] bg-[#9B7BE8] text-white"
-                            : "border-[#DCCCF8] bg-white text-[#6B5A95] hover:bg-[#F3ECFF]"
-                        }`}
+                        onClick={selectAllDays}
+                        className="rounded-full bg-[#F3ECFF] px-3 py-1 text-sm font-bold text-[#6B5A95] transition hover:bg-[#E8DDFF]"
                       >
-                        {day.label}
+                        Todos
                       </button>
-                    );
-                  })}
+
+                      <button
+                        type="button"
+                        onClick={selectWeekDays}
+                        className="rounded-full bg-[#F3ECFF] px-3 py-1 text-sm font-bold text-[#6B5A95] transition hover:bg-[#E8DDFF]"
+                      >
+                        Lun a vie
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
+                    {DAYS.map((day) => {
+                      const isSelected = selectedDays.includes(day.key);
+
+                      return (
+                        <button
+                          key={day.key}
+                          type="button"
+                          onClick={() => toggleDay(day.key)}
+                          className={`rounded-2xl border-2 px-3 py-3 text-sm font-extrabold transition ${
+                            isSelected
+                              ? "border-[#9B7BE8] bg-[#9B7BE8] text-white"
+                              : "border-[#DCCCF8] bg-white text-[#6B5A95] hover:bg-[#F3ECFF]"
+                          }`}
+                        >
+                          {day.label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
 
-              <div>
-                <label className="mb-2 block font-semibold text-[#4B367C]">
-                  Descripción{" "}
-                  <span className="font-normal text-[#9B7BE8]">(opcional)</span>
-                </label>
+                <div>
+                  <label className="mb-2 block font-semibold text-[#4B367C]">
+                    Descripción{" "}
+                    <span className="font-normal text-[#9B7BE8]">
+                      (opcional)
+                    </span>
+                  </label>
 
-                <textarea
-                  rows="4"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Describe la actividad, instrucciones o detalles opcionales..."
-                  className="w-full resize-none rounded-2xl border-2 border-[#DCCCF8] p-4 transition focus:border-[#9B7BE8] focus:outline-none"
-                />
-              </div>
+                  <textarea
+                    rows="4"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Describe la actividad, instrucciones o detalles opcionales..."
+                    className="w-full resize-none rounded-2xl border-2 border-[#DCCCF8] p-4 transition focus:border-[#9B7BE8] focus:outline-none"
+                  />
+                </div>
 
-              <button
-                type="submit"
-                disabled={saving || isParentWithoutChild}
-                className="w-full rounded-2xl bg-[#9B7BE8] py-4 font-bold text-white transition-all duration-300 hover:scale-[1.02] hover:bg-[#8B6FD6] disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {saving
-                  ? "Guardando..."
-                  : editingId
-                    ? "Actualizar rutina"
-                    : isParentMode
-                      ? "Guardar rutina para niño/a"
-                      : "Guardar rutina"}
-              </button>
-
-              {editingId && (
                 <button
-                  type="button"
-                  onClick={resetForm}
-                  className="w-full rounded-2xl bg-[#E8DDFF] py-4 font-bold text-[#4B367C] transition hover:bg-[#D8C7FF]"
+                  type="submit"
+                  disabled={saving || isParentWithoutChild}
+                  className="w-full rounded-2xl bg-[#9B7BE8] py-4 font-bold text-white transition-all duration-300 hover:scale-[1.02] hover:bg-[#8B6FD6] disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Cancelar edición
+                  {saving
+                    ? "Guardando..."
+                    : editingId
+                      ? "Actualizar rutina"
+                      : isParentMode
+                        ? "Guardar rutina para niño/a"
+                        : "Guardar rutina"}
                 </button>
-              )}
-            </form>
-          </section>
+
+                {editingId && (
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    className="w-full rounded-2xl bg-[#E8DDFF] py-4 font-bold text-[#4B367C] transition hover:bg-[#D8C7FF]"
+                  >
+                    Cancelar edición
+                  </button>
+                )}
+              </form>
+            </section>
+          ) : (
+            <section className="rounded-[2rem] border-2 border-[#DCCCF8] bg-white p-8 text-center shadow-lg">
+              <p className="text-5xl">👀</p>
+
+              <h2 className="mt-4 text-3xl font-extrabold text-[#4B367C]">
+                Vista de consulta
+              </h2>
+
+              <p className="mt-3 text-[#6B5A95]">
+                Puedes revisar y marcar rutinas como realizadas, pero tu perfil
+                no permite crear, editar ni eliminar actividades.
+              </p>
+            </section>
+          )}
 
           <section className="space-y-8">
             <div className="rounded-[2rem] bg-white p-6 shadow-lg md:p-8">
@@ -881,8 +1089,11 @@ const Rutinas = () => {
                   <p className="text-lg font-bold text-[#4B367C]">
                     No hay rutinas para hoy
                   </p>
+
                   <p className="mt-2 text-[#6B5A95]">
-                    Puedes crear una rutina nueva o editar sus días.
+                    {canCreateOrEditRoutines
+                      ? "Puedes crear una rutina nueva o editar sus días."
+                      : "No hay actividades programadas para hoy."}
                   </p>
                 </div>
               ) : (
@@ -929,7 +1140,9 @@ const Rutinas = () => {
 
               <p className="mt-2 text-[#6B5A95]">
                 {isParentMode
-                  ? `Administra las rutinas activas de ${childName}.`
+                  ? canCreateOrEditRoutines
+                    ? `Administra las rutinas activas de ${childName}.`
+                    : `Consulta las rutinas activas de ${childName}.`
                   : "Administra tus rutinas activas y sus días."}
               </p>
 
@@ -981,7 +1194,7 @@ const Rutinas = () => {
             </div>
           ) : (
             <div className="mt-6 grid gap-4 md:grid-cols-2">
-              {history.slice(0, 8).map((item) => (
+              {history.map((item) => (
                 <div
                   key={`${item.routine_id}-${item.completion_date}-${item.id}`}
                   className="rounded-3xl border-2 border-[#DCCCF8] p-5"
@@ -998,6 +1211,34 @@ const Rutinas = () => {
                     Realizada el{" "}
                     {new Date(item.completion_date).toLocaleDateString("es-CL")}
                   </p>
+                  {item.completer_first_name ? (
+                    <div className="mt-3 rounded-xl bg-[#F3ECFF] px-3 py-2">
+                      <p className="text-sm font-bold text-[#4B367C]">
+                        Marcada como realizada por{" "}
+                        {getFullName(
+                          item.completer_first_name,
+                          item.completer_last_name,
+                        )}
+                      </p>
+
+                      <p className="text-sm text-[#6B5A95]">
+                        {getSupportProfileLabel(
+                          item.completer_relationship_key,
+                          item.completer_access_profile,
+                        )}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="mt-3 rounded-xl bg-[#F7F3FF] px-3 py-2">
+                      <p className="text-sm font-bold text-[#4B367C]">
+                        Realizada con apoyo del cuidador/a
+                      </p>
+
+                      <p className="text-sm text-[#8A7BB0]">
+                        Registro anterior
+                      </p>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
