@@ -24,6 +24,7 @@ import { SelectedChildProvider } from "./context/SelectedChildContext";
 import InformeInteligentePage from "./pages/InformeInteligentePage";
 import EquipoFloFlo from "./pages/EquipoFloFlo";
 import InvitacionEquipoFloFlo from "./pages/InvitacionEquipoFloFlo";
+import RoutineExperienceLibrary from "./modules/experiences/components/RoutineExperienceLibrary";
 
 function App() {
   return (
@@ -36,6 +37,15 @@ function App() {
             <main className="flex-1">
               <Routes>
                 <Route path="/" element={<Home />} />
+
+                <Route
+                  path="/biblioteca-experiencias"
+                  element={
+                    <ProtectedRoute requireSelectedChild>
+                      <RoutineExperienceLibrary />
+                    </ProtectedRoute>
+                  }
+                />
 
                 <Route path="/registro" element={<User />} />
 

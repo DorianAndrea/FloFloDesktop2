@@ -1,4 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
+import {
+  DndContext,
+  KeyboardSensor,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
 import felix from "../assets/webp/felix_cara_sonriendo.webp";
 import {
   createRoutine,
@@ -15,6 +23,10 @@ import {
   updateChildRoutine,
   deleteChildRoutine,
   completeChildRoutine,
+  completeRoutineStep,
+  completeChildRoutineStep,
+  uncompleteRoutineStep,
+  uncompleteChildRoutineStep,
 } from "../services/routineService";
 import { useFloFlo } from "../context/FloFloContext";
 import { useSelectedChild } from "../context/SelectedChildContext";
@@ -22,6 +34,17 @@ import { useFeedback } from "../context/FeedbackContext";
 import AchievementPopup from "../components/AchievementPopup";
 import { getCachedData, setCachedData } from "../utils/cache";
 import { showUnlockedAchievements } from "../utils/showUnlockedAchievements";
+import { getLearningContexts } from "../services/learningContextService";
+import ContextPicker from "../components/routines/ContextPicker";
+import DroppableFloPanel from "../components/design-system/cards/DroppableFloPanel";
+import FloCard from "../components/design-system/cards/FloCard";
+import RoutineHeader from "../components/routines/RoutineHeader";
+import RoutineDashboard from "../components/routines/RoutineDashboard";
+import RoutineExperienceFlow from "../components/routines/RoutineExperienceFlow";
+import RoutineHistory from "../components/routines/RoutineHistory";
+import RoutineCard from "../components/routines/RoutineCard";
+import { getExperienceTemplate } from "../services/experienceTemplateService";
+import { registerExperienceRecent } from "../services/experienceRecentService";
 
 const DAYS = [
   { key: "monday", label: "Lun", fullLabel: "Lunes" },
@@ -116,6 +139,9 @@ const Rutinas = () => {
   const [endTime, setEndTime] = useState("");
   const [description, setDescription] = useState("");
   const [selectedDays, setSelectedDays] = useState(ALL_DAYS);
+  const [learningContexts, setLearningContexts] = useState([]);
+  const [selectedLearningContext, setSelectedLearningContext] = useState(null);
+  const [loadingContexts, setLoadingContexts] = useState(true);
 
   const [allRoutines, setAllRoutines] = useState([]);
   const [todayRoutines, setTodayRoutines] = useState([]);
@@ -126,7 +152,13 @@ const Rutinas = () => {
   const [newAchievement, setNewAchievement] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [experienceView, setExperienceView] = useState(null);
+  const [selectedExperienceTemplateId, setSelectedExperienceTemplateId] =
+    useState(null);
+  const [selectedExperienceTemplate, setSelectedExperienceTemplate] =
+    useState(null);
 
+  const [updatingStepKey, setUpdatingStepKey] = useState(null);
   const { user } = useFloFlo();
 
   const {
@@ -148,6 +180,15 @@ const Rutinas = () => {
   } = useSelectedChild();
 
   const { showFeedback, showConfirm } = useFeedback();
+
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor),
+  );
 
   const isParentMode = isParent && Boolean(selectedChildId);
   const isParentWithoutChild = isParent && !selectedChildId;
@@ -286,6 +327,35 @@ const Rutinas = () => {
     }
   };
 
+  const loadLearningContexts = async () => {
+    try {
+      setLoadingContexts(true);
+
+      const data = await getLearningContexts();
+      setLearningContexts(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Error cargando contextos de aprendizaje:", error);
+
+      setLearningContexts([]);
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Contextos no disponibles",
+        title: "No se pudieron cargar los contextos",
+        message:
+          error.response?.data?.message ||
+          "Revisa la conexión e intenta nuevamente.",
+      });
+    } finally {
+      setLoadingContexts(false);
+    }
+  };
+
+  useEffect(() => {
+    loadLearningContexts();
+  }, []);
+
   useEffect(() => {
     loadRoutines();
   }, [user?.id, user?.role, selectedChildId, loadingChildren]);
@@ -300,7 +370,10 @@ const Rutinas = () => {
     setEndTime("");
     setDescription("");
     setSelectedDays(ALL_DAYS);
+    setSelectedLearningContext(null);
     setEditingId(null);
+    setExperienceView(null);
+    setSelectedExperienceTemplateId(null);
   };
 
   const toggleDay = (dayKey) => {
@@ -319,6 +392,27 @@ const Rutinas = () => {
 
   const selectWeekDays = () => {
     setSelectedDays(["monday", "tuesday", "wednesday", "thursday", "friday"]);
+  };
+
+  const handleLearningContextSelect = (context) => {
+    if (!context) return;
+    setSelectedLearningContext(context);
+  };
+
+  const handleLearningContextDragEnd = (event) => {
+    const { active, over } = event;
+
+    if (!over || over.id !== "routine-learning-context") {
+      return;
+    }
+
+    const draggedData = active.data.current;
+
+    if (draggedData?.type !== "learning-context" || !draggedData?.context) {
+      return;
+    }
+
+    setSelectedLearningContext(draggedData.context);
   };
 
   const validateParentChildSelection = () => {
@@ -413,6 +507,18 @@ const Rutinas = () => {
       return;
     }
 
+    if (!selectedLearningContext?.id) {
+      showFeedback({
+        type: "warning",
+        icon: "📍",
+        label: "Falta contexto",
+        title: "Selecciona un contexto de aprendizaje",
+        message:
+          "Arrastra una FloCard hacia la rutina o toca una tarjeta para seleccionarla.",
+      });
+      return;
+    }
+
     try {
       setSaving(true);
 
@@ -422,6 +528,7 @@ const Rutinas = () => {
         end_time: endTime,
         description: description.trim(),
         days_of_week: selectedDays,
+        learning_context_id: Number(selectedLearningContext.id),
       };
 
       if (editingId) {
@@ -628,6 +735,12 @@ const Rutinas = () => {
         : ALL_DAYS,
     );
 
+    const routineContext = learningContexts.find(
+      (context) => Number(context.id) === Number(routine.learning_context_id),
+    );
+
+    setSelectedLearningContext(routineContext || null);
+
     window.scrollTo({
       top: 0,
       behavior: "smooth",
@@ -640,196 +753,143 @@ const Rutinas = () => {
     return routine.days_of_week.includes(todayInfo.day);
   };
 
-  const renderRoutineCard = (routine, options = {}) => {
-    const { showCompleteButton = false, compact = false } = options;
+  const handleToggleRoutineStep = async (routine, step) => {
+    if (!validateParentChildSelection()) {
+      return;
+    }
 
-    const creatorName = getFullName(
-      routine.creator_first_name,
-      routine.creator_last_name,
-    );
+    const stepKey = `${routine.id}:${step.id}`;
 
-    const creatorProfile = getSupportProfileLabel(
-      routine.creator_relationship_key,
-      routine.creator_access_profile,
-    );
+    if (updatingStepKey === stepKey) {
+      return;
+    }
 
-    const completerName = getFullName(
-      routine.today_completer_first_name,
-      routine.today_completer_last_name,
-    );
+    try {
+      setUpdatingStepKey(stepKey);
 
-    const completerProfile = getSupportProfileLabel(
-      routine.today_completer_relationship_key,
-      routine.today_completer_access_profile,
-    );
+      if (step.completed_today) {
+        if (isParentMode) {
+          await uncompleteChildRoutineStep(
+            selectedChildId,
+            routine.id,
+            step.id,
+          );
+        } else {
+          await uncompleteRoutineStep(routine.id, step.id);
+        }
+      } else {
+        const progressData = {
+          support_level: "independent",
+          notes: "",
+        };
 
-    const hasCreatorInformation = Boolean(
-      routine.created_by ||
-      routine.creator_first_name ||
-      routine.creator_access_profile ||
-      routine.creator_relationship_key,
-    );
+        if (isParentMode) {
+          await completeChildRoutineStep(
+            selectedChildId,
+            routine.id,
+            step.id,
+            progressData,
+          );
+        } else {
+          await completeRoutineStep(routine.id, step.id, progressData);
+        }
+      }
 
-    const hasCompleterInformation = Boolean(
-      routine.today_completed_by ||
-      routine.today_completer_first_name ||
-      routine.today_completer_access_profile ||
-      routine.today_completer_relationship_key,
-    );
+      await loadRoutines({
+        useCache: false,
+      });
+    } catch (error) {
+      console.error("Error actualizando paso:", error);
 
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "No se pudo guardar",
+        title: "Error al actualizar el paso",
+        message: error.response?.data?.message || "Intenta nuevamente.",
+      });
+    } finally {
+      setUpdatingStepKey(null);
+    }
+  };
+  if (
+    experienceView === "library" ||
+    experienceView === "detail" ||
+    experienceView === "builder"
+  ) {
     return (
-      <div
-        key={routine.id}
-        className={`rounded-3xl border-2 p-5 transition ${
-          routine.completed_today
-            ? "border-green-200 bg-green-50"
-            : "border-[#DCCCF8] bg-white"
-        }`}
-      >
-        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="text-xl font-bold text-[#4B367C]">
-                {routine.name}
-              </h3>
+      <div className="min-h-screen bg-[#F3ECFF] px-4 py-10 md:px-6">
+        <div className="mx-auto max-w-6xl">
+          {experienceView === "library" && (
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedExperienceTemplateId(null);
+                setExperienceView(null);
+              }}
+              className="mb-6 rounded-2xl border-2 border-[#DCCCF8] bg-white px-5 py-3 font-extrabold text-[#5F4A8B] transition hover:bg-[#F7F3FF]"
+            >
+              ← Volver a rutinas
+            </button>
+          )}
+          <RoutineExperienceFlow
+            canCreateOrEditRoutines={canCreateOrEditRoutines}
+            editingId={editingId}
+            experienceView={experienceView}
+            selectedTemplateId={selectedExperienceTemplateId}
+            selectedTemplate={selectedExperienceTemplate}
+            childId={isParentMode ? selectedChildId : null}
 
-              {routine.completed_today && (
-                <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700">
-                  Hecha hoy
-                </span>
-              )}
+            onOpenLibrary={() => {
+              setSelectedExperienceTemplateId(null);
+              setSelectedExperienceTemplate(null);
+              setExperienceView("library");
+            }}
+            onSelectTemplate={async (templateId) => {
+              try {
+                const template = await getExperienceTemplate(templateId);
 
-              {!routine.completed_today && isScheduledToday(routine) && (
-                <span className="rounded-full bg-yellow-100 px-3 py-1 text-xs font-bold text-yellow-700">
-                  Pendiente hoy
-                </span>
-              )}
+                setSelectedExperienceTemplateId(templateId);
+                setSelectedExperienceTemplate(template);
+                setExperienceView("detail");
 
-              {!isScheduledToday(routine) && (
-                <span className="rounded-full bg-[#F3ECFF] px-3 py-1 text-xs font-bold text-[#6B5A95]">
-                  No toca hoy
-                </span>
-              )}
-            </div>
+                try {
+                  await registerExperienceRecent(
+                    templateId,
+                    isParentMode ? selectedChildId : null,
+                  );
+                } catch (recentError) {
+                  console.error(
+                    "Error registrando experiencia reciente:",
+                    recentError,
+                  );
+                }
+              } catch (error) {
+                console.error("Error abriendo experiencia:", error);
+              }
+            }}
+            onBackToLibrary={() => {
+              setSelectedExperienceTemplateId(null);
+              setSelectedExperienceTemplate(null);
+              setExperienceView("library");
+            }}
+            onUseTemplate={() => {
+              setExperienceView("builder");
+            }}
+            onCreated={async () => {
+              setSelectedExperienceTemplateId(null);
+              setSelectedExperienceTemplate(null);
+              setExperienceView(null);
 
-            <p className="mt-2 text-[#6B5A95]">
-              {formatTime(routine.start_time)} - {formatTime(routine.end_time)}
-            </p>
-
-            <p className="mt-1 text-sm font-semibold text-[#9B7BE8]">
-              {formatDays(routine.days_of_week)}
-            </p>
-
-            {routine.description && !compact && (
-              <p className="mt-3 text-[#6B5A95]">{routine.description}</p>
-            )}
-
-            <div className="mt-3 rounded-2xl border border-[#E4D8FF] bg-[#F7F3FF] px-4 py-3">
-              {hasCreatorInformation ? (
-                <>
-                  <p className="text-xs font-bold uppercase tracking-wide text-[#9B7BE8]">
-                    Creada por
-                  </p>
-
-                  <p className="mt-1 font-bold text-[#4B367C]">{creatorName}</p>
-
-                  <p className="text-sm font-semibold text-[#6B5A95]">
-                    {creatorProfile}
-                  </p>
-                </>
-              ) : (
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wide text-[#9B7BE8]">
-                    Creada anteriormente
-                  </p>
-
-                  <p className="mt-1 font-bold text-[#4B367C]">
-                    Por una cuenta cuidadora
-                  </p>
-
-                  <p className="text-sm font-semibold text-[#8A7BB0]">
-                    Registro anterior
-                  </p>
-                </div>
-              )}
-            </div>
-
-            {routine.today_completed_at && (
-              <div className="mt-3 rounded-2xl border border-green-200 bg-green-50 px-4 py-3">
-                <p className="font-semibold text-green-700">
-                  Completada hoy a las{" "}
-                  {new Date(routine.today_completed_at).toLocaleTimeString(
-                    "es-CL",
-                    {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    },
-                  )}
-                </p>
-
-                {hasCompleterInformation ? (
-                  <>
-                    <p className="mt-2 text-sm font-bold text-[#4B367C]">
-                      Marcada como realizada por {completerName}
-                    </p>
-
-                    <p className="text-sm font-semibold text-[#6B5A95]">
-                      {completerProfile}
-                    </p>
-                  </>
-                ) : (
-                  <div className="mt-2">
-                    <p className="text-sm font-bold text-[#4B367C]">
-                      Marcada como realizada desde una cuenta cuidadora
-                    </p>
-
-                    <p className="text-sm text-[#8A7BB0]">Registro anterior</p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div className="flex flex-wrap gap-2 md:justify-end">
-            {showCompleteButton && (
-              <button
-                type="button"
-                onClick={() => handleCompleteRoutine(routine)}
-                disabled={routine.completed_today}
-                className={`rounded-2xl px-4 py-2 font-bold text-white transition ${
-                  routine.completed_today
-                    ? "cursor-not-allowed bg-green-300"
-                    : "bg-green-500 hover:bg-green-600"
-                }`}
-              >
-                {routine.completed_today ? "✅ Lista" : "⭐ Realizada"}
-              </button>
-            )}
-
-            {canCreateOrEditRoutines && (
-              <button
-                type="button"
-                onClick={() => handleEdit(routine)}
-                className="rounded-2xl bg-[#9B7BE8] px-4 py-2 font-bold text-white transition hover:bg-[#8B6FD6]"
-              >
-                Editar
-              </button>
-            )}
-
-            {canDeleteRoutines && (
-              <button
-                type="button"
-                onClick={() => handleDeleteRoutine(routine)}
-                className="rounded-2xl bg-red-400 px-4 py-2 font-bold text-white transition hover:bg-red-500"
-              >
-                Eliminar
-              </button>
-            )}
-          </div>
+              await loadRoutines({
+                useCache: false,
+              });
+            }}
+          />
         </div>
       </div>
     );
-  };
+  }
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#F3ECFF] px-4 py-10 md:px-6">
@@ -842,408 +902,445 @@ const Rutinas = () => {
       />
 
       <div className="mx-auto max-w-6xl">
-        <div className="mb-8 text-center">
-          <p className="mb-3 text-lg font-bold text-[#9B7BE8]">
-            Rutinas de FloFlo
-          </p>
+        {experienceView === null && (
+          <>
+            <RoutineHeader
+              isParentMode={isParentMode}
+              childName={childName}
+              canCreateOrEditRoutines={canCreateOrEditRoutines}
+              isParent={isParent}
+              supportModeLabel={supportModeLabel}
+              selectedChild={selectedChild}
+            />
 
-          <h1 className="text-4xl font-extrabold text-[#4B367C] md:text-6xl">
-            {isParentMode ? `Rutinas de ${childName}` : "Organiza tu día"}
-          </h1>
-
-          <p className="mx-auto mt-4 max-w-2xl text-lg text-[#6B5A95]">
-            {isParentMode
-              ? canCreateOrEditRoutines
-                ? `Gestiona las rutinas de ${childName} desde tu perfil de apoyo.`
-                : `Consulta las rutinas de ${childName} y revisa su avance.`
-              : "Crea rutinas por día, marca las actividades realizadas y revisa tu avance diario."}
-          </p>
-        </div>
-
-        {isParent && (
-          <div className="mb-8 rounded-[2rem] border-2 border-[#9ED5B3] bg-[#EAF8EF] p-5 text-center shadow-sm">
-            <p className="font-bold text-[#2F6B4F]">
-              {supportModeLabel} activo
-            </p>
-
-            <p className="mt-1 text-[#2F6B4F]">
-              {selectedChild
-                ? canCreateOrEditRoutines
-                  ? `Estás viendo y gestionando rutinas de ${childName}.`
-                  : `Estás consultando las rutinas de ${childName}.`
-                : "No hay un niño/a activo seleccionado."}
-            </p>
-          </div>
+            <RoutineDashboard
+              todayCount={todayRoutines.length}
+              pendingCount={pendingToday.length}
+              completedCount={completedToday.length}
+              dayLabel={todayInfo?.day ? dayNames[todayInfo.day] : "hoy"}
+            />
+          </>
         )}
 
-        <div className="mb-8 grid gap-4 md:grid-cols-3">
-          <div className="rounded-[2rem] bg-white p-6 shadow-lg">
-            <p className="text-sm font-bold uppercase tracking-wide text-[#9B7BE8]">
-              Hoy
-            </p>
-            <p className="mt-2 text-4xl font-extrabold text-[#4B367C]">
-              {todayRoutines.length}
-            </p>
-            <p className="mt-1 text-[#6B5A95]">
-              rutinas para {todayInfo?.day ? dayNames[todayInfo.day] : "hoy"}
-            </p>
-          </div>
+        <RoutineExperienceFlow
+          canCreateOrEditRoutines={canCreateOrEditRoutines}
+          editingId={editingId}
+          experienceView={experienceView}
+          selectedTemplateId={selectedExperienceTemplateId}
+          selectedTemplate={selectedExperienceTemplate}
+          childId={isParentMode ? selectedChildId : null}
+          
+          onOpenLibrary={() => {
+            setSelectedExperienceTemplateId(null);
+            setSelectedExperienceTemplate(null);
+            setExperienceView("library");
+          }}
+          onSelectTemplate={async (templateId) => {
+            try {
+              const template = await getExperienceTemplate(templateId);
 
-          <div className="rounded-[2rem] bg-white p-6 shadow-lg">
-            <p className="text-sm font-bold uppercase tracking-wide text-yellow-600">
-              Pendientes
-            </p>
-            <p className="mt-2 text-4xl font-extrabold text-[#4B367C]">
-              {pendingToday.length}
-            </p>
-            <p className="mt-1 text-[#6B5A95]">por completar hoy</p>
-          </div>
+              setSelectedExperienceTemplateId(templateId);
+              setSelectedExperienceTemplate(template);
+              setExperienceView("detail");
 
-          <div className="rounded-[2rem] bg-white p-6 shadow-lg">
-            <p className="text-sm font-bold uppercase tracking-wide text-green-600">
-              Completadas
-            </p>
-            <p className="mt-2 text-4xl font-extrabold text-[#4B367C]">
-              {completedToday.length}
-            </p>
-            <p className="mt-1 text-[#6B5A95]">realizadas hoy</p>
-          </div>
-        </div>
+              try {
+                await registerExperienceRecent(
+                  templateId,
+                  isParentMode ? selectedChildId : null,
+                );
+              } catch (recentError) {
+                console.error(
+                  "Error registrando experiencia reciente:",
+                  recentError,
+                );
+              }
+            } catch (error) {
+              console.error("Error abriendo experiencia:", error);
+            }
+          }}
+          onBackToLibrary={() => {
+            setSelectedExperienceTemplateId(null);
+            setSelectedExperienceTemplate(null);
+            setExperienceView("library");
+          }}
+          onUseTemplate={() => {
+            setExperienceView("builder");
+          }}
+          onCreated={async () => {
+            setSelectedExperienceTemplateId(null);
+            setSelectedExperienceTemplate(null);
+            setExperienceView(null);
 
-        <div className="grid gap-8 lg:grid-cols-[0.85fr_1.15fr]">
-          {canCreateOrEditRoutines ? (
-            <section className="rounded-[2rem] bg-white p-6 shadow-lg md:p-8">
-              <h2 className="text-3xl font-extrabold text-[#4B367C]">
-                {editingId ? "Editar rutina" : "Nueva rutina"}
-              </h2>
+            await loadRoutines({
+              useCache: false,
+            });
+          }}
+        />
 
-              <p className="mt-2 text-[#6B5A95]">
-                {isParentMode
-                  ? `Esta rutina se guardará para ${childName}.`
-                  : "Elige el horario y los días en que se repetirá."}
-              </p>
-
-              <form onSubmit={handleSubmit} className="mt-8 space-y-6">
-                <div>
-                  <label className="mb-2 block font-semibold text-[#4B367C]">
-                    Nombre de la rutina
-                  </label>
-
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Ej: Lavarse los dientes"
-                    className="w-full rounded-2xl border-2 border-[#DCCCF8] p-4 transition focus:border-[#9B7BE8] focus:outline-none"
-                  />
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div>
-                    <label className="mb-2 block font-semibold text-[#4B367C]">
-                      Hora de inicio
-                    </label>
-
-                    <input
-                      type="time"
-                      value={startTime}
-                      onChange={(e) => setStartTime(e.target.value)}
-                      className="w-full rounded-2xl border-2 border-[#DCCCF8] p-4 transition focus:border-[#9B7BE8] focus:outline-none"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block font-semibold text-[#4B367C]">
-                      Hora de término
-                    </label>
-
-                    <input
-                      type="time"
-                      value={endTime}
-                      onChange={(e) => setEndTime(e.target.value)}
-                      className="w-full rounded-2xl border-2 border-[#DCCCF8] p-4 transition focus:border-[#9B7BE8] focus:outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                    <label className="font-semibold text-[#4B367C]">
-                      Días de la semana
-                    </label>
-
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={selectAllDays}
-                        className="rounded-full bg-[#F3ECFF] px-3 py-1 text-sm font-bold text-[#6B5A95] transition hover:bg-[#E8DDFF]"
-                      >
-                        Todos
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={selectWeekDays}
-                        className="rounded-full bg-[#F3ECFF] px-3 py-1 text-sm font-bold text-[#6B5A95] transition hover:bg-[#E8DDFF]"
-                      >
-                        Lun a vie
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
-                    {DAYS.map((day) => {
-                      const isSelected = selectedDays.includes(day.key);
-
-                      return (
-                        <button
-                          key={day.key}
-                          type="button"
-                          onClick={() => toggleDay(day.key)}
-                          className={`rounded-2xl border-2 px-3 py-3 text-sm font-extrabold transition ${
-                            isSelected
-                              ? "border-[#9B7BE8] bg-[#9B7BE8] text-white"
-                              : "border-[#DCCCF8] bg-white text-[#6B5A95] hover:bg-[#F3ECFF]"
-                          }`}
-                        >
-                          {day.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="mb-2 block font-semibold text-[#4B367C]">
-                    Descripción{" "}
-                    <span className="font-normal text-[#9B7BE8]">
-                      (opcional)
-                    </span>
-                  </label>
-
-                  <textarea
-                    rows="4"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Describe la actividad, instrucciones o detalles opcionales..."
-                    className="w-full resize-none rounded-2xl border-2 border-[#DCCCF8] p-4 transition focus:border-[#9B7BE8] focus:outline-none"
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={saving || isParentWithoutChild}
-                  className="w-full rounded-2xl bg-[#9B7BE8] py-4 font-bold text-white transition-all duration-300 hover:scale-[1.02] hover:bg-[#8B6FD6] disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {saving
-                    ? "Guardando..."
-                    : editingId
-                      ? "Actualizar rutina"
-                      : isParentMode
-                        ? "Guardar rutina para niño/a"
-                        : "Guardar rutina"}
-                </button>
-
-                {editingId && (
-                  <button
-                    type="button"
-                    onClick={resetForm}
-                    className="w-full rounded-2xl bg-[#E8DDFF] py-4 font-bold text-[#4B367C] transition hover:bg-[#D8C7FF]"
-                  >
-                    Cancelar edición
-                  </button>
-                )}
-              </form>
-            </section>
-          ) : (
-            <section className="rounded-[2rem] border-2 border-[#DCCCF8] bg-white p-8 text-center shadow-lg">
-              <p className="text-5xl">👀</p>
-
-              <h2 className="mt-4 text-3xl font-extrabold text-[#4B367C]">
-                Vista de consulta
-              </h2>
-
-              <p className="mt-3 text-[#6B5A95]">
-                Puedes revisar y marcar rutinas como realizadas, pero tu perfil
-                no permite crear, editar ni eliminar actividades.
-              </p>
-            </section>
-          )}
-
-          <section className="space-y-8">
-            <div className="rounded-[2rem] bg-white p-6 shadow-lg md:p-8">
-              <h2 className="text-3xl font-extrabold text-[#4B367C]">
-                Rutinas de hoy
-              </h2>
-
-              <p className="mt-2 text-[#6B5A95]">
-                {todayInfo?.date
-                  ? `Hoy es ${dayNames[todayInfo.day] || todayInfo.day}.`
-                  : "Estas son las actividades programadas para hoy."}
-              </p>
-
-              {loading ? (
-                <p className="mt-6 text-[#6B5A95]">Cargando rutinas...</p>
-              ) : todayRoutines.length === 0 ? (
-                <div className="mt-6 rounded-3xl border-2 border-dashed border-[#DCCCF8] p-6 text-center">
-                  <p className="text-lg font-bold text-[#4B367C]">
-                    No hay rutinas para hoy
-                  </p>
+        {experienceView === null && (
+          <>
+            <div className="grid gap-8 xl:grid-cols-[0.8fr_1.2fr]">
+              {canCreateOrEditRoutines && editingId ? (
+                <section className="rounded-[2rem] bg-white p-6 shadow-lg md:p-8">
+                  <h2 className="text-3xl font-extrabold text-[#4B367C]">
+                    Editar rutina
+                  </h2>
 
                   <p className="mt-2 text-[#6B5A95]">
-                    {canCreateOrEditRoutines
-                      ? "Puedes crear una rutina nueva o editar sus días."
-                      : "No hay actividades programadas para hoy."}
+                    {isParentMode
+                      ? `Esta rutina se guardará para ${childName}.`
+                      : "Elige el horario y los días en que se repetirá."}
                   </p>
-                </div>
-              ) : (
-                <div className="mt-6 space-y-4">
-                  {pendingToday.length > 0 && (
-                    <div>
-                      <h3 className="mb-3 text-xl font-bold text-[#4B367C]">
-                        Pendientes
-                      </h3>
 
-                      <div className="space-y-4">
-                        {pendingToday.map((routine) =>
-                          renderRoutineCard(routine, {
-                            showCompleteButton: true,
-                          }),
-                        )}
+                  <form onSubmit={handleSubmit} className="mt-8 space-y-6">
+                    <div>
+                      <label className="mb-2 block font-semibold text-[#4B367C]">
+                        Nombre de la rutina
+                      </label>
+
+                      <input
+                        type="text"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        placeholder="Ej: Lavarse los dientes"
+                        className="w-full rounded-2xl border-2 border-[#DCCCF8] p-4 transition focus:border-[#9B7BE8] focus:outline-none"
+                      />
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <label className="mb-2 block font-semibold text-[#4B367C]">
+                          Hora de inicio
+                        </label>
+
+                        <input
+                          type="time"
+                          value={startTime}
+                          onChange={(e) => setStartTime(e.target.value)}
+                          className="w-full rounded-2xl border-2 border-[#DCCCF8] p-4 transition focus:border-[#9B7BE8] focus:outline-none"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="mb-2 block font-semibold text-[#4B367C]">
+                          Hora de término
+                        </label>
+
+                        <input
+                          type="time"
+                          value={endTime}
+                          onChange={(e) => setEndTime(e.target.value)}
+                          className="w-full rounded-2xl border-2 border-[#DCCCF8] p-4 transition focus:border-[#9B7BE8] focus:outline-none"
+                        />
                       </div>
                     </div>
-                  )}
 
-                  {completedToday.length > 0 && (
                     <div>
-                      <h3 className="mb-3 mt-6 text-xl font-bold text-green-700">
-                        Completadas
-                      </h3>
+                      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                        <label className="font-semibold text-[#4B367C]">
+                          Días de la semana
+                        </label>
 
-                      <div className="space-y-4">
-                        {completedToday.map((routine) =>
-                          renderRoutineCard(routine, {
-                            showCompleteButton: true,
-                          }),
-                        )}
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={selectAllDays}
+                            className="rounded-full bg-[#F3ECFF] px-3 py-1 text-sm font-bold text-[#6B5A95] transition hover:bg-[#E8DDFF]"
+                          >
+                            Todos
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={selectWeekDays}
+                            className="rounded-full bg-[#F3ECFF] px-3 py-1 text-sm font-bold text-[#6B5A95] transition hover:bg-[#E8DDFF]"
+                          >
+                            Lun a vie
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
+                        {DAYS.map((day) => {
+                          const isSelected = selectedDays.includes(day.key);
+
+                          return (
+                            <button
+                              key={day.key}
+                              type="button"
+                              onClick={() => toggleDay(day.key)}
+                              className={`rounded-2xl border-2 px-3 py-3 text-sm font-extrabold transition ${
+                                isSelected
+                                  ? "border-[#9B7BE8] bg-[#9B7BE8] text-white"
+                                  : "border-[#DCCCF8] bg-white text-[#6B5A95] hover:bg-[#F3ECFF]"
+                              }`}
+                            >
+                              {day.label}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
-                  )}
-                </div>
-              )}
-            </div>
 
-            <div className="rounded-[2rem] bg-white p-6 shadow-lg md:p-8">
-              <h2 className="text-3xl font-extrabold text-[#4B367C]">
-                {isParentMode ? `Rutinas de ${childName}` : "Todas mis rutinas"}
-              </h2>
+                    <DndContext
+                      sensors={dndSensors}
+                      collisionDetection={closestCenter}
+                      onDragEnd={handleLearningContextDragEnd}
+                    >
+                      <div className="space-y-6 rounded-[2rem] border-2 border-[#E8DFFF] bg-[#FCFAFF] p-5">
+                        <ContextPicker
+                          contexts={learningContexts}
+                          selectedContext={selectedLearningContext}
+                          loading={loadingContexts}
+                          disabled={saving}
+                          onSelect={handleLearningContextSelect}
+                        />
 
-              <p className="mt-2 text-[#6B5A95]">
-                {isParentMode
-                  ? canCreateOrEditRoutines
-                    ? `Administra las rutinas activas de ${childName}.`
-                    : `Consulta las rutinas activas de ${childName}.`
-                  : "Administra tus rutinas activas y sus días."}
-              </p>
+                        <DroppableFloPanel
+                          id="routine-learning-context"
+                          data={{
+                            type: "routine-learning-context-dropzone",
+                          }}
+                          title="Contexto de esta rutina"
+                          description="Arrastra aquí el lugar donde ocurre normalmente."
+                          emptyTitle="Arrastra una FloCard aquí"
+                          emptyDescription="El contexto seleccionado acompañará la evidencia cognitiva de esta rutina."
+                          icon="📍"
+                          disabled={saving}
+                          hasContent={Boolean(selectedLearningContext)}
+                        >
+                          {selectedLearningContext && (
+                            <FloCard
+                              title={selectedLearningContext.name}
+                              subtitle={selectedLearningContext.description}
+                              icon={selectedLearningContext.icon}
+                              selected
+                              compact
+                              actionLabel="Quitar"
+                              onAction={() => setSelectedLearningContext(null)}
+                            />
+                          )}
+                        </DroppableFloPanel>
+                      </div>
+                    </DndContext>
 
-              {loading ? (
-                <p className="mt-6 text-[#6B5A95]">Cargando...</p>
-              ) : allRoutines.length === 0 ? (
-                <p className="mt-6 text-[#6B5A95]">
-                  No hay rutinas creadas todavía.
-                </p>
+                    <div>
+                      <label className="mb-2 block font-semibold text-[#4B367C]">
+                        Descripción{" "}
+                        <span className="font-normal text-[#9B7BE8]">
+                          (opcional)
+                        </span>
+                      </label>
+
+                      <textarea
+                        rows="4"
+                        value={description}
+                        onChange={(e) => setDescription(e.target.value)}
+                        placeholder="Describe la actividad, instrucciones o detalles opcionales..."
+                        className="w-full resize-none rounded-2xl border-2 border-[#DCCCF8] p-4 transition focus:border-[#9B7BE8] focus:outline-none"
+                      />
+                    </div>
+
+                    <button
+                      type="submit"
+                      disabled={saving || isParentWithoutChild}
+                      className="w-full rounded-2xl bg-[#9B7BE8] py-4 font-bold text-white transition-all duration-300 hover:scale-[1.02] hover:bg-[#8B6FD6] disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {saving ? "Guardando..." : "Actualizar rutina"}
+                    </button>
+
+                    {editingId && (
+                      <button
+                        type="button"
+                        onClick={resetForm}
+                        className="w-full rounded-2xl bg-[#E8DDFF] py-4 font-bold text-[#4B367C] transition hover:bg-[#D8C7FF]"
+                      >
+                        Cancelar edición
+                      </button>
+                    )}
+                  </form>
+                </section>
+              ) : !canCreateOrEditRoutines ? (
+                <section className="rounded-[2rem] border-2 border-[#DCCCF8] bg-white p-8 text-center shadow-lg">
+                  <p className="text-5xl">👀</p>
+
+                  <h2 className="mt-4 text-3xl font-extrabold text-[#4B367C]">
+                    Vista de consulta
+                  </h2>
+
+                  <p className="mt-3 text-[#6B5A95]">
+                    Puedes revisar y marcar rutinas como realizadas, pero tu
+                    perfil no permite crear, editar ni eliminar actividades.
+                  </p>
+                </section>
               ) : (
-                <div className="mt-6 space-y-4">
-                  {allRoutines.map((routine) =>
-                    renderRoutineCard(routine, {
-                      compact: true,
-                    }),
-                  )}
-                </div>
+                <section className="rounded-[2rem] border-2 border-dashed border-[#DCCCF8] bg-white p-8 text-center shadow-lg">
+                  <p className="text-5xl">✨</p>
+
+                  <h2 className="mt-4 text-3xl font-extrabold text-[#4B367C]">
+                    Biblioteca de experiencias
+                  </h2>
+
+                  <p className="mt-3 text-[#6B5A95]">
+                    Selecciona una experiencia desde la biblioteca para
+                    comenzar.
+                  </p>
+                </section>
               )}
-            </div>
-          </section>
-        </div>
 
-        <section className="mt-8 rounded-[2rem] bg-white p-6 shadow-lg md:p-8">
-          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-            <div>
-              <h2 className="text-3xl font-extrabold text-[#4B367C]">
-                Historial reciente
-              </h2>
-              <p className="mt-2 text-[#6B5A95]">
-                {isParentMode
-                  ? `Aquí aparecen las rutinas que ${childName} ya realizó.`
-                  : "Aquí aparecen las rutinas que ya marcaste como realizadas."}
-              </p>
-            </div>
-            <p className="text-sm font-bold text-[#9B7BE8]">
-              El historial se mantiene aunque la rutina ya no esté en la lista
-              activa.
-            </p>
-          </div>
+              <section className="space-y-8">
+                <div className="rounded-[2rem] bg-white p-6 shadow-lg md:p-8">
+                  <h2 className="text-3xl font-extrabold text-[#4B367C]">
+                    Rutinas de hoy
+                  </h2>
 
-          {history.length === 0 ? (
-            <div className="mt-6 rounded-3xl border-2 border-dashed border-[#DCCCF8] p-6 text-center">
-              <p className="font-bold text-[#4B367C]">
-                Aún no hay historial de rutinas.
-              </p>
-              <p className="mt-2 text-[#6B5A95]">
-                Cuando marques una rutina como realizada, aparecerá aquí.
-              </p>
-            </div>
-          ) : (
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              {history.map((item) => (
-                <div
-                  key={`${item.routine_id}-${item.completion_date}-${item.id}`}
-                  className="rounded-3xl border-2 border-[#DCCCF8] p-5"
-                >
-                  <p className="text-lg font-extrabold text-[#4B367C]">
-                    {item.name}
+                  <p className="mt-2 text-[#6B5A95]">
+                    {todayInfo?.date
+                      ? `Hoy es ${dayNames[todayInfo.day] || todayInfo.day}.`
+                      : "Estas son las actividades programadas para hoy."}
                   </p>
 
-                  <p className="mt-1 text-[#6B5A95]">
-                    {formatTime(item.start_time)} - {formatTime(item.end_time)}
-                  </p>
-
-                  <p className="mt-2 text-sm font-bold text-green-700">
-                    Realizada el{" "}
-                    {new Date(item.completion_date).toLocaleDateString("es-CL")}
-                  </p>
-                  {item.completer_first_name ? (
-                    <div className="mt-3 rounded-xl bg-[#F3ECFF] px-3 py-2">
-                      <p className="text-sm font-bold text-[#4B367C]">
-                        Marcada como realizada por{" "}
-                        {getFullName(
-                          item.completer_first_name,
-                          item.completer_last_name,
-                        )}
+                  {loading ? (
+                    <p className="mt-6 text-[#6B5A95]">Cargando rutinas...</p>
+                  ) : todayRoutines.length === 0 ? (
+                    <div className="mt-6 rounded-3xl border-2 border-dashed border-[#DCCCF8] p-6 text-center">
+                      <p className="text-lg font-bold text-[#4B367C]">
+                        No hay rutinas para hoy
                       </p>
 
-                      <p className="text-sm text-[#6B5A95]">
-                        {getSupportProfileLabel(
-                          item.completer_relationship_key,
-                          item.completer_access_profile,
-                        )}
+                      <p className="mt-2 text-[#6B5A95]">
+                        {canCreateOrEditRoutines
+                          ? "Puedes crear una rutina nueva o editar sus días."
+                          : "No hay actividades programadas para hoy."}
                       </p>
                     </div>
                   ) : (
-                    <div className="mt-3 rounded-xl bg-[#F7F3FF] px-3 py-2">
-                      <p className="text-sm font-bold text-[#4B367C]">
-                        Realizada con apoyo del cuidador/a
-                      </p>
+                    <div className="mt-6 space-y-4">
+                      {pendingToday.length > 0 && (
+                        <div>
+                          <h3 className="mb-3 text-xl font-bold text-[#4B367C]">
+                            Pendientes
+                          </h3>
 
-                      <p className="text-sm text-[#8A7BB0]">
-                        Registro anterior
-                      </p>
+                          <div className="space-y-4">
+                            {pendingToday.map((routine) => (
+                              <RoutineCard
+                                key={routine.id}
+                                routine={routine}
+                                showCompleteButton
+                                updatingStepKey={updatingStepKey}
+                                isScheduledToday={isScheduledToday}
+                                onToggleStep={handleToggleRoutineStep}
+                                onComplete={handleCompleteRoutine}
+                                onEdit={handleEdit}
+                                onDelete={handleDeleteRoutine}
+                                canCreateOrEditRoutines={
+                                  canCreateOrEditRoutines
+                                }
+                                canDeleteRoutines={canDeleteRoutines}
+                                formatTime={formatTime}
+                                formatDays={formatDays}
+                                getFullName={getFullName}
+                                getSupportProfileLabel={getSupportProfileLabel}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {completedToday.length > 0 && (
+                        <div>
+                          <h3 className="mb-3 mt-6 text-xl font-bold text-green-700">
+                            Completadas
+                          </h3>
+
+                          <div className="space-y-4">
+                            {completedToday.map((routine) => (
+                              <RoutineCard
+                                key={routine.id}
+                                routine={routine}
+                                showCompleteButton
+                                updatingStepKey={updatingStepKey}
+                                isScheduledToday={isScheduledToday}
+                                onToggleStep={handleToggleRoutineStep}
+                                onComplete={handleCompleteRoutine}
+                                onEdit={handleEdit}
+                                onDelete={handleDeleteRoutine}
+                                canCreateOrEditRoutines={
+                                  canCreateOrEditRoutines
+                                }
+                                canDeleteRoutines={canDeleteRoutines}
+                                formatTime={formatTime}
+                                formatDays={formatDays}
+                                getFullName={getFullName}
+                                getSupportProfileLabel={getSupportProfileLabel}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
-              ))}
+
+                <div className="rounded-[2rem] bg-white p-6 shadow-lg md:p-8">
+                  <h2 className="text-3xl font-extrabold text-[#4B367C]">
+                    {isParentMode
+                      ? `Rutinas de ${childName}`
+                      : "Todas mis rutinas"}
+                  </h2>
+
+                  <p className="mt-2 text-[#6B5A95]">
+                    {isParentMode
+                      ? canCreateOrEditRoutines
+                        ? `Administra las rutinas activas de ${childName}.`
+                        : `Consulta las rutinas activas de ${childName}.`
+                      : "Administra tus rutinas activas y sus días."}
+                  </p>
+
+                  {loading ? (
+                    <p className="mt-6 text-[#6B5A95]">Cargando...</p>
+                  ) : allRoutines.length === 0 ? (
+                    <p className="mt-6 text-[#6B5A95]">
+                      No hay rutinas creadas todavía.
+                    </p>
+                  ) : (
+                    <div className="mt-6 space-y-4">
+                      {allRoutines.map((routine) => (
+                        <RoutineCard
+                          key={routine.id}
+                          routine={routine}
+                          compact
+                          updatingStepKey={updatingStepKey}
+                          isScheduledToday={isScheduledToday}
+                          onToggleStep={handleToggleRoutineStep}
+                          onComplete={handleCompleteRoutine}
+                          onEdit={handleEdit}
+                          onDelete={handleDeleteRoutine}
+                          canCreateOrEditRoutines={canCreateOrEditRoutines}
+                          canDeleteRoutines={canDeleteRoutines}
+                          formatTime={formatTime}
+                          formatDays={formatDays}
+                          getFullName={getFullName}
+                          getSupportProfileLabel={getSupportProfileLabel}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </section>
             </div>
-          )}
-        </section>
+
+            <RoutineHistory
+              history={history}
+              isParentMode={isParentMode}
+              childName={childName}
+              formatTime={formatTime}
+              getFullName={getFullName}
+              getSupportProfileLabel={getSupportProfileLabel}
+            />
+          </>
+        )}
       </div>
     </div>
   );

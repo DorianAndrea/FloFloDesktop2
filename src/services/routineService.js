@@ -101,3 +101,53 @@ export const completeChildRoutine = async (childId, id) => {
 
   return response.data;
 };
+
+export const completeRoutineStep = async (
+  routineId,
+  stepId,
+  data = {},
+) => {
+  const response = await api.post(
+    `/routines/${routineId}/steps/${stepId}/complete`,
+    data,
+  );
+
+  return response.data;
+};
+
+export const completeChildRoutineStep = async (
+  childId,
+  routineId,
+  stepId,
+  data = {},
+) => {
+  const response = await api.post(
+    `/routines/children/${childId}/${routineId}/steps/${stepId}/complete`,
+    data,
+  );
+
+  return response.data;
+};
+
+export const uncompleteRoutineStep = async (
+  routineId,
+  stepId,
+) => {
+  const response = await api.delete(
+    `/routines/${routineId}/steps/${stepId}/complete`,
+  );
+
+  return response.data;
+};
+
+export const uncompleteChildRoutineStep = async (
+  childId,
+  routineId,
+  stepId,
+) => {
+  const response = await api.delete(
+    `/routines/children/${childId}/${routineId}/steps/${stepId}/complete`,
+  );
+
+  return response.data;
+};
