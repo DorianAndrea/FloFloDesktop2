@@ -255,6 +255,7 @@ const RoutineExperienceBuilder = ({
         days_of_week: payload.days_of_week,
         learning_context_id: payload.learning_context_id,
         steps: payload.steps,
+        experience_template_id: Number(templateId),
       };
 
       console.log("PAYLOAD EXPERIENCE BUILDER:", routinePayload);
