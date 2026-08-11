@@ -17,6 +17,8 @@ import { getExperienceTemplate } from "../../../services/experienceTemplateServi
 import {
   createRoutine,
   createChildRoutine,
+  updateRoutine,
+  updateChildRoutine,
 } from "../../../services/routineService";
 
 import { useFloFlo } from "../../../context/FloFloContext";
@@ -35,6 +37,7 @@ const ALL_DAYS = [
 
 const RoutineExperienceBuilder = ({
   templateId,
+  editingRoutine = null,
   onCreated,
   onCancel,
 }) => {
@@ -46,12 +49,8 @@ const RoutineExperienceBuilder = ({
 
   const { user } = useFloFlo();
 
-  const {
-    isParent,
-    selectedChildId,
-    selectedChild,
-    getChildDisplayName,
-  } = useSelectedChild();
+  const { isParent, selectedChildId, selectedChild, getChildDisplayName } =
+    useSelectedChild();
 
   const { showFeedback } = useFeedback();
 
@@ -87,10 +86,13 @@ const RoutineExperienceBuilder = ({
     const loadContexts = async () => {
       try {
         setLoadingContexts(true);
+
         const data = await getLearningContexts();
+
         setLearningContexts(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error("Error cargando contextos:", error);
+
         setLearningContexts([]);
 
         showFeedback({
@@ -111,15 +113,134 @@ const RoutineExperienceBuilder = ({
   }, []);
 
   useEffect(() => {
-    if (!templateId || loadingContexts) {
+    if (loadingContexts) {
       return;
     }
 
+    /*
+     * EDICIÓN DE RUTINA EXISTENTE
+     */
+    if (editingRoutine) {
+      const selectedContext =
+        learningContexts.find(
+          (context) =>
+            Number(context.id) === Number(editingRoutine.learning_context_id),
+        ) || null;
+
+      const rawSteps = Array.isArray(editingRoutine.steps)
+        ? editingRoutine.steps
+        : [];
+
+      const editingDraft = {
+        id: editingRoutine.id,
+
+        experienceType: "routine",
+
+        name: editingRoutine.name || "",
+        description: editingRoutine.description || "",
+        icon: editingRoutine.icon || "✨",
+
+        start_time: editingRoutine.start_time
+          ? String(editingRoutine.start_time).slice(0, 5)
+          : "",
+
+        end_time: editingRoutine.end_time
+          ? String(editingRoutine.end_time).slice(0, 5)
+          : "",
+
+        days_of_week:
+          Array.isArray(editingRoutine.days_of_week) &&
+          editingRoutine.days_of_week.length > 0
+            ? editingRoutine.days_of_week
+            : ALL_DAYS,
+
+        learning_context_id: editingRoutine.learning_context_id || null,
+
+        learningContext: selectedContext,
+
+        steps: rawSteps.map((step, index) => ({
+          clientId:
+            step.clientId ||
+            `template-${template.id}-step-${step.id || index + 1}`,
+
+          title: step.title || "",
+          description: step.description || "",
+          icon: step.icon || "✨",
+
+          flocard_code: step.flocard_code || null,
+          flocard: step.flocard || null,
+
+          position: Number(step.position || index + 1),
+
+          estimated_minutes: step.estimated_minutes ?? null,
+
+          is_optional: Boolean(step.is_optional),
+        })),
+      };
+
+      console.log("EDITING ROUTINE EN BUILDER:", editingRoutine);
+
+      console.log("RAW STEPS EN BUILDER:", rawSteps);
+
+      console.log("EDITING DRAFT:", editingDraft);
+
+      console.log("STEPS DEL DRAFT:", editingDraft.steps);
+
+      setLoadedTemplateDraft(editingDraft);
+
+      resetDraft(editingDraft);
+
+      if (selectedContext) {
+        setLearningContext(selectedContext);
+      }
+
+      setLoadingTemplate(false);
+
+      return;
+    }
+
+    /*
+     * CREACIÓN DESDE CERO
+     */
+    if (!templateId) {
+      const blankDraft = {
+        id: null,
+
+        experienceType: "routine",
+
+        name: "",
+        description: "",
+        icon: "✨",
+
+        start_time: "",
+        end_time: "",
+
+        days_of_week: ALL_DAYS,
+
+        learning_context_id: null,
+        learningContext: null,
+
+        steps: [],
+      };
+
+      setLoadedTemplateDraft(blankDraft);
+
+      resetDraft(blankDraft);
+
+      setLoadingTemplate(false);
+
+      return;
+    }
+
+    /*
+     * CREACIÓN DESDE PLANTILLA
+     */
     const loadTemplate = async () => {
       try {
         setLoadingTemplate(true);
 
         const response = await getExperienceTemplate(templateId);
+
         const template = response?.template || response;
 
         if (!template?.id) {
@@ -132,43 +253,60 @@ const RoutineExperienceBuilder = ({
               Number(context.id) === Number(template.learning_context_id),
           ) || null;
 
-        const rawSteps = Array.isArray(template.steps)
-          ? template.steps
-          : [];
+        const rawSteps = Array.isArray(template.steps) ? template.steps : [];
 
         const templateDraft = {
           id: template.id,
+
           experienceType: template.experience_type || "routine",
+
           name: template.name || "",
           description: template.description || "",
           icon: template.icon || "✨",
+
           start_time: template.default_start_time
             ? String(template.default_start_time).slice(0, 5)
             : "",
+
           end_time: template.default_end_time
             ? String(template.default_end_time).slice(0, 5)
             : "",
+
           days_of_week:
             Array.isArray(template.days_of_week) &&
             template.days_of_week.length > 0
               ? template.days_of_week
               : ALL_DAYS,
+
           learning_context_id: template.learning_context_id || null,
+
           learningContext: selectedContext,
+
           steps: rawSteps.map((step, index) => ({
+            id: step.id,
+
             clientId:
               step.clientId ||
               `template-${template.id}-step-${step.id || index + 1}`,
+
             title: step.title || "",
             description: step.description || "",
             icon: step.icon || "✨",
+
+            // MUY IMPORTANTE: conservar la FloCard
+            flocard_code: step.flocard_code || null,
+            flocard: step.flocard || null,
+
             position: Number(step.position || index + 1),
+
             estimated_minutes: step.estimated_minutes ?? null,
+
             is_optional: Boolean(step.is_optional),
           })),
         };
 
         setLoadedTemplateDraft(templateDraft);
+
         resetDraft(templateDraft);
 
         if (selectedContext) {
@@ -176,6 +314,7 @@ const RoutineExperienceBuilder = ({
         }
       } catch (error) {
         console.error("Error cargando plantilla:", error);
+
         setLoadedTemplateDraft(null);
 
         showFeedback({
@@ -194,7 +333,7 @@ const RoutineExperienceBuilder = ({
     };
 
     loadTemplate();
-  }, [templateId, loadingContexts, learningContexts]);
+  }, [templateId, editingRoutine, loadingContexts, learningContexts]);
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
@@ -205,10 +344,7 @@ const RoutineExperienceBuilder = ({
 
     const draggedData = active.data.current;
 
-    if (
-      draggedData?.type !== "learning-context" ||
-      !draggedData?.context
-    ) {
+    if (draggedData?.type !== "learning-context" || !draggedData?.context) {
       return;
     }
 
@@ -228,6 +364,7 @@ const RoutineExperienceBuilder = ({
         title: "Debes iniciar sesión",
         message: "Inicia sesión para crear esta experiencia.",
       });
+
       return;
     }
 
@@ -239,6 +376,7 @@ const RoutineExperienceBuilder = ({
         title: "Selecciona un niño/a",
         message: "Debes seleccionar para quién crearás esta experiencia.",
       });
+
       return;
     }
 
@@ -247,48 +385,120 @@ const RoutineExperienceBuilder = ({
 
       const payload = toRoutinePayload();
 
+      /*
+       * Importante:
+       * al editar conservamos los ids
+       * de los pasos existentes.
+       */
+      const stepsPayload = draft.steps.map((step, index) => ({
+        ...(step.id
+          ? {
+              id: Number(step.id),
+            }
+          : {}),
+
+        title: String(step.title || "").trim(),
+
+        description: String(step.description || "").trim(),
+
+        icon: step.icon || "✨",
+
+        flocard_code: step.flocard_code || null,
+
+        position: index + 1,
+
+        estimated_minutes: step.estimated_minutes || null,
+
+        is_optional: Boolean(step.is_optional),
+      }));
+
       const routinePayload = {
         name: payload.name,
+
         description: payload.description,
+
         start_time: payload.start_time,
+
         end_time: payload.end_time,
+
         days_of_week: payload.days_of_week,
+
         learning_context_id: payload.learning_context_id,
-        steps: payload.steps,
-        experience_template_id: Number(templateId),
+
+        steps: stepsPayload,
+
+        ...(templateId
+          ? {
+              experience_template_id: Number(templateId),
+            }
+          : {}),
       };
 
       console.log("PAYLOAD EXPERIENCE BUILDER:", routinePayload);
 
-      const response = isParentMode
-        ? await createChildRoutine(selectedChildId, routinePayload)
-        : await createRoutine(routinePayload);
+      let response;
+
+      if (editingRoutine?.id) {
+        response = isParentMode
+          ? await updateChildRoutine(
+              selectedChildId,
+              editingRoutine.id,
+              routinePayload,
+            )
+          : await updateRoutine(editingRoutine.id, routinePayload);
+      } else {
+        response = isParentMode
+          ? await createChildRoutine(selectedChildId, routinePayload)
+          : await createRoutine(routinePayload);
+      }
 
       showFeedback({
         type: "success",
+
         icon: draft.icon || "✨",
-        label: "Experiencia creada",
-        title: `${payload.name} guardada`,
-        message: isParentMode
-          ? `La experiencia fue creada para ${childName}.`
-          : "La experiencia fue creada correctamente.",
+
+        label: editingRoutine
+          ? "Experiencia actualizada"
+          : "Experiencia creada",
+
+        title: editingRoutine
+          ? `${payload.name} actualizada`
+          : `${payload.name} guardada`,
+
+        message: editingRoutine
+          ? isParentMode
+            ? `La experiencia de ${childName} fue actualizada correctamente.`
+            : "La experiencia fue actualizada correctamente."
+          : isParentMode
+            ? `La experiencia fue creada para ${childName}.`
+            : "La experiencia fue creada correctamente.",
       });
 
       if (typeof onCreated === "function") {
         await onCreated({
           response,
+
           routine: response?.routine || response,
-          steps: payload.steps,
+
+          steps: routinePayload.steps,
         });
       }
     } catch (error) {
-      console.error("Error creando experiencia:", error);
+      console.error(
+        editingRoutine
+          ? "Error actualizando experiencia:"
+          : "Error creando experiencia:",
+        error,
+      );
 
       showFeedback({
         type: "error",
         icon: "❌",
         label: "No se pudo guardar",
-        title: "Ocurrió un error al crear la experiencia",
+        title: editingRoutine
+          ? "Ocurrió un error al actualizar la experiencia"
+          : "Ocurrió un error al crear la experiencia",
+
         message:
           error.response?.data?.message ||
           "Revisa los datos e intenta nuevamente.",
@@ -315,7 +525,7 @@ const RoutineExperienceBuilder = ({
             onClick={onCancel}
             className="rounded-2xl border-2 border-[#DCCCF8] bg-white px-5 py-3 font-extrabold text-[#5F4A8B] transition hover:bg-[#F7F3FF]"
           >
-            ← Volver a biblioteca
+            ← Volver
           </button>
         )}
 
@@ -334,7 +544,7 @@ const RoutineExperienceBuilder = ({
           onClick={onCancel}
           className="rounded-2xl border-2 border-[#DCCCF8] bg-white px-5 py-3 font-extrabold text-[#5F4A8B] transition hover:bg-[#F7F3FF]"
         >
-          ← Volver a biblioteca
+          ← {editingRoutine ? "Volver a rutinas" : "Volver a biblioteca"}
         </button>
       )}
 

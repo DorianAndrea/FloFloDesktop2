@@ -87,7 +87,7 @@ const useExperienceDraft = (initialDraft = null) => {
         ...current.steps,
         {
           clientId: createClientId(),
-          title: step.title || "Nuevo paso",
+          title: step.title || "",
           description: step.description || "",
           icon: step.icon || "✨",
           estimated_minutes:

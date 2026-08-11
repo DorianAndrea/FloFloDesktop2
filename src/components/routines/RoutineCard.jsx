@@ -1,3 +1,5 @@
+import FloCardPictogram from "../../modules/flocards/FlocardPictogram";
+
 const RoutineCard = ({
   routine,
   showCompleteButton = false,
@@ -37,16 +39,16 @@ const RoutineCard = ({
 
   const hasCreatorInformation = Boolean(
     routine.created_by ||
-      routine.creator_first_name ||
-      routine.creator_access_profile ||
-      routine.creator_relationship_key,
+    routine.creator_first_name ||
+    routine.creator_access_profile ||
+    routine.creator_relationship_key,
   );
 
   const hasCompleterInformation = Boolean(
     routine.today_completed_by ||
-      routine.today_completer_first_name ||
-      routine.today_completer_access_profile ||
-      routine.today_completer_relationship_key,
+    routine.today_completer_first_name ||
+    routine.today_completer_access_profile ||
+    routine.today_completer_relationship_key,
   );
 
   const totalSteps = Array.isArray(routine.steps) ? routine.steps.length : 0;
@@ -64,11 +66,11 @@ const RoutineCard = ({
           ? "border-green-200 bg-green-50"
           : "border-[#DCCCF8] bg-white"
       }`}
-    ><div className="flex flex-col gap-4">
-      
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-xl font-bold text-[#4B367C]">
+    >
+      <div className="flex w-full flex-col gap-5">
+        <div className="w-full min-w-0">
+          <div className="flex w-full flex-wrap items-center gap-2">
+            <h3 className="min-w-0 break-words text-xl font-bold leading-snug text-[#4B367C]">
               {routine.name}
             </h3>
 
@@ -91,9 +93,11 @@ const RoutineCard = ({
             )}
           </div>
 
-          <p className="mt-2 text-[#6B5A95]">
-            {formatTime(routine.start_time)} - {formatTime(routine.end_time)}
-          </p>
+          {routine.start_time && routine.end_time && (
+            <p className="mt-2 text-[#6B5A95]">
+              {formatTime(routine.start_time)} - {formatTime(routine.end_time)}
+            </p>
+          )}
 
           <p className="mt-1 text-sm font-semibold text-[#9B7BE8]">
             {formatDays(routine.days_of_week)}
@@ -105,8 +109,7 @@ const RoutineCard = ({
                 className="mt-3 inline-flex items-center gap-2 rounded-full border px-3 py-1.5"
                 style={{
                   borderColor: routine.learning_context_color || "#DCCCF8",
-                  backgroundColor:
-                    routine.learning_context_color || "#F7F3FF",
+                  backgroundColor: routine.learning_context_color || "#F7F3FF",
                 }}
               >
                 <span aria-hidden="true">
@@ -120,15 +123,17 @@ const RoutineCard = ({
             )}
 
           {routine.description && !compact && (
-            <p className="mt-3 text-[#6B5A95]">{routine.description}</p>
+            <p className="mt-3 w-full max-w-none break-words leading-relaxed text-[#6B5A95]">
+              {routine.description}
+            </p>
           )}
 
           {Array.isArray(routine.steps) &&
             routine.steps.length > 0 &&
             !compact && (
               <div className="mt-6 w-full">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="mt-4">
+                <div className="grid w-full gap-4 lg:grid-cols-[minmax(180px,1fr)_minmax(220px,1fr)_auto] lg:items-center">
+                  <div className="w-full">
                     <div className="h-3 w-full overflow-hidden rounded-full bg-[#EEE7FA]">
                       <div
                         className="h-full rounded-full bg-[#7C5CE6] transition-all duration-500 ease-out"
@@ -171,7 +176,7 @@ const RoutineCard = ({
                         disabled={isUpdating}
                         onClick={() => onToggleStep(routine, step)}
                         aria-pressed={isChecked}
-                        className={`grid w-full grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-4 rounded-3xl border-2 px-5 py-4 text-left transition ${
+                        className={`w-full rounded-3xl border-2 px-4 py-4 text-left transition sm:px-5 ${
                           isChecked
                             ? "border-green-300 bg-green-50 hover:bg-green-100"
                             : "border-[#E4D8FF] bg-[#FAF8FF] hover:border-[#BCA6F0] hover:bg-white"
@@ -181,53 +186,73 @@ const RoutineCard = ({
                             : "cursor-pointer"
                         }`}
                       >
-                        <span
-                          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 text-lg font-extrabold ${
-                            isChecked
-                              ? "border-green-500 bg-green-500 text-white"
-                              : "border-[#DCCCF8] bg-white text-[#5F4A8B]"
-                          }`}
-                          aria-hidden="true"
-                        >
-                          {isUpdating ? "…" : isChecked ? "✓" : index + 1}
-                        </span>
-
-                        <span
-                          className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white text-3xl shadow-sm"
-                          aria-hidden="true"
-                        >
-                          {step.icon || "✨"}
-                        </span>
-
-                        <div className="min-w-0">
-                          <p
-                            className={`break-words text-base font-extrabold sm:text-lg ${
+                        <div className="flex w-full items-start gap-3">
+                          {/* Número / check */}
+                          <span
+                            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 text-lg font-extrabold ${
                               isChecked
-                                ? "text-green-700 line-through"
-                                : "text-[#4B367C]"
+                                ? "border-green-500 bg-green-500 text-white"
+                                : "border-[#DCCCF8] bg-white text-[#5F4A8B]"
                             }`}
+                            aria-hidden="true"
                           >
-                            {step.title}
-                          </p>
-
-                          {step.description && (
-                            <p className="mt-1 hidden text-sm font-medium text-[#756596] sm:block">
-                              {step.description}
-                            </p>
-                          )}
-
-                          {step.is_optional && (
-                            <span className="mt-2 inline-flex rounded-full bg-[#EEE7FA] px-3 py-1 text-xs font-extrabold text-[#756596]">
-                              Opcional
-                            </span>
-                          )}
-                        </div>
-
-                        {step.estimated_minutes && (
-                          <span className="whitespace-nowrap rounded-full bg-white px-3 py-2 text-xs font-extrabold text-[#6B5A95] shadow-sm">
-                            {step.estimated_minutes} min
+                            {isUpdating ? "…" : isChecked ? "✓" : index + 1}
                           </span>
-                        )}
+
+                          {/* Contenido principal */}
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-start gap-3">
+                              <FloCardPictogram
+                                floCard={
+                                  step.flocard_code
+                                    ? {
+                                        code: step.flocard_code,
+                                        name: step.title,
+                                        icon: step.icon,
+                                      }
+                                    : null
+                                }
+                                fallbackIcon={step.icon}
+                                compact
+                              />
+
+                              <div className="min-w-0 flex-1">
+                                <p
+                                  className={`text-base font-extrabold leading-snug sm:text-lg ${
+                                    isChecked
+                                      ? "text-green-700 line-through"
+                                      : "text-[#4B367C]"
+                                  }`}
+                                >
+                                  {step.title}
+                                </p>
+
+                                {step.description && (
+                                  <p className="mt-1 text-sm font-medium leading-relaxed text-[#756596]">
+                                    {step.description}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Metadata debajo, nunca compite con el título */}
+                            {(step.estimated_minutes || step.is_optional) && (
+                              <div className="mt-3 flex flex-wrap items-center gap-2">
+                                {step.estimated_minutes && (
+                                  <span className="rounded-full bg-white px-3 py-1.5 text-xs font-extrabold text-[#6B5A95] shadow-sm">
+                                    {step.estimated_minutes} min
+                                  </span>
+                                )}
+
+                                {step.is_optional && (
+                                  <span className="rounded-full bg-[#EEE7FA] px-3 py-1.5 text-xs font-extrabold text-[#756596]">
+                                    Opcional
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </button>
                     );
                   })}
@@ -292,13 +317,13 @@ const RoutineCard = ({
           )}
         </div>
 
-        <div className="flex w-full flex-wrap gap-2">
+        <div className="flex w-full flex-wrap gap-2 border-t border-[#EEE7FA] pt-4">
           {showCompleteButton && (
             <button
               type="button"
               onClick={() => onComplete(routine)}
               disabled={routine.completed_today}
-              className={`rounded-2xl px-4 py-2 font-bold text-white transition ${
+              className={`min-w-fit rounded-2xl px-4 py-2 font-bold text-white transition ${
                 routine.completed_today
                   ? "cursor-not-allowed bg-green-300"
                   : "bg-green-500 hover:bg-green-600"
@@ -312,7 +337,7 @@ const RoutineCard = ({
             <button
               type="button"
               onClick={() => onEdit(routine)}
-              className="rounded-2xl bg-[#9B7BE8] px-4 py-2 font-bold text-white transition hover:bg-[#8B6FD6]"
+              className="min-w-fit rounded-2xl bg-[#9B7BE8] px-4 py-2 font-bold text-white transition hover:bg-[#8B6FD6]"
             >
               Editar
             </button>
@@ -322,7 +347,7 @@ const RoutineCard = ({
             <button
               type="button"
               onClick={() => onDelete(routine)}
-              className="rounded-2xl bg-red-400 px-4 py-2 font-bold text-white transition hover:bg-red-500"
+              className="min-w-fit rounded-2xl bg-red-400 px-4 py-2 font-bold text-white transition hover:bg-red-500"
             >
               Eliminar
             </button>

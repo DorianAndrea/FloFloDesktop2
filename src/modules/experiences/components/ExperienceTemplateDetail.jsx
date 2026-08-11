@@ -1,23 +1,22 @@
 import FavoriteButton from "./FavoriteButton";
+import FloCardPictogram from "../../flocards/FloCardPictogram";
 
-const ExperienceTemplateDetail = ({
-  template,
-  onBack,
-  onUse,
-}) => {
+const ExperienceTemplateDetail = ({ template, onBack, onUse }) => {
   if (!template) return null;
 
+  console.log("EXPERIENCIA RECIBIDA:", template);
+  console.log("PASOS RECIBIDOS:", template.steps);
+  
   const steps = Array.isArray(template.steps) ? template.steps : [];
 
-  const formatTime = (value) =>
-    value ? String(value).slice(0, 5) : null;
+  const formatTime = (value) => (value ? String(value).slice(0, 5) : null);
 
   return (
-    <div className="mx-auto max-w-5xl">
+    <div className="space-y-4">
       <button
         type="button"
         onClick={onBack}
-        className="mb-6 rounded-2xl border-2 border-[#DCCCF8] bg-white px-5 py-3 font-extrabold text-[#5F4A8B] transition hover:bg-[#F7F3FF]"
+        className="rounded-2xl border-2 border-[#DCCCF8] bg-white px-5 py-3 font-extrabold text-[#5F4A8B] transition hover:bg-[#F7F3FF]"
       >
         ← Volver a biblioteca
       </button>
@@ -43,12 +42,10 @@ const ExperienceTemplateDetail = ({
                     <span
                       className="rounded-full px-4 py-2 text-sm font-extrabold"
                       style={{
-                        backgroundColor:
-                          template.category_color || "#EEE7FA",
+                        backgroundColor: template.category_color || "#EEE7FA",
                       }}
                     >
-                      {template.category_icon || "🧩"}{" "}
-                      {template.category_name}
+                      {template.category_icon || "🧩"} {template.category_name}
                     </span>
                   )}
                 </div>
@@ -87,13 +84,12 @@ const ExperienceTemplateDetail = ({
                   </span>
                 )}
 
-                {template.default_start_time &&
-                  template.default_end_time && (
-                    <span className="rounded-full bg-white px-4 py-2 text-sm font-extrabold text-[#5F4A8B] shadow-sm">
-                      🕒 {formatTime(template.default_start_time)} -{" "}
-                      {formatTime(template.default_end_time)}
-                    </span>
-                  )}
+                {template.default_start_time && template.default_end_time && (
+                  <span className="rounded-full bg-white px-4 py-2 text-sm font-extrabold text-[#5F4A8B] shadow-sm">
+                    🕒 {formatTime(template.default_start_time)} -{" "}
+                    {formatTime(template.default_end_time)}
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -137,39 +133,44 @@ const ExperienceTemplateDetail = ({
                 {steps.map((step, index) => (
                   <div
                     key={step.id || `${template.id}-${index}`}
-                    className="grid grid-cols-[auto_auto_minmax(0,1fr)_auto] items-center gap-4 rounded-3xl border-2 border-[#E8DEFF] bg-white p-5 transition hover:border-[#BFAAF1] hover:shadow-md"
+                    className="rounded-3xl border-2 border-[#E8DEFF] bg-white p-4 transition hover:border-[#BFAAF1] hover:shadow-md sm:p-5"
                   >
-                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[#EEE7FA] text-lg font-black text-[#5F4A8B]">
-                      {step.position || index + 1}
+                    <div className="flex items-start gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#EEE7FA] text-lg font-black text-[#5F4A8B]">
+                        {step.position || index + 1}
+                      </div>
+
+                        <FloCardPictogram
+                          floCard={step.flocard}
+                          fallbackIcon={step.icon}
+                        />
+                     
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-base font-extrabold leading-snug text-[#4B367C] md:text-lg">
+                          {step.title}
+                        </h3>
+
+                        {step.description && (
+                          <p className="mt-1 break-words text-sm leading-relaxed text-[#756596]">
+                            {step.description}
+                          </p>
+                        )}
+
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          {step.estimated_minutes && (
+                            <span className="rounded-full bg-[#F3ECFF] px-3 py-1.5 text-xs font-extrabold text-[#6B5A95]">
+                              {step.estimated_minutes} min
+                            </span>
+                          )}
+
+                          {step.is_required === false && (
+                            <span className="rounded-full bg-[#EEE7FA] px-3 py-1.5 text-xs font-extrabold text-[#756596]">
+                              Opcional
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#F8F5FF] text-3xl">
-                      {step.icon || "✨"}
-                    </div>
-
-                    <div className="min-w-0">
-                      <h3 className="text-base font-extrabold text-[#4B367C] md:text-lg">
-                        {step.title}
-                      </h3>
-
-                      {step.description && (
-                        <p className="mt-1 text-sm leading-relaxed text-[#756596]">
-                          {step.description}
-                        </p>
-                      )}
-
-                      {step.is_required === false && (
-                        <span className="mt-2 inline-flex rounded-full bg-[#EEE7FA] px-3 py-1 text-xs font-extrabold text-[#756596]">
-                          Opcional
-                        </span>
-                      )}
-                    </div>
-
-                    {step.estimated_minutes && (
-                      <span className="whitespace-nowrap rounded-full bg-[#F3ECFF] px-3 py-2 text-xs font-extrabold text-[#6B5A95]">
-                        {step.estimated_minutes} min
-                      </span>
-                    )}
                   </div>
                 ))}
               </div>
@@ -178,7 +179,8 @@ const ExperienceTemplateDetail = ({
 
           <div className="mt-10 rounded-[2rem] bg-[#F7F3FF] p-6">
             <p className="font-bold text-[#4B367C]">
-              Podrás personalizar horario, días, contexto y pasos antes de guardarla.
+              Podrás personalizar horario, días, contexto y pasos antes de
+              guardarla.
             </p>
 
             <button

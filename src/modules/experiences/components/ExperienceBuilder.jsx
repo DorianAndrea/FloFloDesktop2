@@ -1,6 +1,7 @@
 import ContextPicker from "../../../components/routines/ContextPicker";
 import DroppableFloPanel from "../../../components/design-system/cards/DroppableFloPanel";
 import FloCard from "../../../components/design-system/cards/FloCard";
+import FloCardPictogram from "../../flocards/FloCardPictogram";
 
 const DAYS = [
   { key: "monday", label: "L" },
@@ -97,23 +98,17 @@ const ExperienceBuilder = ({
             <DroppableFloPanel
               id="experience-learning-context"
               title="Contexto seleccionado"
-              hasContent={Boolean(
-                draft.learningContext,
-              )}
+              hasContent={Boolean(draft.learningContext)}
             >
               {draft.learningContext && (
                 <FloCard
                   title={draft.learningContext.name}
-                  subtitle={
-                    draft.learningContext.description
-                  }
+                  subtitle={draft.learningContext.description}
                   icon={draft.learningContext.icon}
                   selected
                   compact
                   actionLabel="Quitar"
-                  onAction={() =>
-                    onSelectContext(null)
-                  }
+                  onAction={() => onSelectContext(null)}
                 />
               )}
             </DroppableFloPanel>
@@ -130,9 +125,7 @@ const ExperienceBuilder = ({
               type="button"
               className="rounded-3xl border-2 border-[#E4D8FF] bg-[#FAF8FF] p-5 text-left"
             >
-              <span className="text-sm font-bold text-[#8C78B5]">
-                Comienza
-              </span>
+              <span className="text-sm font-bold text-[#8C78B5]">Comienza</span>
 
               <input
                 type="time"
@@ -150,9 +143,7 @@ const ExperienceBuilder = ({
               type="button"
               className="rounded-3xl border-2 border-[#E4D8FF] bg-[#FAF8FF] p-5 text-left"
             >
-              <span className="text-sm font-bold text-[#8C78B5]">
-                Termina
-              </span>
+              <span className="text-sm font-bold text-[#8C78B5]">Termina</span>
 
               <input
                 type="time"
@@ -169,16 +160,13 @@ const ExperienceBuilder = ({
 
           <div className="mt-4 grid grid-cols-7 gap-2">
             {DAYS.map((day) => {
-              const selected =
-                draft.days_of_week.includes(day.key);
+              const selected = draft.days_of_week.includes(day.key);
 
               return (
                 <button
                   key={day.key}
                   type="button"
-                  onClick={() =>
-                    onToggleDay(day.key)
-                  }
+                  onClick={() => onToggleDay(day.key)}
                   className={`aspect-square rounded-2xl border-2 font-extrabold transition ${
                     selected
                       ? "border-[#9B7BE8] bg-[#9B7BE8] text-white"
@@ -223,16 +211,10 @@ const ExperienceBuilder = ({
                   {index + 1}
                 </span>
 
-                <input
-                  type="text"
-                  value={step.icon}
-                  onChange={(event) =>
-                    onUpdateStep(step.clientId, {
-                      icon: event.target.value,
-                    })
-                  }
-                  className="w-12 bg-transparent text-center text-3xl outline-none"
-                  aria-label="Ícono del paso"
+                <FloCardPictogram
+                  floCard={step.flocard}
+                  fallbackIcon={step.icon}
+                  compact
                 />
 
                 <input
@@ -243,15 +225,13 @@ const ExperienceBuilder = ({
                       title: event.target.value,
                     })
                   }
-                  className="min-w-0 flex-1 bg-transparent font-extrabold text-[#4B367C] outline-none"
-                  placeholder="Nombre del paso"
+                  className="min-w-0 flex-1 rounded-xl border border-[#E4D8FF] bg-[#FAF8FF] px-3 py-2 font-extrabold text-[#4B367C] outline-none transition focus:border-[#9B7BE8] focus:bg-white"
+                  placeholder="Ej: Hacer la cama"
                 />
 
                 <button
                   type="button"
-                  onClick={() =>
-                    onRemoveStep(step.clientId)
-                  }
+                  onClick={() => onRemoveStep(step.clientId)}
                   className="rounded-xl px-3 py-2 font-bold text-red-500 hover:bg-red-50"
                   aria-label={`Eliminar ${step.title}`}
                 >
@@ -269,8 +249,7 @@ const ExperienceBuilder = ({
                 </p>
 
                 <p className="mt-1 text-sm font-semibold text-[#756596]">
-                  Agrega una FloCard para comenzar la
-                  secuencia.
+                  Agrega una FloCard para comenzar la secuencia.
                 </p>
               </div>
             )}
@@ -279,16 +258,12 @@ const ExperienceBuilder = ({
 
         {!validation.isValid && (
           <div className="rounded-3xl border-2 border-amber-200 bg-amber-50 p-5">
-            <p className="font-extrabold text-amber-800">
-              Antes de guardar:
-            </p>
+            <p className="font-extrabold text-amber-800">Antes de guardar:</p>
 
             <div className="mt-2 space-y-1 text-sm font-semibold text-amber-700">
-              {Object.values(validation.errors).map(
-                (message) => (
-                  <p key={message}>• {message}</p>
-                ),
-              )}
+              {Object.values(validation.errors).map((message) => (
+                <p key={message}>• {message}</p>
+              ))}
             </div>
           </div>
         )}
@@ -299,9 +274,7 @@ const ExperienceBuilder = ({
           onClick={onSave}
           className="w-full rounded-3xl bg-[#9B7BE8] py-4 text-lg font-extrabold text-white transition hover:bg-[#8768D6] disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {saving
-            ? "Guardando experiencia..."
-            : "Crear experiencia"}
+          {saving ? "Guardando experiencia..." : "Crear experiencia"}
         </button>
       </div>
     </section>
