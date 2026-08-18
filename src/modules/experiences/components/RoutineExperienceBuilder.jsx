@@ -161,7 +161,7 @@ const RoutineExperienceBuilder = ({
         steps: rawSteps.map((step, index) => ({
           clientId:
             step.clientId ||
-            `template-${template.id}-step-${step.id || index + 1}`,
+            `routine-${editingRoutine.id}-step-${step.id || index + 1}`,
 
           title: step.title || "",
           description: step.description || "",

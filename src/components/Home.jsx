@@ -170,10 +170,6 @@ const Home = () => {
           </motion.div>
         )}
 
-        <p className="text-[#6B5A95] mb-4">
-          Estado actual: {mood || "Sin seleccionar"}
-        </p>
-
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center mb-10">
           <div className="text-center lg:text-left">
             <p className="text-[#8B6FD6] font-bold text-lg mb-2">

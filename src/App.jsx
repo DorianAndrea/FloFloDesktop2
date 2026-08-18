@@ -17,6 +17,7 @@ import MiPerfil from "./pages/MiPerfil";
 import Logros from "./pages/Logros";
 import PanelPadres from "./pages/PanelPadres";
 import PerfilSensorial from "./pages/PerfilSensorial";
+import MiFamilia from "./pages/MiFamilia";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import { FeedbackProvider } from "./context/FeedbackContext";
@@ -141,6 +142,15 @@ function App() {
                   element={
                     <ProtectedRoute requireSelectedChild>
                       <Logros />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/mi-familia"
+                  element={
+                    <ProtectedRoute allowedRoles={["parent"]}>
+                      <MiFamilia />
                     </ProtectedRoute>
                   }
                 />

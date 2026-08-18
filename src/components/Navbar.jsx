@@ -229,6 +229,21 @@ const Navbar = () => {
 
               {isParent && (
                 <NavLink
+                  to="/mi-familia"
+                  className={({ isActive }) =>
+                    `font-semibold px-4 py-2 rounded-full transition ${
+                      isActive
+                        ? "bg-[#FFF3C4] text-[#6B5A00] border border-[#E8D785]"
+                        : "bg-[#FFF9DF] text-[#6B5A00] border border-[#E8D785] hover:bg-[#FFF3C4]"
+                    }`
+                  }
+                >
+                  Mi familia
+                </NavLink>
+              )}
+
+              {isParent && (
+                <NavLink
                   to="/panel-padres"
                   className={({ isActive }) =>
                     `font-semibold px-4 py-2 rounded-full transition ${
@@ -379,6 +394,16 @@ const Navbar = () => {
                     ))}
                   </div>
                 </div>
+
+                {isParent && (
+                  <NavLink
+                    to="/mi-familia"
+                    onClick={closeMenus}
+                    className="bg-[#FFF9DF] text-[#6B5A00] border border-[#E8D785] font-bold px-4 py-3 rounded-full w-fit"
+                  >
+                    👨‍👩‍👧‍👦 Mi familia
+                  </NavLink>
+                )}
 
                 {isParent && (
                   <NavLink

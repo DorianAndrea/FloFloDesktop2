@@ -27,6 +27,8 @@ import {
   completeChildRoutineStep,
   uncompleteRoutineStep,
   uncompleteChildRoutineStep,
+  startRoutineStepFloCard,
+  startChildRoutineStepFloCard,
 } from "../services/routineService";
 import { useFloFlo } from "../context/FloFloContext";
 import { useSelectedChild } from "../context/SelectedChildContext";
@@ -160,6 +162,7 @@ const Rutinas = () => {
     useState(null);
 
   const [updatingStepKey, setUpdatingStepKey] = useState(null);
+
   const { user } = useFloFlo();
 
   const {
@@ -746,7 +749,11 @@ const Rutinas = () => {
     return routine.days_of_week.includes(todayInfo.day);
   };
 
-  const handleToggleRoutineStep = async (routine, step) => {
+  const handleToggleRoutineStep = async (
+    routine,
+    step,
+    supportLevel = "independent",
+  ) => {
     if (!validateParentChildSelection()) {
       return;
     }
@@ -772,7 +779,7 @@ const Rutinas = () => {
         }
       } else {
         const progressData = {
-          support_level: "independent",
+          support_level: supportLevel,
           notes: "",
         };
 
@@ -803,6 +810,28 @@ const Rutinas = () => {
       });
     } finally {
       setUpdatingStepKey(null);
+    }
+  };
+
+  const handleStartFloCard = async (routine, step) => {
+    try {
+      if (isParent) {
+        if (!selectedChildId) {
+          throw new Error("No hay un niño/a seleccionado");
+        }
+
+        return await startChildRoutineStepFloCard(
+          selectedChildId,
+          routine.id,
+          step.id,
+        );
+      }
+
+      return await startRoutineStepFloCard(routine.id, step.id);
+    } catch (error) {
+      console.error("Error iniciando FloCard:", error);
+
+      throw error;
     }
   };
 
@@ -1496,10 +1525,13 @@ const Rutinas = () => {
                                 updatingStepKey={updatingStepKey}
                                 isScheduledToday={isScheduledToday}
                                 onToggleStep={handleToggleRoutineStep}
+                                onStartFloCard={handleStartFloCard}
                                 onComplete={handleCompleteRoutine}
                                 onEdit={handleEdit}
                                 onDelete={handleDeleteRoutine}
-                                canCreateOrEditRoutines={canCreateOrEditRoutines}
+                                canCreateOrEditRoutines={
+                                  canCreateOrEditRoutines
+                                }
                                 canDeleteRoutines={canDeleteRoutines}
                                 formatTime={formatTime}
                                 formatDays={formatDays}
@@ -1526,10 +1558,13 @@ const Rutinas = () => {
                                 updatingStepKey={updatingStepKey}
                                 isScheduledToday={isScheduledToday}
                                 onToggleStep={handleToggleRoutineStep}
+                                onStartFloCard={handleStartFloCard}
                                 onComplete={handleCompleteRoutine}
                                 onEdit={handleEdit}
                                 onDelete={handleDeleteRoutine}
-                                canCreateOrEditRoutines={canCreateOrEditRoutines}
+                                canCreateOrEditRoutines={
+                                  canCreateOrEditRoutines
+                                }
                                 canDeleteRoutines={canDeleteRoutines}
                                 formatTime={formatTime}
                                 formatDays={formatDays}
@@ -1575,6 +1610,7 @@ const Rutinas = () => {
                           updatingStepKey={updatingStepKey}
                           isScheduledToday={isScheduledToday}
                           onToggleStep={handleToggleRoutineStep}
+                          onStartFloCard={handleStartFloCard}
                           onComplete={handleCompleteRoutine}
                           onEdit={handleEdit}
                           onDelete={handleDeleteRoutine}

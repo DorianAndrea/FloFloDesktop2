@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { getExperienceLibrary } from "../../../services/experienceLibraryService";
 import FavoriteButton from "./FavoriteButton";
-import { getExperienceRecommendations } from "../../../services/experienceRecommendationService";
+import {
+  getExperienceRecommendations
+} from "../../../services/experienceRecommendationService";
 import { getExperienceRecents } from "../../../services/experienceRecentService";
 
 const RoutineExperienceLibrary = ({ onSelect, childId = null }) => {
@@ -20,9 +22,12 @@ const RoutineExperienceLibrary = ({ onSelect, childId = null }) => {
 
   useEffect(() => {
     loadLibrary();
+  }, []);
+
+  useEffect(() => {
     loadRecommendations();
     loadRecents();
-  }, []);
+  }, [childId]);
 
   const loadLibrary = async () => {
     try {
@@ -43,7 +48,7 @@ const RoutineExperienceLibrary = ({ onSelect, childId = null }) => {
     try {
       setLoadingRecommendations(true);
 
-      const data = await getExperienceRecommendations();
+      const data = await getExperienceRecommendations(childId);
 
       setRecommendations(Array.isArray(data) ? data : []);
     } catch (error) {
@@ -174,7 +179,7 @@ const RoutineExperienceLibrary = ({ onSelect, childId = null }) => {
     setSelectedContext("all");
     setSelectedDuration("all");
   };
-
+  
   if (loading) {
     return (
       <div className="rounded-3xl bg-white p-10 text-center font-bold text-[#6B5A95]">
@@ -465,12 +470,11 @@ const RoutineExperienceLibrary = ({ onSelect, childId = null }) => {
               </p>
 
               <h2 className="mt-1 text-2xl font-black text-[#4B367C]">
-                ✨ Recomendadas para ti
+                ✨ Recomendadas para este momento
               </h2>
 
               <p className="mt-1 text-sm font-semibold text-[#7D6BA8]">
-                Experiencias priorizadas según las señales disponibles en
-                FloFlo.
+               FloFlo seleccionó estas experiencias según el aprendizaje observado hasta ahora.
               </p>
             </div>
 

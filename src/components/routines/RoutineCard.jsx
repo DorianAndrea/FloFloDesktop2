@@ -1,4 +1,6 @@
-import FloCardPictogram from "../../modules/flocards/FlocardPictogram";
+import { useState } from "react";
+import FloCardPictogram from "../../modules/flocards/FloCardPictogram";
+import FloCardExperience from "../../modules/flocards/FloCardExperience";
 
 const RoutineCard = ({
   routine,
@@ -7,6 +9,7 @@ const RoutineCard = ({
   updatingStepKey,
   isScheduledToday,
   onToggleStep,
+  onStartFloCard,
   onComplete,
   onEdit,
   onDelete,
@@ -17,6 +20,11 @@ const RoutineCard = ({
   getFullName,
   getSupportProfileLabel,
 }) => {
+  const [activeFloCardStepId, setActiveFloCardStepId] = useState(null);
+  const [supportLevels, setSupportLevels] = useState({});
+  const [activeFloCardExperience, setActiveFloCardExperience] = useState(null);
+  const [completingFloCard, setCompletingFloCard] = useState(false);
+
   const creatorName = getFullName(
     routine.creator_first_name,
     routine.creator_last_name,
@@ -58,6 +66,32 @@ const RoutineCard = ({
     : 0;
 
   const progress = totalSteps === 0 ? 0 : (completedSteps / totalSteps) * 100;
+  const handleCloseFloCardExperience = () => {
+    setActiveFloCardExperience(null);
+    setActiveFloCardStepId(null);
+  };
+
+  const handleCompleteFloCardExperience = async () => {
+    if (!activeFloCardExperience || completingFloCard) {
+      return;
+    }
+
+    const { routine: activeRoutine, step: activeStep } =
+      activeFloCardExperience;
+
+    const selectedSupportLevel = supportLevels[activeStep.id] || "independent";
+
+    try {
+      setCompletingFloCard(true);
+
+      await onToggleStep(activeRoutine, activeStep, selectedSupportLevel);
+
+      setActiveFloCardExperience(null);
+      setActiveFloCardStepId(null);
+    } finally {
+      setCompletingFloCard(false);
+    }
+  };
 
   return (
     <div
@@ -128,137 +162,259 @@ const RoutineCard = ({
             </p>
           )}
 
-          {Array.isArray(routine.steps) &&
-            routine.steps.length > 0 &&
-            !compact && (
-              <div className="mt-6 w-full">
-                <div className="grid w-full gap-4 lg:grid-cols-[minmax(180px,1fr)_minmax(220px,1fr)_auto] lg:items-center">
-                  <div className="w-full">
-                    <div className="h-3 w-full overflow-hidden rounded-full bg-[#EEE7FA]">
-                      <div
-                        className="h-full rounded-full bg-[#7C5CE6] transition-all duration-500 ease-out"
-                        style={{ width: `${progress}%` }}
-                      />
-                    </div>
-
-                    <div className="mt-2 flex justify-between text-sm font-semibold text-[#756596]">
-                      <span>
-                        {completedSteps} de {totalSteps} pasos
-                      </span>
-                      <span>{Math.round(progress)}%</span>
-                    </div>
+          {Array.isArray(routine.steps) && routine.steps.length > 0 && (
+            <div className="mt-6 w-full">
+              <div className="grid w-full gap-4 lg:grid-cols-[minmax(180px,1fr)_minmax(220px,1fr)_auto] lg:items-center">
+                <div className="w-full">
+                  <div className="h-3 w-full overflow-hidden rounded-full bg-[#EEE7FA]">
+                    <div
+                      className="h-full rounded-full bg-[#7C5CE6] transition-all duration-500 ease-out"
+                      style={{ width: `${progress}%` }}
+                    />
                   </div>
 
-                  <div>
-                    <p className="text-sm font-extrabold uppercase tracking-wide text-[#9B7BE8]">
-                      Pasos de la experiencia
-                    </p>
-                    <p className="mt-1 text-sm font-semibold text-[#756596]">
-                      Completa cada paso en orden.
-                    </p>
+                  <div className="mt-2 flex justify-between text-sm font-semibold text-[#756596]">
+                    <span>
+                      {completedSteps} de {totalSteps} pasos
+                    </span>
+                    <span>{Math.round(progress)}%</span>
                   </div>
-
-                  <span className="rounded-full bg-[#F3ECFF] px-4 py-2 text-sm font-extrabold text-[#5F4A8B]">
-                    {completedSteps}/{totalSteps}
-                  </span>
                 </div>
 
-                <div className="mt-4 grid w-full gap-3">
-                  {routine.steps.map((step, index) => {
-                    const isChecked = Boolean(step.completed_today);
-                    const stepKey = `${routine.id}:${step.id}`;
-                    const isUpdating = updatingStepKey === stepKey;
-
-                    return (
-                      <button
-                        key={step.id || `${routine.id}-${index}`}
-                        type="button"
-                        disabled={isUpdating}
-                        onClick={() => onToggleStep(routine, step)}
-                        aria-pressed={isChecked}
-                        className={`w-full rounded-3xl border-2 px-4 py-4 text-left transition sm:px-5 ${
-                          isChecked
-                            ? "border-green-300 bg-green-50 hover:bg-green-100"
-                            : "border-[#E4D8FF] bg-[#FAF8FF] hover:border-[#BCA6F0] hover:bg-white"
-                        } ${
-                          isUpdating
-                            ? "cursor-wait opacity-60"
-                            : "cursor-pointer"
-                        }`}
-                      >
-                        <div className="flex w-full items-start gap-3">
-                          {/* Número / check */}
-                          <span
-                            className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 text-lg font-extrabold ${
-                              isChecked
-                                ? "border-green-500 bg-green-500 text-white"
-                                : "border-[#DCCCF8] bg-white text-[#5F4A8B]"
-                            }`}
-                            aria-hidden="true"
-                          >
-                            {isUpdating ? "…" : isChecked ? "✓" : index + 1}
-                          </span>
-
-                          {/* Contenido principal */}
-                          <div className="min-w-0 flex-1">
-                            <div className="flex items-start gap-3">
-                              <FloCardPictogram
-                                floCard={
-                                  step.flocard_code
-                                    ? {
-                                        code: step.flocard_code,
-                                        name: step.title,
-                                        icon: step.icon,
-                                      }
-                                    : null
-                                }
-                                fallbackIcon={step.icon}
-                                compact
-                              />
-
-                              <div className="min-w-0 flex-1">
-                                <p
-                                  className={`text-base font-extrabold leading-snug sm:text-lg ${
-                                    isChecked
-                                      ? "text-green-700 line-through"
-                                      : "text-[#4B367C]"
-                                  }`}
-                                >
-                                  {step.title}
-                                </p>
-
-                                {step.description && (
-                                  <p className="mt-1 text-sm font-medium leading-relaxed text-[#756596]">
-                                    {step.description}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Metadata debajo, nunca compite con el título */}
-                            {(step.estimated_minutes || step.is_optional) && (
-                              <div className="mt-3 flex flex-wrap items-center gap-2">
-                                {step.estimated_minutes && (
-                                  <span className="rounded-full bg-white px-3 py-1.5 text-xs font-extrabold text-[#6B5A95] shadow-sm">
-                                    {step.estimated_minutes} min
-                                  </span>
-                                )}
-
-                                {step.is_optional && (
-                                  <span className="rounded-full bg-[#EEE7FA] px-3 py-1.5 text-xs font-extrabold text-[#756596]">
-                                    Opcional
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </button>
-                    );
-                  })}
+                <div>
+                  <p className="text-sm font-extrabold uppercase tracking-wide text-[#9B7BE8]">
+                    Pasos de la experiencia
+                  </p>
+                  <p className="mt-1 text-sm font-semibold text-[#756596]">
+                    Completa cada paso en orden.
+                  </p>
                 </div>
+
+                <span className="rounded-full bg-[#F3ECFF] px-4 py-2 text-sm font-extrabold text-[#5F4A8B]">
+                  {completedSteps}/{totalSteps}
+                </span>
               </div>
-            )}
+
+              <div className="mt-4 grid w-full gap-3">
+                {routine.steps.map((step, index) => {
+                  const isChecked = Boolean(step.completed_today);
+                  const stepKey = `${routine.id}:${step.id}`;
+                  const isUpdating = updatingStepKey === stepKey;
+                  const selectedSupportLevel =
+                    supportLevels[step.id] || "independent";
+
+                  const handleSupportLevelChange = (event) => {
+                    event.stopPropagation();
+
+                    const value = event.target.value;
+
+                    setSupportLevels((current) => ({
+                      ...current,
+                      [step.id]: value,
+                    }));
+                  };
+
+                  const isFloCardActive =
+                    Number(activeFloCardStepId) === Number(step.id);
+
+                  const floCardState = isChecked
+                    ? "completed"
+                    : isFloCardActive
+                      ? "active"
+                      : "idle";
+
+                  return (
+                    <div
+                      key={step.id || `${routine.id}-${index}`}
+                      role="button"
+                      tabIndex={0}
+                      aria-pressed={isChecked}
+                      onClick={async () => {
+                        if (isUpdating) return;
+
+                        await onToggleStep(routine, step, selectedSupportLevel);
+
+                        if (!isChecked) {
+                          setActiveFloCardStepId(null);
+                        }
+                      }}
+                      onKeyDown={async (event) => {
+                        if (
+                          isUpdating ||
+                          (event.key !== "Enter" && event.key !== " ")
+                        ) {
+                          return;
+                        }
+
+                        event.preventDefault();
+
+                        await onToggleStep(routine, step, selectedSupportLevel);
+
+                        if (!isChecked) {
+                          setActiveFloCardStepId(null);
+                        }
+                      }}
+                      className={`w-full rounded-3xl border-2 px-4 py-4 text-left transition sm:px-5 ${
+                        isChecked
+                          ? "border-green-300 bg-green-50 hover:bg-green-100"
+                          : "border-[#E4D8FF] bg-[#FAF8FF] hover:border-[#BCA6F0] hover:bg-white"
+                      } ${
+                        isUpdating ? "cursor-wait opacity-60" : "cursor-pointer"
+                      }`}
+                    >
+                      <div className="flex w-full items-start gap-3">
+                        {/* Número / check */}
+                        <span
+                          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2 text-lg font-extrabold ${
+                            isChecked
+                              ? "border-green-500 bg-green-500 text-white"
+                              : "border-[#DCCCF8] bg-white text-[#5F4A8B]"
+                          }`}
+                          aria-hidden="true"
+                        >
+                          {isUpdating ? "…" : isChecked ? "✓" : index + 1}
+                        </span>
+
+                        {/* Contenido principal */}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-start gap-3">
+                            <FloCardPictogram
+                              floCard={
+                                step.flocard_code
+                                  ? {
+                                      code: step.flocard_code,
+                                      name: step.title,
+                                      icon: step.icon,
+                                    }
+                                  : null
+                              }
+                              fallbackIcon={step.icon}
+                              compact
+                              state={floCardState}
+                              onClick={async (event) => {
+                                event.stopPropagation();
+
+                                if (
+                                  !step.flocard_code ||
+                                  isChecked ||
+                                  isUpdating
+                                ) {
+                                  return;
+                                }
+
+                                const isAlreadyActive =
+                                  Number(activeFloCardStepId) ===
+                                  Number(step.id);
+
+                                if (isAlreadyActive) {
+                                  setActiveFloCardStepId(null);
+                                  return;
+                                }
+
+                                setActiveFloCardStepId(step.id);
+
+                                if (typeof onStartFloCard === "function") {
+                                  await onStartFloCard(routine, step);
+                                }
+
+                                setActiveFloCardExperience({
+                                  routine,
+                                  step,
+                                  floCard: {
+                                    code: step.flocard_code,
+                                    name: step.title,
+                                    icon: step.icon,
+                                  },
+                                });
+                              }}
+                            />
+
+                            <div className="min-w-0 flex-1">
+                              <p
+                                className={`text-base font-extrabold leading-snug sm:text-lg ${
+                                  isChecked
+                                    ? "text-green-700 line-through"
+                                    : "text-[#4B367C]"
+                                }`}
+                              >
+                                {step.title}
+                              </p>
+
+                              {step.description && (
+                                <p className="mt-1 text-sm font-medium leading-relaxed text-[#756596]">
+                                  {step.description}
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          {!isChecked && (
+                            <div
+                              className="mt-4"
+                              onClick={(event) => event.stopPropagation()}
+                              onKeyDown={(event) => event.stopPropagation()}
+                            >
+                              <label
+                                htmlFor={`support-level-${routine.id}-${step.id}`}
+                                className="mb-2 block text-xs font-extrabold uppercase tracking-wide text-[#9B7BE8]"
+                              >
+                                Nivel de apoyo
+                              </label>
+
+                              <select
+                                id={`support-level-${routine.id}-${step.id}`}
+                                value={selectedSupportLevel}
+                                disabled={isUpdating}
+                                onChange={handleSupportLevelChange}
+                                className="w-full max-w-xs rounded-2xl border-2 border-[#DCCCF8] bg-white px-4 py-3 text-sm font-bold text-[#5F4A8B] outline-none transition focus:border-[#9B7BE8]"
+                              >
+                                <option value="independent">
+                                  🌟 Sin apoyo
+                                </option>
+
+                                <option value="verbal">💬 Apoyo verbal</option>
+
+                                <option value="visual">👁️ Apoyo visual</option>
+
+                                <option value="gestural">
+                                  👋 Apoyo gestual
+                                </option>
+
+                                <option value="physical_partial">
+                                  🤝 Apoyo físico parcial
+                                </option>
+
+                                <option value="physical_total">
+                                  🫶 Apoyo físico total
+                                </option>
+                              </select>
+                            </div>
+                          )}
+
+                          {/* Metadata debajo, nunca compite con el título */}
+                          {(step.estimated_minutes || step.is_optional) && (
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                              {step.estimated_minutes && (
+                                <span className="rounded-full bg-white px-3 py-1.5 text-xs font-extrabold text-[#6B5A95] shadow-sm">
+                                  {step.estimated_minutes} min
+                                </span>
+                              )}
+
+                              {step.is_optional && (
+                                <span className="rounded-full bg-[#EEE7FA] px-3 py-1.5 text-xs font-extrabold text-[#756596]">
+                                  Opcional
+                                </span>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <div className="mt-3 rounded-2xl border border-[#E4D8FF] bg-[#F7F3FF] px-4 py-3">
             {hasCreatorInformation ? (
@@ -354,6 +510,15 @@ const RoutineCard = ({
           )}
         </div>
       </div>
+      {activeFloCardExperience && (
+        <FloCardExperience
+          floCard={activeFloCardExperience.floCard}
+          step={activeFloCardExperience.step}
+          completing={completingFloCard}
+          onClose={handleCloseFloCardExperience}
+          onComplete={handleCompleteFloCardExperience}
+        />
+      )}
     </div>
   );
 };

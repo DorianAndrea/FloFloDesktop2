@@ -70,7 +70,10 @@ export const getChildRoutineHistory = async (childId) => {
 export const createChildRoutine = async (childId, routine) => {
   const cleanChildId = validateChildId(childId);
 
-  const response = await api.post(`/routines/children/${cleanChildId}`, routine);
+  const response = await api.post(
+    `/routines/children/${cleanChildId}`,
+    routine,
+  );
   return response.data;
 };
 
@@ -102,11 +105,7 @@ export const completeChildRoutine = async (childId, id) => {
   return response.data;
 };
 
-export const completeRoutineStep = async (
-  routineId,
-  stepId,
-  data = {},
-) => {
+export const completeRoutineStep = async (routineId, stepId, data = {}) => {
   const response = await api.post(
     `/routines/${routineId}/steps/${stepId}/complete`,
     data,
@@ -121,20 +120,41 @@ export const completeChildRoutineStep = async (
   stepId,
   data = {},
 ) => {
+  const cleanChildId = validateChildId(childId);
+
   const response = await api.post(
-    `/routines/children/${childId}/${routineId}/steps/${stepId}/complete`,
+    `/routines/children/${cleanChildId}/${routineId}/steps/${stepId}/complete`,
     data,
   );
 
   return response.data;
 };
 
-export const uncompleteRoutineStep = async (
+export const uncompleteRoutineStep = async (routineId, stepId) => {
+  const response = await api.delete(
+    `/routines/${routineId}/steps/${stepId}/complete`,
+  );
+
+  return response.data;
+};
+
+export const startRoutineStepFloCard = async (routineId, stepId) => {
+  const response = await api.post(
+    `/routines/${routineId}/steps/${stepId}/flocard/start`,
+  );
+
+  return response.data;
+};
+
+export const startChildRoutineStepFloCard = async (
+  childId,
   routineId,
   stepId,
 ) => {
-  const response = await api.delete(
-    `/routines/${routineId}/steps/${stepId}/complete`,
+  const cleanChildId = validateChildId(childId);
+
+  const response = await api.post(
+    `/routines/children/${cleanChildId}/${routineId}/steps/${stepId}/flocard/start`,
   );
 
   return response.data;
