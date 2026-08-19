@@ -25,6 +25,8 @@ import {
   completeChildRoutine,
   completeRoutineStep,
   completeChildRoutineStep,
+  completeRoutineStepSequence,
+  completeChildRoutineStepSequence,
   uncompleteRoutineStep,
   uncompleteChildRoutineStep,
   startRoutineStepFloCard,
@@ -753,6 +755,7 @@ const Rutinas = () => {
     routine,
     step,
     supportLevel = "independent",
+    interactionResult = null,
   ) => {
     if (!validateParentChildSelection()) {
       return;
@@ -781,6 +784,7 @@ const Rutinas = () => {
         const progressData = {
           support_level: supportLevel,
           notes: "",
+          interaction_result: interactionResult,
         };
 
         if (isParentMode) {
@@ -808,6 +812,83 @@ const Rutinas = () => {
         title: "Error al actualizar el paso",
         message: error.response?.data?.message || "Intenta nuevamente.",
       });
+    } finally {
+      setUpdatingStepKey(null);
+    }
+  };
+  const handleCompleteRoutineStepSequence = async (
+    routine,
+    triggerStep,
+    stepIds,
+    supportLevel = "independent",
+    interactionResult = null,
+  ) => {
+    if (!validateParentChildSelection()) {
+      return;
+    }
+
+    if (!Array.isArray(stepIds) || stepIds.length === 0) {
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "Secuencia inválida",
+        title: "No se encontraron los pasos",
+        message: "No se pudo completar la secuencia.",
+      });
+
+      return;
+    }
+
+    const stepKey = `${routine.id}:${triggerStep.id}`;
+
+    if (updatingStepKey === stepKey) {
+      return;
+    }
+
+    try {
+      setUpdatingStepKey(stepKey);
+
+      const progressData = {
+        step_ids: stepIds,
+        support_level: supportLevel,
+        notes: "",
+        interaction_result: interactionResult,
+      };
+
+      let response;
+
+      if (isParentMode) {
+        response = await completeChildRoutineStepSequence(
+          selectedChildId,
+          routine.id,
+          triggerStep.id,
+          progressData,
+        );
+      } else {
+        response = await completeRoutineStepSequence(
+          routine.id,
+          triggerStep.id,
+          progressData,
+        );
+      }
+
+      await loadRoutines({
+        useCache: false,
+      });
+
+      return response;
+    } catch (error) {
+      console.error("Error completando secuencia FloCard:", error);
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "No se pudo guardar",
+        title: "Error al completar la secuencia",
+        message: error.response?.data?.message || "Intenta nuevamente.",
+      });
+
+      throw error;
     } finally {
       setUpdatingStepKey(null);
     }
@@ -1525,6 +1606,7 @@ const Rutinas = () => {
                                 updatingStepKey={updatingStepKey}
                                 isScheduledToday={isScheduledToday}
                                 onToggleStep={handleToggleRoutineStep}
+                                onCompleteStepSequence={handleCompleteRoutineStepSequence}                   
                                 onStartFloCard={handleStartFloCard}
                                 onComplete={handleCompleteRoutine}
                                 onEdit={handleEdit}
@@ -1607,10 +1689,12 @@ const Rutinas = () => {
                           key={routine.id}
                           routine={routine}
                           compact
+                          onCompleteStepSequence={handleCompleteRoutineStepSequence}
                           updatingStepKey={updatingStepKey}
                           isScheduledToday={isScheduledToday}
                           onToggleStep={handleToggleRoutineStep}
                           onStartFloCard={handleStartFloCard}
+                          onCompleteStepSequence={handleCompleteRoutineStepSequence}
                           onComplete={handleCompleteRoutine}
                           onEdit={handleEdit}
                           onDelete={handleDeleteRoutine}

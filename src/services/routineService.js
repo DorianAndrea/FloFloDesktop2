@@ -171,3 +171,33 @@ export const uncompleteChildRoutineStep = async (
 
   return response.data;
 };
+
+export const completeRoutineStepSequence = async (
+  routineId,
+  stepId,
+  data = {},
+) => {
+  const response = await api.post(
+    `/routines/${routineId}/steps/${stepId}/complete-sequence`,
+    data,
+  );
+
+  return response.data;
+};
+
+export const completeChildRoutineStepSequence = async (
+  childId,
+  routineId,
+  stepId,
+  data = {},
+) => {
+  const cleanChildId = validateChildId(childId);
+
+  const response = await api.post(
+    `/routines/children/${cleanChildId}/${routineId}/steps/${stepId}/complete-sequence`,
+    data,
+  );
+
+  return response.data;
+};
+

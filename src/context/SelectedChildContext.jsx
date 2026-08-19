@@ -4,8 +4,14 @@ import { getParentChildrenForSelection } from "../services/selectedChildService"
 
 const SelectedChildContext = createContext(null);
 
-const STORAGE_KEY_ID = "floflo_selected_child_id";
-const LEGACY_STORAGE_KEY = "selectedChild";
+const STORAGE_KEY_PREFIX = "floflo_selected_child_id";
+const LEGACY_STORAGE_KEY_PREFIX = "selectedChild";
+
+const getStorageKeyId = (userId) =>
+  userId ? `${STORAGE_KEY_PREFIX}_${userId}` : STORAGE_KEY_PREFIX;
+
+const getLegacyStorageKey = (userId) =>
+  userId ? `${LEGACY_STORAGE_KEY_PREFIX}_${userId}` : LEGACY_STORAGE_KEY_PREFIX;
 
 const normalizeChild = (child) => {
   const id =
@@ -41,9 +47,9 @@ const normalizeChild = (child) => {
   };
 };
 
-const getStoredLegacyChildId = () => {
+const getStoredLegacyChildId = (userId) => {
   try {
-    const storedChild = localStorage.getItem(LEGACY_STORAGE_KEY);
+    const storedChild = localStorage.getItem(getLegacyStorageKey(userId));
 
     if (!storedChild) return "";
 
@@ -73,18 +79,29 @@ export const SelectedChildProvider = ({ children }) => {
   const [parentChildren, setParentChildren] = useState([]);
   const [selectedChildId, setSelectedChildId] = useState("");
   const [loadingChildren, setLoadingChildren] = useState(false);
+  const [loadedForUserId, setLoadedForUserId] = useState(null);
 
   const isParent = user?.role === "parent";
 
   const selectedChild = useMemo(() => {
-    if (!selectedChildId) return null;
+    if (
+      !selectedChildId ||
+      !user?.id ||
+      Number(loadedForUserId) !== Number(user.id)
+    ) {
+      return null;
+    }
 
     return (
       parentChildren.find(
         (child) => Number(child.id) === Number(selectedChildId),
       ) || null
     );
-  }, [parentChildren, selectedChildId]);
+  }, [parentChildren, selectedChildId, loadedForUserId, user?.id]);
+
+  const safeSelectedChildId = selectedChild
+  ? String(selectedChild.id)
+  : "";
 
   const selectedAccessProfile =
     selectedChild?.access_profile || selectedChild?.accessProfile || null;
@@ -122,9 +139,13 @@ export const SelectedChildProvider = ({ children }) => {
   const syncSelectedChildStorage = (childId, childrenList = parentChildren) => {
     const cleanId = childId ? String(childId) : "";
 
+    const storageKey = getStorageKeyId(user?.id);
+    const legacyStorageKey = getLegacyStorageKey(user?.id);
+
     if (!cleanId) {
-      localStorage.removeItem(STORAGE_KEY_ID);
-      localStorage.removeItem(LEGACY_STORAGE_KEY);
+      localStorage.removeItem(storageKey);
+      localStorage.removeItem(legacyStorageKey);
+
       window.dispatchEvent(new Event("selectedChildChanged"));
       return;
     }
@@ -133,18 +154,24 @@ export const SelectedChildProvider = ({ children }) => {
       (item) => Number(item.id) === Number(cleanId),
     );
 
-    localStorage.setItem(STORAGE_KEY_ID, cleanId);
+    if (!child) {
+      localStorage.removeItem(storageKey);
+      localStorage.removeItem(legacyStorageKey);
 
-    if (child) {
-      localStorage.setItem(
-        LEGACY_STORAGE_KEY,
-        JSON.stringify({
-          ...child,
-          firstName: child.first_name,
-          lastName: child.last_name,
-        }),
-      );
+      window.dispatchEvent(new Event("selectedChildChanged"));
+      return;
     }
+
+    localStorage.setItem(storageKey, cleanId);
+
+    localStorage.setItem(
+      legacyStorageKey,
+      JSON.stringify({
+        ...child,
+        firstName: child.first_name,
+        lastName: child.last_name,
+      }),
+    );
 
     window.dispatchEvent(new Event("selectedChildChanged"));
   };
@@ -159,54 +186,80 @@ export const SelectedChildProvider = ({ children }) => {
   const clearSelectedChild = () => {
     setParentChildren([]);
     setSelectedChildId("");
-    localStorage.removeItem(STORAGE_KEY_ID);
-    localStorage.removeItem(LEGACY_STORAGE_KEY);
+    setLoadedForUserId(null);
+
+    if (user?.id) {
+      localStorage.removeItem(getStorageKeyId(user.id));
+      localStorage.removeItem(getLegacyStorageKey(user.id));
+    }
+
     window.dispatchEvent(new Event("selectedChildChanged"));
   };
 
   const loadParentChildren = async () => {
-    if (!user || user.role !== "parent") {
+    const currentUserId = user?.id;
+
+    if (!currentUserId || user?.role !== "parent") {
       clearSelectedChild();
       return;
     }
 
     try {
+      /*
+       * Muy importante:
+       * invalida inmediatamente cualquier selección
+       * perteneciente al usuario anterior.
+       */
       setLoadingChildren(true);
+      setParentChildren([]);
+      setSelectedChildId("");
+      setLoadedForUserId(null);
 
       const data = await getParentChildrenForSelection();
 
-      const normalizedChildren = data
+      const normalizedChildren = (Array.isArray(data) ? data : [])
         .map(normalizeChild)
         .filter((child) => Number.isFinite(child.id));
 
       setParentChildren(normalizedChildren);
+      setLoadedForUserId(Number(currentUserId));
+
+      const storageKey = getStorageKeyId(currentUserId);
 
       const savedChildId =
-        localStorage.getItem(STORAGE_KEY_ID) || getStoredLegacyChildId();
+        localStorage.getItem(storageKey) ||
+        getStoredLegacyChildId(currentUserId);
 
       const savedChildExists = normalizedChildren.some(
         (child) => Number(child.id) === Number(savedChildId),
       );
 
       if (savedChildExists) {
-        setSelectedChildId(savedChildId);
-        syncSelectedChildStorage(savedChildId, normalizedChildren);
+        setSelectedChildId(String(savedChildId));
+
+        syncSelectedChildStorage(String(savedChildId), normalizedChildren);
+
         return;
       }
 
       if (normalizedChildren.length > 0) {
         const firstChildId = String(normalizedChildren[0].id);
+
         setSelectedChildId(firstChildId);
+
         syncSelectedChildStorage(firstChildId, normalizedChildren);
+
         return;
       }
 
-      setSelectedChildId("");
-      localStorage.removeItem(STORAGE_KEY_ID);
-      localStorage.removeItem(LEGACY_STORAGE_KEY);
+      localStorage.removeItem(storageKey);
+      localStorage.removeItem(getLegacyStorageKey(currentUserId));
     } catch (error) {
       console.error("Error cargando hijos del padre:", error);
-      clearSelectedChild();
+
+      setParentChildren([]);
+      setSelectedChildId("");
+      setLoadedForUserId(null);
     } finally {
       setLoadingChildren(false);
     }
@@ -220,7 +273,7 @@ export const SelectedChildProvider = ({ children }) => {
     isParent,
     parentChildren,
     selectedChild,
-    selectedChildId,
+    selectedChildId: safeSelectedChildId,
     loadingChildren,
 
     selectedAccessProfile,

@@ -44,12 +44,192 @@ const SimpleExperience = ({ pictogramAsset, floCard, step, helperText }) => {
   );
 };
 
+const ChoiceExperience = ({ options = [], helperText, onSelected }) => {
+  const [selectedValue, setSelectedValue] = useState(null);
+
+  const handleSelect = (option) => {
+    setSelectedValue(option.value);
+
+    if (typeof onSelected === "function") {
+      onSelected(option);
+    }
+  };
+
+  return (
+    <>
+      <div className="mx-auto mt-8 grid max-w-lg grid-cols-2 gap-4 sm:grid-cols-3">
+        {options.map((option) => {
+          const pictogramAsset = getFloCardAsset(option.floCardCode);
+
+          const isSelected = selectedValue === option.value;
+
+          return (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => handleSelect(option)}
+              aria-pressed={isSelected}
+              className={`flex min-h-44 flex-col items-center justify-center rounded-3xl border-2 p-4 transition ${
+                isSelected
+                  ? "border-[#7C5CE6] bg-[#F3ECFF] ring-4 ring-[#E4D8FF]"
+                  : "border-[#E4D8FF] bg-white hover:border-[#BCA6F0] hover:bg-[#FAF8FF]"
+              }`}
+            >
+              <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-2xl bg-[#F7F3FF]">
+                {pictogramAsset ? (
+                  <img
+                    src={pictogramAsset}
+                    alt={option.label}
+                    className="h-full w-full object-contain"
+                    draggable={false}
+                  />
+                ) : (
+                  <span className="text-sm font-bold text-[#9B7BE8]">
+                    Sin pictograma
+                  </span>
+                )}
+              </div>
+
+              <span className="mt-3 text-base font-extrabold text-[#4B367C]">
+                {option.label}
+              </span>
+
+              {isSelected && (
+                <span className="mt-2 rounded-full bg-[#7C5CE6] px-3 py-1 text-xs font-black text-white">
+                  ✓ Elegido
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <p className="mt-6 text-sm font-bold text-[#9B7BE8]">{helperText}</p>
+    </>
+  );
+};
+
+const SequenceExperience = ({
+  steps = [],
+  helperText,
+  onFinished,
+  completing = false,
+}) => {
+  const [currentStepIndex, setCurrentStepIndex] = useState(0);
+
+  if (!Array.isArray(steps) || steps.length === 0) {
+    return (
+      <p className="mt-8 font-bold text-[#9B7BE8]">No hay pasos disponibles.</p>
+    );
+  }
+
+  const currentStep = steps[currentStepIndex];
+
+  const pictogramAsset = getFloCardAsset(currentStep.floCardCode);
+
+  const isFirstStep = currentStepIndex === 0;
+  const isLastStep = currentStepIndex === steps.length - 1;
+
+  const progress = ((currentStepIndex + 1) / steps.length) * 100;
+
+  const handleNext = () => {
+    if (isLastStep) {
+      if (typeof onFinished === "function") {
+        onFinished({
+          completed: true,
+          totalSteps: steps.length,
+        });
+      }
+
+      return;
+    }
+
+    setCurrentStepIndex((current) => current + 1);
+  };
+
+  const handlePrevious = () => {
+    if (isFirstStep) {
+      return;
+    }
+
+    setCurrentStepIndex((current) => current - 1);
+  };
+
+  return (
+    <>
+      <div className="mx-auto mt-6 max-w-md">
+        <p className="text-sm font-black uppercase tracking-wide text-[#9B7BE8]">
+          Paso {currentStepIndex + 1} de {steps.length}
+        </p>
+
+        <div className="mt-3 h-3 overflow-hidden rounded-full bg-[#EEE7FA]">
+          <div
+            className="h-full rounded-full bg-[#7C5CE6] transition-all duration-500"
+            style={{
+              width: `${progress}%`,
+            }}
+          />
+        </div>
+      </div>
+
+      <h3 className="mt-6 text-2xl font-black text-[#4B367C]">
+        {currentStep.title}
+      </h3>
+
+      {currentStep.instruction && (
+        <p className="mx-auto mt-2 max-w-md text-base font-medium text-[#756596]">
+          {currentStep.instruction}
+        </p>
+      )}
+
+      <div className="mx-auto mt-6 flex h-64 w-64 items-center justify-center overflow-hidden rounded-[2rem] bg-[#F7F3FF] p-4">
+        {pictogramAsset ? (
+          <img
+            src={pictogramAsset}
+            alt={currentStep.title}
+            className="h-full w-full object-contain"
+            draggable={false}
+          />
+        ) : (
+          <span className="text-sm font-bold text-red-500">
+            FloCard no encontrada
+          </span>
+        )}
+      </div>
+
+      <div className="mx-auto mt-6 flex max-w-md gap-3">
+        {!isFirstStep && (
+          <button
+            type="button"
+            onClick={handlePrevious}
+            className="flex-1 rounded-2xl bg-[#F3ECFF] px-5 py-3 font-extrabold text-[#5F4A8B] transition hover:bg-[#E8DDFF]"
+          >
+            ← Anterior
+          </button>
+        )}
+
+        <button
+          type="button"
+          onClick={handleNext}
+          disabled={completing}
+          className="rounded-2xl bg-[#7C5CE6] px-6 py-3 font-extrabold text-white transition hover:bg-[#6949D8] disabled:cursor-wait disabled:opacity-60"
+        >
+          {completing ? "Guardando..." : isLastStep ? "✓ Listo" : "Siguiente →"}
+        </button>
+      </div>
+
+      <p className="mt-6 text-sm font-bold text-[#9B7BE8]">{helperText}</p>
+    </>
+  );
+};
+
 const TimerExperience = ({
   pictogramAsset,
   floCard,
   step,
   helperText,
   durationSeconds = 30,
+  onFinished,
 }) => {
   const [secondsLeft, setSecondsLeft] = useState(durationSeconds);
   const [started, setStarted] = useState(false);
@@ -60,20 +240,23 @@ const TimerExperience = ({
     }
 
     const timer = window.setInterval(() => {
-      setSecondsLeft((current) => {
-        if (current <= 1) {
-          window.clearInterval(timer);
-          return 0;
-        }
-
-        return current - 1;
-      });
+      setSecondsLeft((current) => Math.max(0, current - 1));
     }, 1000);
 
     return () => {
       window.clearInterval(timer);
     };
   }, [started, secondsLeft]);
+
+  useEffect(() => {
+    if (!started || secondsLeft !== 0) {
+      return;
+    }
+
+    if (typeof onFinished === "function") {
+      onFinished();
+    }
+  }, [started, secondsLeft, onFinished]);
 
   const progress =
     durationSeconds <= 0
@@ -137,21 +320,27 @@ const FloCardExperience = ({
   onComplete,
   completing = false,
 }) => {
+  const [interactionCompleted, setInteractionCompleted] = useState(false);
+  const [interactionResult, setInteractionResult] = useState(null);
+
   if (!floCard?.code || !step) {
     return null;
   }
 
   const pictogramAsset = getFloCardAsset(floCard.code);
   const interaction = getFloCardInteraction(floCard.code);
-
   const interactionType = interaction?.interactionType || "simple";
 
+  const requiresInteractionCompletion = [
+    "timer",
+    "choice",
+    "sequence",
+  ].includes(interactionType);
+  const canComplete = !requiresInteractionCompletion || interactionCompleted;
+
   const experienceTitle = interaction?.title || step.title || floCard.name;
-
   const instruction = interaction?.instruction || step.description || "";
-
   const helperText = interaction?.helperText || "Sigue el pictograma.";
-
   const completionLabel = interaction?.completionLabel || "Listo";
 
   const renderInteraction = () => {
@@ -174,10 +363,36 @@ const FloCardExperience = ({
             step={step}
             helperText={helperText}
             durationSeconds={interaction?.durationSeconds || 30}
+            onFinished={() => setInteractionCompleted(true)}
           />
         );
 
       case "choice":
+        return (
+          <ChoiceExperience
+            options={interaction?.options || []}
+            helperText={helperText}
+            onSelected={(option) => {
+              setInteractionResult({
+                value: option.value,
+                label: option.label,
+                floCardCode: option.floCardCode,
+              });
+
+              setInteractionCompleted(true);
+            }}
+          />
+        );
+        return (
+          <ChoiceExperience
+            options={interaction?.options || []}
+            helperText={helperText}
+            onSelected={(option) => {
+              setInteractionResult(option);
+              setInteractionCompleted(true);
+            }}
+          />
+        );
         return (
           <SimpleExperience
             pictogramAsset={pictogramAsset}
@@ -188,6 +403,31 @@ const FloCardExperience = ({
         );
 
       case "sequence":
+        return (
+          <SequenceExperience
+            steps={interaction?.steps || []}
+            helperText={helperText}
+            completing={completing}
+            onFinished={(result) => {
+              setInteractionResult(result);
+              setInteractionCompleted(true);
+
+              if (typeof onComplete === "function") {
+                onComplete(result);
+              }
+            }}
+          />
+        );
+        return (
+          <SequenceExperience
+            steps={interaction?.steps || []}
+            helperText={helperText}
+            onFinished={(result) => {
+              setInteractionResult(result);
+              setInteractionCompleted(true);
+            }}
+          />
+        );
         return (
           <SimpleExperience
             pictogramAsset={pictogramAsset}
@@ -208,6 +448,12 @@ const FloCardExperience = ({
         );
     }
   };
+  const incompleteButtonLabel =
+    interactionType === "choice"
+      ? "Elige una FloCard"
+      : interactionType === "sequence"
+        ? "Completa todos los pasos"
+        : "⏳ Espera hasta terminar";
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
@@ -238,14 +484,20 @@ const FloCardExperience = ({
 
           {renderInteraction()}
 
-          <button
-            type="button"
-            disabled={completing}
-            onClick={onComplete}
-            className="mt-8 w-full rounded-2xl bg-[#7C5CE6] px-6 py-4 text-lg font-black text-white transition hover:bg-[#6949D8] disabled:cursor-wait disabled:opacity-60"
-          >
-            {completing ? "Guardando..." : `✓ ${completionLabel}`}
-          </button>
+          {interactionType !== "sequence" && (
+            <button
+              type="button"
+              disabled={completing || !canComplete}
+              onClick={() => onComplete(interactionResult)}
+              className="mt-8 w-full rounded-2xl bg-[#7C5CE6] px-6 py-4 text-lg font-black text-white transition hover:bg-[#6949D8] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {completing
+                ? "Guardando..."
+                : !canComplete
+                  ? incompleteButtonLabel
+                  : `✓ ${completionLabel}`}
+            </button>
+          )}
         </div>
       </div>
     </div>

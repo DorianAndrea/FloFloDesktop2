@@ -9,6 +9,7 @@ const RoutineCard = ({
   updatingStepKey,
   isScheduledToday,
   onToggleStep,
+  onCompleteStepSequence,
   onStartFloCard,
   onComplete,
   onEdit,
@@ -71,7 +72,7 @@ const RoutineCard = ({
     setActiveFloCardStepId(null);
   };
 
-  const handleCompleteFloCardExperience = async () => {
+  const handleCompleteFloCardExperience = async (interactionResult = null) => {
     if (!activeFloCardExperience || completingFloCard) {
       return;
     }
@@ -84,7 +85,40 @@ const RoutineCard = ({
     try {
       setCompletingFloCard(true);
 
-      await onToggleStep(activeRoutine, activeStep, selectedSupportLevel);
+      const isSequence =
+        interactionResult?.completed === true &&
+        Number(interactionResult?.totalSteps || 0) > 1;
+
+      if (isSequence && typeof onCompleteStepSequence === "function") {
+        const orderedSteps = Array.isArray(activeRoutine.steps)
+          ? [...activeRoutine.steps].sort(
+              (a, b) => Number(a.position) - Number(b.position),
+            )
+          : [];
+
+        /*
+         * Por ahora la FloCard sequence representa
+         * todos los pasos activos de esta experiencia.
+         */
+        const sequenceStepIds = orderedSteps
+          .map((step) => step.id)
+          .filter(Boolean);
+
+        await onCompleteStepSequence(
+          activeRoutine,
+          activeStep,
+          sequenceStepIds,
+          selectedSupportLevel,
+          interactionResult,
+        );
+      } else {
+        await onToggleStep(
+          activeRoutine,
+          activeStep,
+          selectedSupportLevel,
+          interactionResult,
+        );
+      }
 
       setActiveFloCardExperience(null);
       setActiveFloCardStepId(null);
