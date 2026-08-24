@@ -197,7 +197,7 @@ const Home = () => {
             <p className="text-xl md:text-2xl text-[#6B5A95] leading-relaxed mb-8 max-w-2xl">
               {user?.role === "parent"
                 ? "Desde aquí puedes acompañar, registrar avances y revisar el progreso del niño en FloFlo."
-                : "Estoy aquí para acompañarte a reconocer emociones, practicar conversaciones y seguir rutinas con calma."}
+                : "Cuando entendemos lo que viene, todo se siente más fácil."}
             </p>
 
             <Link

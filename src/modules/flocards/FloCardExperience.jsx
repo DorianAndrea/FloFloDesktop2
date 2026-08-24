@@ -113,9 +113,24 @@ const SequenceExperience = ({
   steps = [],
   helperText,
   onFinished,
+  onStepFinished,
   completing = false,
+  nested = false,
 }) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
+
+  /*
+   * Guarda qué pasos de ESTA secuencia ya fueron realizados.
+   */
+  const [completedStepIndexes, setCompletedStepIndexes] = useState([]);
+
+  /*
+   * Guarda los resultados de secuencias internas.
+   *
+   * Ej:
+   * BRUSH_TEETH_SEQUENCE → 5/5 completados.
+   */
+  const [nestedResults, setNestedResults] = useState({});
 
   if (!Array.isArray(steps) || steps.length === 0) {
     return (
@@ -124,20 +139,73 @@ const SequenceExperience = ({
   }
 
   const currentStep = steps[currentStepIndex];
+  const stepType = currentStep.type || "pictogram";
 
-  const pictogramAsset = getFloCardAsset(currentStep.floCardCode);
+  const isNestedSequence = stepType === "sequence";
+
+  const nestedInteraction = isNestedSequence
+    ? getFloCardInteraction(currentStep.floCardCode)
+    : null;
+
+  const pictogramAsset =
+    stepType === "pictogram" ? getFloCardAsset(currentStep.floCardCode) : null;
+
+  const hasInvalidStepType =
+    stepType !== "pictogram" && stepType !== "sequence";
+
+  const hasInvalidNestedSequence =
+    isNestedSequence && nestedInteraction?.interactionType !== "sequence";
 
   const isFirstStep = currentStepIndex === 0;
   const isLastStep = currentStepIndex === steps.length - 1;
 
   const progress = ((currentStepIndex + 1) / steps.length) * 100;
 
-  const handleNext = () => {
+  const markCurrentStepCompleted = () => {
+    setCompletedStepIndexes((current) => {
+      if (current.includes(currentStepIndex)) {
+        return current;
+      }
+
+      return [...current, currentStepIndex];
+    });
+  };
+
+  const buildFinalResult = ({
+    finalCompletedIndexes = completedStepIndexes,
+    finalNestedResults = nestedResults,
+  } = {}) => {
+    return {
+      completed: true,
+
+      totalSteps: steps.length,
+
+      completedSteps: steps.map((step, index) => ({
+        position: step.position || index + 1,
+        title: step.title,
+        floCardCode: step.floCardCode,
+        completed: finalCompletedIndexes.includes(index),
+      })),
+
+      nestedSequences: finalNestedResults,
+    };
+  };
+
+  const handleNext = async () => {
+    if (typeof onStepFinished === "function") {
+      await onStepFinished({
+        stepIndex: currentStepIndex,
+        step: currentStep,
+        nested: false,
+      });
+    }
+
     if (isLastStep) {
       if (typeof onFinished === "function") {
         onFinished({
           completed: true,
           totalSteps: steps.length,
+          persistedStepByStep: true,
         });
       }
 
@@ -155,22 +223,97 @@ const SequenceExperience = ({
     setCurrentStepIndex((current) => current - 1);
   };
 
+  /*
+   * Termina una sequence interna.
+   *
+   * Ejemplo:
+   *
+   * BRUSH_TEETH_SEQUENCE
+   * 1 Tomar cepillo ✓
+   * 2 Pasta ✓
+   * 3 Cepillar ✓
+   * 4 Enjuagar ✓
+   * 5 Guardar ✓
+   *
+   * ↓
+   *
+   * El paso exterior "Lavarse los dientes"
+   * queda completado.
+   */
+  const handleNestedFinished = async (nestedResult) => {
+    if (typeof onStepFinished === "function") {
+      await onStepFinished({
+        stepIndex: currentStepIndex,
+        step: currentStep,
+        nested: true,
+        nestedResult,
+      });
+    }
+
+    if (isLastStep) {
+      if (typeof onFinished === "function") {
+        onFinished({
+          completed: true,
+          totalSteps: steps.length,
+          persistedStepByStep: true,
+          nestedResult,
+        });
+      }
+
+      return;
+    }
+
+    setCurrentStepIndex((current) => current + 1);
+  };
+
   return (
     <>
-      <div className="mx-auto mt-6 max-w-md">
-        <p className="text-sm font-black uppercase tracking-wide text-[#9B7BE8]">
+      {!nested && (
+        <div className="mx-auto mt-6 max-w-md">
+          <p className="text-sm font-black uppercase tracking-wide text-[#9B7BE8]">
+            Paso {currentStepIndex + 1} de {steps.length}
+          </p>
+
+          <div className="mt-3 h-3 overflow-hidden rounded-full bg-[#EEE7FA]">
+            <div
+              className="h-full rounded-full bg-[#7C5CE6] transition-all duration-500"
+              style={{
+                width: `${progress}%`,
+              }}
+            />
+          </div>
+
+          {/* Estado de los pasos ya realizados */}
+          <div className="mt-4 flex justify-center gap-2">
+            {steps.map((sequenceStep, index) => {
+              const completed = completedStepIndexes.includes(index);
+
+              const active = index === currentStepIndex;
+
+              return (
+                <div
+                  key={`${sequenceStep.floCardCode}-${index}`}
+                  className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-black transition ${
+                    completed
+                      ? "bg-green-500 text-white"
+                      : active
+                        ? "bg-[#7C5CE6] text-white"
+                        : "bg-[#EEE7FA] text-[#756596]"
+                  }`}
+                  title={sequenceStep.title}
+                >
+                  {completed ? "✓" : index + 1}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+      {nested && (
+        <p className="mt-5 text-sm font-black uppercase tracking-wide text-[#9B7BE8]">
           Paso {currentStepIndex + 1} de {steps.length}
         </p>
-
-        <div className="mt-3 h-3 overflow-hidden rounded-full bg-[#EEE7FA]">
-          <div
-            className="h-full rounded-full bg-[#7C5CE6] transition-all duration-500"
-            style={{
-              width: `${progress}%`,
-            }}
-          />
-        </div>
-      </div>
+      )}
 
       <h3 className="mt-6 text-2xl font-black text-[#4B367C]">
         {currentStep.title}
@@ -182,43 +325,88 @@ const SequenceExperience = ({
         </p>
       )}
 
-      <div className="mx-auto mt-6 flex h-64 w-64 items-center justify-center overflow-hidden rounded-[2rem] bg-[#F7F3FF] p-4">
-        {pictogramAsset ? (
-          <img
-            src={pictogramAsset}
-            alt={currentStep.title}
-            className="h-full w-full object-contain"
-            draggable={false}
+      {hasInvalidStepType ? (
+        <div className="mx-auto mt-6 flex min-h-40 max-w-md items-center justify-center rounded-[2rem] border-2 border-red-200 bg-red-50 p-6">
+          <p className="font-bold text-red-600">
+            Tipo de paso no válido: {stepType}
+          </p>
+        </div>
+      ) : hasInvalidNestedSequence ? (
+        <div className="mx-auto mt-6 flex min-h-40 max-w-md items-center justify-center rounded-[2rem] border-2 border-red-200 bg-red-50 p-6">
+          <p className="font-bold text-red-600">
+            La secuencia {currentStep.floCardCode} no está configurada.
+          </p>
+        </div>
+      ) : isNestedSequence ? (
+        <div className="mt-6 rounded-[2rem] border-2 border-[#E4D8FF] bg-[#FCFAFF] px-4 pb-6">
+          <SequenceExperience
+            steps={nestedInteraction.steps || []}
+            helperText={nestedInteraction.helperText || "Avanza paso a paso."}
+            completing={false}
+            nested
+            onFinished={handleNestedFinished}
           />
-        ) : (
-          <span className="text-sm font-bold text-red-500">
-            FloCard no encontrada
-          </span>
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="mx-auto mt-6 flex h-64 w-64 items-center justify-center overflow-hidden rounded-[2rem] bg-[#F7F3FF] p-4">
+          {pictogramAsset ? (
+            <img
+              src={pictogramAsset}
+              alt={currentStep.title}
+              className="h-full w-full object-contain"
+              draggable={false}
+            />
+          ) : (
+            <span className="text-sm font-bold text-red-500">
+              FloCard no encontrada
+            </span>
+          )}
+        </div>
+      )}
+      {!isNestedSequence && (
+        <div className="mx-auto mt-6 flex max-w-md gap-3">
+          {!isFirstStep && (
+            <button
+              type="button"
+              onClick={handlePrevious}
+              className="flex-1 rounded-2xl bg-[#F3ECFF] px-5 py-3 font-extrabold text-[#5F4A8B] transition hover:bg-[#E8DDFF]"
+            >
+              ← Anterior
+            </button>
+          )}
 
-      <div className="mx-auto mt-6 flex max-w-md gap-3">
-        {!isFirstStep && (
+          <button
+            type="button"
+            onClick={handleNext}
+            disabled={
+              completing || hasInvalidStepType || hasInvalidNestedSequence
+            }
+            className="flex-1 rounded-2xl bg-[#7C5CE6] px-6 py-3 font-extrabold text-white transition hover:bg-[#6949D8] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {completing
+              ? "Guardando..."
+              : isLastStep
+                ? "✓ Listo"
+                : "Siguiente →"}
+          </button>
+        </div>
+      )}
+
+      {isNestedSequence && !isFirstStep && (
+        <div className="mx-auto mt-4 max-w-md">
           <button
             type="button"
             onClick={handlePrevious}
-            className="flex-1 rounded-2xl bg-[#F3ECFF] px-5 py-3 font-extrabold text-[#5F4A8B] transition hover:bg-[#E8DDFF]"
+            className="w-full rounded-2xl bg-[#F3ECFF] px-5 py-3 font-extrabold text-[#5F4A8B] transition hover:bg-[#E8DDFF]"
           >
-            ← Anterior
+            ← Volver al paso anterior
           </button>
-        )}
+        </div>
+      )}
 
-        <button
-          type="button"
-          onClick={handleNext}
-          disabled={completing}
-          className="rounded-2xl bg-[#7C5CE6] px-6 py-3 font-extrabold text-white transition hover:bg-[#6949D8] disabled:cursor-wait disabled:opacity-60"
-        >
-          {completing ? "Guardando..." : isLastStep ? "✓ Listo" : "Siguiente →"}
-        </button>
-      </div>
-
-      <p className="mt-6 text-sm font-bold text-[#9B7BE8]">{helperText}</p>
+      {!isNestedSequence && (
+        <p className="mt-6 text-sm font-bold text-[#9B7BE8]">{helperText}</p>
+      )}
     </>
   );
 };
@@ -318,6 +506,7 @@ const FloCardExperience = ({
   step,
   onClose,
   onComplete,
+  onSequenceStepComplete,
   completing = false,
 }) => {
   const [interactionCompleted, setInteractionCompleted] = useState(false);
@@ -330,6 +519,12 @@ const FloCardExperience = ({
   const pictogramAsset = getFloCardAsset(floCard.code);
   const interaction = getFloCardInteraction(floCard.code);
   const interactionType = interaction?.interactionType || "simple";
+
+  console.log("🔎 FLOCARD DEBUG", {
+    floCardCode: floCard.code,
+    interaction,
+    interactionType,
+  });
 
   const requiresInteractionCompletion = [
     "timer",
@@ -383,24 +578,6 @@ const FloCardExperience = ({
             }}
           />
         );
-        return (
-          <ChoiceExperience
-            options={interaction?.options || []}
-            helperText={helperText}
-            onSelected={(option) => {
-              setInteractionResult(option);
-              setInteractionCompleted(true);
-            }}
-          />
-        );
-        return (
-          <SimpleExperience
-            pictogramAsset={pictogramAsset}
-            floCard={floCard}
-            step={step}
-            helperText="Selección interactiva próximamente."
-          />
-        );
 
       case "sequence":
         return (
@@ -408,6 +585,7 @@ const FloCardExperience = ({
             steps={interaction?.steps || []}
             helperText={helperText}
             completing={completing}
+            onStepFinished={onSequenceStepComplete}
             onFinished={(result) => {
               setInteractionResult(result);
               setInteractionCompleted(true);
@@ -422,18 +600,15 @@ const FloCardExperience = ({
           <SequenceExperience
             steps={interaction?.steps || []}
             helperText={helperText}
+            completing={completing}
             onFinished={(result) => {
               setInteractionResult(result);
               setInteractionCompleted(true);
+
+              if (typeof onComplete === "function") {
+                onComplete(result);
+              }
             }}
-          />
-        );
-        return (
-          <SimpleExperience
-            pictogramAsset={pictogramAsset}
-            floCard={floCard}
-            step={step}
-            helperText="Secuencia interactiva próximamente."
           />
         );
 
@@ -475,6 +650,7 @@ const FloCardExperience = ({
           <h2 className="mt-2 text-3xl font-black text-[#4B367C]">
             {experienceTitle}
           </h2>
+
 
           {instruction && (
             <p className="mx-auto mt-3 max-w-md text-lg font-medium text-[#756596]">

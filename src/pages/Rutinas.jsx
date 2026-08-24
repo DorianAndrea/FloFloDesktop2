@@ -164,6 +164,7 @@ const Rutinas = () => {
     useState(null);
 
   const [updatingStepKey, setUpdatingStepKey] = useState(null);
+  const [expandedRoutineId, setExpandedRoutineId] = useState(null);
 
   const { user } = useFloFlo();
 
@@ -237,6 +238,28 @@ const Rutinas = () => {
     () => todayRoutines.filter((routine) => routine.completed_today),
     [todayRoutines],
   );
+  useEffect(() => {
+    if (pendingToday.length === 0) {
+      setExpandedRoutineId(null);
+      return;
+    }
+
+    // Si solo hay una pendiente, la dejamos abierta.
+    if (pendingToday.length === 1) {
+      setExpandedRoutineId(pendingToday[0].id);
+      return;
+    }
+
+    // Si la rutina abierta dejó de estar pendiente,
+    // cerramos el acordeón.
+    const expandedStillPending = pendingToday.some(
+      (routine) => Number(routine.id) === Number(expandedRoutineId),
+    );
+
+    if (!expandedStillPending) {
+      setExpandedRoutineId(null);
+    }
+  }, [pendingToday, expandedRoutineId]);
 
   const loadRoutines = async ({ useCache = true } = {}) => {
     try {
@@ -1602,11 +1625,24 @@ const Rutinas = () => {
                               <RoutineCard
                                 key={routine.id}
                                 routine={routine}
+                                expanded={
+                                  Number(expandedRoutineId) ===
+                                  Number(routine.id)
+                                }
+                                onToggleExpanded={() => {
+                                  setExpandedRoutineId((current) =>
+                                    Number(current) === Number(routine.id)
+                                      ? null
+                                      : routine.id,
+                                  );
+                                }}
                                 showCompleteButton
                                 updatingStepKey={updatingStepKey}
                                 isScheduledToday={isScheduledToday}
                                 onToggleStep={handleToggleRoutineStep}
-                                onCompleteStepSequence={handleCompleteRoutineStepSequence}                   
+                                onCompleteStepSequence={
+                                  handleCompleteRoutineStepSequence
+                                }
                                 onStartFloCard={handleStartFloCard}
                                 onComplete={handleCompleteRoutine}
                                 onEdit={handleEdit}
@@ -1689,12 +1725,16 @@ const Rutinas = () => {
                           key={routine.id}
                           routine={routine}
                           compact
-                          onCompleteStepSequence={handleCompleteRoutineStepSequence}
+                          onCompleteStepSequence={
+                            handleCompleteRoutineStepSequence
+                          }
                           updatingStepKey={updatingStepKey}
                           isScheduledToday={isScheduledToday}
                           onToggleStep={handleToggleRoutineStep}
                           onStartFloCard={handleStartFloCard}
-                          onCompleteStepSequence={handleCompleteRoutineStepSequence}
+                          onCompleteStepSequence={
+                            handleCompleteRoutineStepSequence
+                          }
                           onComplete={handleCompleteRoutine}
                           onEdit={handleEdit}
                           onDelete={handleDeleteRoutine}
