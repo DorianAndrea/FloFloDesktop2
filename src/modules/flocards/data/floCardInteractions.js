@@ -9,28 +9,20 @@ const FLO_CARD_INTERACTIONS = Object.freeze({
 
   WAIT_FOR_TURN_ACTION: {
     interactionType: "timer",
-
     title: "Esperar un turno",
-
     instruction: "Espera tranquilamente hasta que llegue tu turno.",
-
     helperText: "Mira cómo avanza el tiempo mientras esperas.",
-
     completionLabel: "Terminé",
-
     durationSeconds: 20,
   },
+
   IDENTIFY_FEELING_CHOICE: {
     interactionType: "choice",
-
     title: "¿Cómo me siento?",
-
     instruction:
       "Mira las FloCards y elige la que más se parece a cómo te sientes ahora.",
-
     helperText:
       "No hay respuestas buenas o malas. Elige la que mejor te represente.",
-
     completionLabel: "Listo",
 
     options: [
@@ -66,15 +58,12 @@ const FLO_CARD_INTERACTIONS = Object.freeze({
       },
     ],
   },
+
   WASH_HANDS_SEQUENCE: {
     interactionType: "sequence",
-
     title: "Lavarse las manos",
-
     instruction: "Sigue cada paso para lavar tus manos.",
-
     helperText: "Avanza paso a paso siguiendo los pictogramas.",
-
     completionLabel: "Terminé",
 
     steps: [
@@ -115,15 +104,12 @@ const FLO_CARD_INTERACTIONS = Object.freeze({
       },
     ],
   },
+
   BRUSH_TEETH_SEQUENCE: {
     interactionType: "sequence",
-
     title: "Lavarse los dientes",
-
     instruction: "Sigue cada paso para lavarte los dientes.",
-
     helperText: "Avanza paso a paso siguiendo los pictogramas.",
-
     completionLabel: "Terminé",
 
     steps: [
@@ -164,15 +150,12 @@ const FLO_CARD_INTERACTIONS = Object.freeze({
       },
     ],
   },
+
   SLEEP_PREPARATION_SEQUENCE: {
     interactionType: "sequence",
-
     title: "Prepararse para dormir",
-
     instruction: "Sigue cada paso para prepararte para dormir.",
-
     helperText: "Avanza paso a paso siguiendo los pictogramas.",
-
     completionLabel: "Terminé",
 
     steps: [
@@ -183,7 +166,6 @@ const FLO_CARD_INTERACTIONS = Object.freeze({
         instruction: "Es momento de bañarse.",
         floCardCode: "SLEEP_PREPARATION_BATH",
       },
-
       {
         position: 2,
         type: "sequence",
@@ -191,7 +173,6 @@ const FLO_CARD_INTERACTIONS = Object.freeze({
         instruction: "Lava tus dientes antes de dormir.",
         floCardCode: "BRUSH_TEETH_SEQUENCE",
       },
-
       {
         position: 3,
         type: "pictogram",
@@ -199,7 +180,6 @@ const FLO_CARD_INTERACTIONS = Object.freeze({
         instruction: "Ponte tu pijama para dormir.",
         floCardCode: "SLEEP_PREPARATION_PAJAMAS",
       },
-
       {
         position: 4,
         type: "pictogram",
@@ -207,7 +187,6 @@ const FLO_CARD_INTERACTIONS = Object.freeze({
         instruction: "Lee o escucha un cuento tranquilo.",
         floCardCode: "SLEEP_PREPARATION_STORY",
       },
-
       {
         position: 5,
         type: "pictogram",
@@ -217,6 +196,7 @@ const FLO_CARD_INTERACTIONS = Object.freeze({
       },
     ],
   },
+
   DRESSING_SEQUENCE: {
     interactionType: "sequence",
     title: "Vestirse",
@@ -269,58 +249,97 @@ const FLO_CARD_INTERACTIONS = Object.freeze({
       },
     ],
   },
-  PREPARE_FOR_SCHOOL_SEQUENCE: {
-  interactionType: "sequence",
-  title: "Prepararse para ir al colegio",
-  instruction: "Sigue cada paso para prepararte para ir al colegio.",
-  helperText: "Avanza paso a paso siguiendo los pictogramas.",
-  completionLabel: "Terminé",
 
-  steps: [
-    {
-      position: 1,
-      type: "sequence",
-      title: "Vestirse",
-      instruction: "Ponte la ropa o uniforme correspondiente.",
-      floCardCode: "DRESSING_SEQUENCE",
-    },
-    {
-      position: 2,
-      type: "pictogram",
-      title: "Desayunar",
-      instruction: "Realiza tu desayuno habitual.",
-      floCardCode: "PREPARE_SCHOOL_BREAKFAST",
-    },
-    {
-      position: 3,
-      type: "sequence",
-      title: "Lavarse los dientes",
-      instruction: "Realiza el cepillado dental.",
-      floCardCode: "BRUSH_TEETH_SEQUENCE",
-    },
-    {
-      position: 4,
-      type: "pictogram",
-      title: "Revisar la mochila",
-      instruction: "Comprueba que estén los materiales necesarios.",
-      floCardCode: "PREPARE_SCHOOL_BACKPACK",
-    },
-    {
-      position: 5,
-      type: "pictogram",
-      title: "Ponerse el uniforme",
-      instruction: "Prepárate para salir según el clima.",
-      floCardCode: "PREPARE_SCHOOL_OUTERWEAR",
-    },
-    {
-      position: 6,
-      type: "pictogram",
-      title: "Despedirse y salir",
-      instruction: "Inicia el trayecto hacia el colegio.",
-      floCardCode: "PREPARE_SCHOOL_LEAVE",
-    },
-  ],
-},
+  PREPARE_BACKPACK_SEQUENCE: {
+    interactionType: "sequence",
+    title: "Preparar la mochila",
+    instruction: "Sigue cada paso para preparar tu mochila.",
+    helperText: "Avanza paso a paso siguiendo los pictogramas.",
+    completionLabel: "Terminé",
+
+    steps: [
+      {
+        position: 1,
+        type: "pictogram",
+        title: "Preparar la mochila",
+        instruction: "Deja la mochila lista para guardar tus cosas.",
+        floCardCode: "PREPARE_BACKPACK_PREPARE",
+      },
+      {
+        position: 2,
+        type: "pictogram",
+        title: "Guardar el estuche",
+        instruction: "Guarda el estuche dentro de la mochila.",
+        floCardCode: "PREPARE_BACKPACK_PENCIL_CASE",
+      },
+      {
+        position: 3,
+        type: "pictogram",
+        title: "Guardar colación y botella",
+        instruction: "Guarda la colación y la botella.",
+        floCardCode: "PREPARE_BACKPACK_SNACK_BOTTLE",
+      },
+      {
+        position: 4,
+        type: "pictogram",
+        title: "Guardar los materiales",
+        instruction: "Guarda los materiales necesarios.",
+        floCardCode: "PREPARE_BACKPACK_STORE",
+      },
+      {
+        position: 5,
+        type: "pictogram",
+        title: "Cerrar la mochila",
+        instruction: "Cierra la mochila cuando esté lista.",
+        floCardCode: "PREPARE_BACKPACK_CLOSE",
+      },
+    ],
+  },
+  PREPARE_BACKPACK_SEQUENCE: {
+    interactionType: "sequence",
+    title: "Preparar la mochila",
+    instruction: "Sigue cada paso para preparar tu mochila.",
+    helperText: "Avanza paso a paso siguiendo los pictogramas.",
+    completionLabel: "Terminé",
+
+    steps: [
+      {
+        position: 1,
+        type: "pictogram",
+        title: "Revisar qué necesito",
+        instruction: "Revisa qué materiales necesitas para el día.",
+        floCardCode: "PREPARE_BACKPACK_PREPARE",
+      },
+      {
+        position: 2,
+        type: "pictogram",
+        title: "Guardar cuadernos o libros",
+        instruction: "Guarda los cuadernos o libros que necesitas.",
+        floCardCode: "PREPARE_BACKPACK_STORE",
+      },
+      {
+        position: 3,
+        type: "pictogram",
+        title: "Guardar el estuche",
+        instruction: "Guarda el estuche dentro de la mochila.",
+        floCardCode: "PREPARE_BACKPACK_PENCIL_CASE",
+      },
+      {
+        position: 4,
+        type: "pictogram",
+        title: "Guardar colación o botella",
+        instruction: "Guarda la colación o la botella.",
+        floCardCode: "PREPARE_BACKPACK_SNACK_BOTTLE",
+      },
+      {
+        position: 5,
+        type: "pictogram",
+        title: "Cerrar y dejar lista",
+        instruction: "Cierra la mochila y déjala lista.",
+        floCardCode: "PREPARE_BACKPACK_CLOSE",
+      },
+    ],
+  },
 });
 
 export const getFloCardInteraction = (floCardCode) => {

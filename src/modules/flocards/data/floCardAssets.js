@@ -34,6 +34,12 @@ import prepareSchoolBackpack from "../svg/revisar_mochila.svg";
 import prepareSchoolOuterwear from "../svg/zapatos_abrigo.svg";
 import prepareSchoolLeave from "../svg/salir_al_colegio.svg";
 
+import prepareBackpackPrepare from "../svg/preparar.svg";
+import prepareBackpackPencilCase from "../svg/guardando_estuche.svg";
+import prepareBackpackSnackBottle from "../svg/guardando_colacion_botella.svg";
+import prepareBackpackStore from "../svg/guardando.svg";
+import prepareBackpackClose from "../svg/cerrando_mochila.svg";
+
 const FLO_CARD_ASSETS = Object.freeze({
   BRUSH_TEETH_TAKE_BRUSH: brushTeethTakeBrush,
 
@@ -100,8 +106,14 @@ const FLO_CARD_ASSETS = Object.freeze({
   PREPARE_SCHOOL_BACKPACK: prepareSchoolBackpack,
 
   PREPARE_SCHOOL_OUTERWEAR: prepareSchoolOuterwear,
-  
-  PREPARE_SCHOOL_LEAVE: prepareSchoolLeave,
+
+  PREPARE_BACKPACK_SEQUENCE: prepareBackpackPrepare,
+
+  PREPARE_BACKPACK_PREPARE: prepareBackpackPrepare,
+  PREPARE_BACKPACK_PENCIL_CASE: prepareBackpackPencilCase,
+  PREPARE_BACKPACK_SNACK_BOTTLE: prepareBackpackSnackBottle,
+  PREPARE_BACKPACK_STORE: prepareBackpackStore,
+  PREPARE_BACKPACK_CLOSE: prepareBackpackClose,
 });
 
 export const getFloCardAsset = (floCardCode) => {

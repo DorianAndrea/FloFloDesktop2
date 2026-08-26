@@ -165,6 +165,7 @@ const Rutinas = () => {
 
   const [updatingStepKey, setUpdatingStepKey] = useState(null);
   const [expandedRoutineId, setExpandedRoutineId] = useState(null);
+  const [expandedAllRoutineId, setExpandedAllRoutineId] = useState(null);
 
   const { user } = useFloFlo();
 
@@ -1672,7 +1673,9 @@ const Rutinas = () => {
                               <RoutineCard
                                 key={routine.id}
                                 routine={routine}
-                                showCompleteButton
+                                compact
+                                expanded={false}
+                                onToggleExpanded={() => {}}
                                 updatingStepKey={updatingStepKey}
                                 isScheduledToday={isScheduledToday}
                                 onToggleStep={handleToggleRoutineStep}
@@ -1724,10 +1727,16 @@ const Rutinas = () => {
                         <RoutineCard
                           key={routine.id}
                           routine={routine}
-                          compact
-                          onCompleteStepSequence={
-                            handleCompleteRoutineStepSequence
+                          expanded={
+                            Number(expandedAllRoutineId) === Number(routine.id)
                           }
+                          onToggleExpanded={() => {
+                            setExpandedAllRoutineId((current) =>
+                              Number(current) === Number(routine.id)
+                                ? null
+                                : routine.id,
+                            );
+                          }}
                           updatingStepKey={updatingStepKey}
                           isScheduledToday={isScheduledToday}
                           onToggleStep={handleToggleRoutineStep}

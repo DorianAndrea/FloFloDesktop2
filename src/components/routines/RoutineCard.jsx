@@ -140,21 +140,30 @@ const RoutineCard = ({
             )
           : [];
 
-        /*
-         * Por ahora la FloCard sequence representa
-         * todos los pasos activos de esta experiencia.
-         */
         const sequenceStepIds = orderedSteps
           .map((step) => step.id)
           .filter(Boolean);
 
-        await onCompleteStepSequence(
+        const sequenceResponse = await onCompleteStepSequence(
           activeRoutine,
           activeStep,
           sequenceStepIds,
           selectedSupportLevel,
           interactionResult,
         );
+
+        /*
+         * Si el backend confirma que todos los pasos requeridos
+         * quedaron completos, marcamos automáticamente
+         * la rutina completa como realizada.
+         */
+        if (
+          sequenceResponse?.allRequiredStepsCompleted === true &&
+          !activeRoutine.completed_today &&
+          typeof onComplete === "function"
+        ) {
+          await onComplete(activeRoutine);
+        }
       } else {
         await onToggleStep(
           activeRoutine,
@@ -166,6 +175,7 @@ const RoutineCard = ({
 
       setActiveFloCardExperience(null);
       setActiveFloCardStepId(null);
+      setSequencePreviewStepIds([]);
     } finally {
       setCompletingFloCard(false);
     }
