@@ -1,12 +1,12 @@
 import FavoriteButton from "./FavoriteButton";
 import FloCardPictogram from "../../flocards/FloCardPictogram";
 
-const ExperienceTemplateDetail = ({ template, onBack, onUse }) => {
+const ExperienceTemplateDetail = ({ template, onBack, onUse, onStepClick }) => {
   if (!template) return null;
 
   console.log("EXPERIENCIA RECIBIDA:", template);
   console.log("PASOS RECIBIDOS:", template.steps);
-  
+
   const steps = Array.isArray(template.steps) ? template.steps : [];
 
   const formatTime = (value) => (value ? String(value).slice(0, 5) : null);
@@ -133,18 +133,25 @@ const ExperienceTemplateDetail = ({ template, onBack, onUse }) => {
                 {steps.map((step, index) => (
                   <div
                     key={step.id || `${template.id}-${index}`}
-                    className="rounded-3xl border-2 border-[#E8DEFF] bg-white p-4 transition hover:border-[#BFAAF1] hover:shadow-md sm:p-5"
+                    onClick={() => {
+                      console.log("CLICK EN PASO:", step);
+
+                      if (step.flocard && onStepClick) {
+                        onStepClick(step.flocard);
+                      }
+                    }}
+                    className="cursor-pointer rounded-3xl border-2 border-[#E8DEFF] bg-white p-4 transition hover:border-[#BFAAF1] hover:shadow-md sm:p-5"
                   >
                     <div className="flex items-start gap-3">
                       <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#EEE7FA] text-lg font-black text-[#5F4A8B]">
                         {step.position || index + 1}
                       </div>
 
-                        <FloCardPictogram
-                          floCard={step.flocard}
-                          fallbackIcon={step.icon}
-                        />
-                     
+                      <FloCardPictogram
+                        floCard={step.flocard}
+                        fallbackIcon={step.icon}
+                      />
+
                       <div className="min-w-0 flex-1">
                         <h3 className="text-base font-extrabold leading-snug text-[#4B367C] md:text-lg">
                           {step.title}
