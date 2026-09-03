@@ -107,12 +107,18 @@ const FLO_CARD_ASSETS = Object.freeze({
 
   PREPARE_SCHOOL_OUTERWEAR: prepareSchoolOuterwear,
 
+  PREPARE_SCHOOL_LEAVE: prepareSchoolLeave,
+
   PREPARE_BACKPACK_SEQUENCE: prepareBackpackPrepare,
 
   PREPARE_BACKPACK_PREPARE: prepareBackpackPrepare,
+
   PREPARE_BACKPACK_PENCIL_CASE: prepareBackpackPencilCase,
+
   PREPARE_BACKPACK_SNACK_BOTTLE: prepareBackpackSnackBottle,
+
   PREPARE_BACKPACK_STORE: prepareBackpackStore,
+
   PREPARE_BACKPACK_CLOSE: prepareBackpackClose,
 });
 
