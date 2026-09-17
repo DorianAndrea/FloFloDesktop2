@@ -40,6 +40,20 @@ import prepareBackpackSnackBottle from "../svg/guardando_colacion_botella.svg";
 import prepareBackpackStore from "../svg/guardando.svg";
 import prepareBackpackClose from "../svg/cerrando_mochila.svg";
 
+import takeShowerPrepare from "../svg/preparando_ropa.svg";
+import takeShowerEnter from "../svg/meterse_ducha.svg";
+import takeShowerWashBody from "../svg/bañandose.svg";
+import takeShowerWashHair from "../svg/lavarse_pelo.svg";
+import takeShowerDress from "../svg/vistiendose.svg";
+
+import returnFromRecessSignal from "../svg/senal.svg";
+import returnFromRecessWalk from "../svg/caminando.svg";
+import returnFromRecessPrepare from "../svg/prepararse.svg";
+
+import combHairTakeBrush from "../svg/cepillo2.svg";
+import combHairDetangle from "../svg/peinarse.svg";
+import combHairReview from "../svg/espejo.svg";
+
 const FLO_CARD_ASSETS = Object.freeze({
   BRUSH_TEETH_TAKE_BRUSH: brushTeethTakeBrush,
 
@@ -120,6 +134,38 @@ const FLO_CARD_ASSETS = Object.freeze({
   PREPARE_BACKPACK_STORE: prepareBackpackStore,
 
   PREPARE_BACKPACK_CLOSE: prepareBackpackClose,
+
+  TAKE_SHOWER_SEQUENCE: takeShowerPrepare,
+
+  TAKE_SHOWER_PREPARE: takeShowerPrepare,
+
+  TAKE_SHOWER_ENTER: takeShowerEnter,
+
+  TAKE_SHOWER_WASH_BODY: takeShowerWashBody,
+
+  TAKE_SHOWER_WASH_HAIR: takeShowerWashHair,
+
+  TAKE_SHOWER_RINSE: takeShowerWashBody,
+
+  TAKE_SHOWER_DRY_DRESS: takeShowerDress,
+  
+  RETURN_FROM_RECESS_SEQUENCE: returnFromRecessSignal,
+
+  RETURN_FROM_RECESS_SIGNAL: returnFromRecessSignal,
+
+  RETURN_FROM_RECESS_FINISH_ACTIVITY: returnFromRecessWalk,
+
+  RETURN_FROM_RECESS_RETURN_CLASSROOM: returnFromRecessWalk,
+
+  RETURN_FROM_RECESS_PREPARE: returnFromRecessPrepare,
+
+  COMB_HAIR_SEQUENCE: combHairDetangle,
+
+  COMB_HAIR_TAKE_BRUSH: combHairTakeBrush,
+
+  COMB_HAIR_DETANGLE: combHairDetangle,
+  
+  COMB_HAIR_REVIEW: combHairReview,
 });
 
 export const getFloCardAsset = (floCardCode) => {

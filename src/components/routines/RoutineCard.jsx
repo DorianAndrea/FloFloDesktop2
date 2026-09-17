@@ -6,6 +6,7 @@ const RoutineCard = ({
   routine,
   showCompleteButton = false,
   compact = false,
+  isNext = false,
   expanded = true,
   onToggleExpanded = null,
   updatingStepKey,
@@ -201,6 +202,12 @@ const RoutineCard = ({
               <h3 className="min-w-0 truncate text-lg font-extrabold text-[#4B367C]">
                 {routine.name}
               </h3>
+
+              {isNext && !routine.completed_today && (
+                <span className="rounded-full bg-[#EEE7FF] px-3 py-1 text-xs font-extrabold text-[#6F56A6]">
+                  Próxima
+                </span>
+              )}
 
               {!routine.completed_today && isScheduledToday(routine) && (
                 <span className="rounded-full bg-yellow-100 px-2.5 py-1 text-xs font-bold text-yellow-700">

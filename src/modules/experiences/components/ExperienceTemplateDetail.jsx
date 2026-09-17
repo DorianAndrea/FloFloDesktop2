@@ -1,7 +1,13 @@
 import FavoriteButton from "./FavoriteButton";
 import FloCardPictogram from "../../flocards/FloCardPictogram";
 
-const ExperienceTemplateDetail = ({ template, onBack, onUse, onStepClick }) => {
+const ExperienceTemplateDetail = ({
+  template,
+  onBack,
+  onBackToRoutines,
+  onUse,
+  onStepClick,
+}) => {
   if (!template) return null;
 
   console.log("EXPERIENCIA RECIBIDA:", template);
@@ -13,13 +19,23 @@ const ExperienceTemplateDetail = ({ template, onBack, onUse, onStepClick }) => {
 
   return (
     <div className="space-y-4">
-      <button
-        type="button"
-        onClick={onBack}
-        className="rounded-2xl border-2 border-[#DCCCF8] bg-white px-5 py-3 font-extrabold text-[#5F4A8B] transition hover:bg-[#F7F3FF]"
-      >
-        ← Volver a biblioteca
-      </button>
+      <div className="flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={onBack}
+          className="rounded-2xl border-2 border-[#DCCCF8] bg-white px-5 py-3 font-extrabold text-[#5F4A8B] transition hover:bg-[#F7F3FF]"
+        >
+          ← Volver a biblioteca
+        </button>
+
+        <button
+          type="button"
+          onClick={onBackToRoutines}
+          className="rounded-2xl bg-[#6F56A6] px-5 py-3 font-extrabold text-white transition hover:bg-[#5F4A8B]"
+        >
+          ← Volver a rutinas activas
+        </button>
+      </div>
 
       <div className="overflow-hidden rounded-[2rem] bg-white shadow-xl">
         <div

@@ -59,7 +59,9 @@ const ChoiceExperience = ({ options = [], helperText, onSelected }) => {
     <>
       <div className="mx-auto mt-8 grid max-w-lg grid-cols-2 gap-4 sm:grid-cols-3">
         {options.map((option) => {
-          const pictogramAsset = getFloCardAsset(option.floCardCode);
+          const pictogramAsset = option.floCardCode
+            ? getFloCardAsset(option.floCardCode)
+            : null;
 
           const isSelected = selectedValue === option.value;
 
@@ -84,8 +86,8 @@ const ChoiceExperience = ({ options = [], helperText, onSelected }) => {
                     draggable={false}
                   />
                 ) : (
-                  <span className="text-sm font-bold text-[#9B7BE8]">
-                    Sin pictograma
+                  <span className="text-6xl" aria-hidden="true">
+                    {option.icon || "✨"}
                   </span>
                 )}
               </div>
@@ -650,7 +652,6 @@ const FloCardExperience = ({
           <h2 className="mt-2 text-3xl font-black text-[#4B367C]">
             {experienceTitle}
           </h2>
-
 
           {instruction && (
             <p className="mx-auto mt-3 max-w-md text-lg font-medium text-[#756596]">

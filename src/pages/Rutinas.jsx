@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -166,6 +166,7 @@ const Rutinas = () => {
   const [updatingStepKey, setUpdatingStepKey] = useState(null);
   const [expandedRoutineId, setExpandedRoutineId] = useState(null);
   const [expandedAllRoutineId, setExpandedAllRoutineId] = useState(null);
+  const pendingSectionRef = useRef(null);
 
   const { user } = useFloFlo();
 
@@ -230,10 +231,16 @@ const Rutinas = () => {
     ? getChildDisplayName(selectedChild)
     : "el niño/a seleccionado";
 
-  const pendingToday = useMemo(
-    () => todayRoutines.filter((routine) => !routine.completed_today),
-    [todayRoutines],
-  );
+  const pendingToday = useMemo(() => {
+    return todayRoutines
+      .filter((routine) => !routine.completed_today)
+      .sort((a, b) => {
+        const timeA = a.start_time || "23:59";
+        const timeB = b.start_time || "23:59";
+
+        return timeA.localeCompare(timeB);
+      });
+  }, [todayRoutines]);
 
   const completedToday = useMemo(
     () => todayRoutines.filter((routine) => routine.completed_today),
@@ -258,7 +265,7 @@ const Rutinas = () => {
     );
 
     if (!expandedStillPending) {
-      setExpandedRoutineId(null);
+      setExpandedRoutineId(pendingToday[0].id);
     }
   }, [pendingToday, expandedRoutineId]);
 
@@ -1346,12 +1353,21 @@ const Rutinas = () => {
               console.error("Error abriendo experiencia:", error);
             }
           }}
-          onBackToLibrary={() => {
+          onBackToRoutines={() => {
             setEditingId(null);
             setEditingRoutine(null);
             setSelectedExperienceTemplateId(null);
             setSelectedExperienceTemplate(null);
-            setExperienceView("library");
+            setExperienceView(null);
+
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                pendingSectionRef.current?.scrollIntoView({
+                  behavior: "smooth",
+                  block: "start",
+                });
+              });
+            });
           }}
           onCancelEdit={() => {
             setEditingId(null);
@@ -1588,7 +1604,10 @@ const Rutinas = () => {
               )}
 
               <section className="space-y-8">
-                <div className="rounded-[2rem] bg-white p-6 shadow-lg md:p-8">
+                <div
+                  ref={pendingSectionRef}
+                  className="rounded-[2rem] bg-white p-6 shadow-lg md:p-8"
+                >
                   <h2 className="text-3xl font-extrabold text-[#4B367C]">
                     Rutinas de hoy
                   </h2>
@@ -1622,10 +1641,11 @@ const Rutinas = () => {
                           </h3>
 
                           <div className="space-y-4">
-                            {pendingToday.map((routine) => (
+                            {pendingToday.map((routine, index) => (
                               <RoutineCard
                                 key={routine.id}
                                 routine={routine}
+                                isNext={index === 0}
                                 expanded={
                                   Number(expandedRoutineId) ===
                                   Number(routine.id)
