@@ -366,7 +366,7 @@ const SequenceExperience = ({
         </div>
       )}
       {!isNestedSequence && (
-        <div className="mx-auto mt-6 flex max-w-md gap-3">
+        <div className="sticky bottom-0 z-20 mx-auto mt-6 flex max-w-md gap-3 border-t border-[#EEE7FA] bg-white/95 px-1 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur">
           {!isFirstStep && (
             <button
               type="button"
@@ -633,8 +633,8 @@ const FloCardExperience = ({
         : "⏳ Espera hasta terminar";
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4">
-      <div className="relative w-full max-w-xl rounded-[2rem] bg-white p-6 shadow-2xl sm:p-8">
+    <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/40 p-2 sm:items-center sm:p-4">
+  <div className="relative my-2 w-full max-w-xl max-h-[calc(100dvh-1rem)] overflow-y-auto rounded-[2rem] bg-white p-4 shadow-2xl sm:my-0 sm:max-h-[calc(100dvh-2rem)] sm:p-8">
         <button
           type="button"
           onClick={onClose}
