@@ -544,6 +544,90 @@ COMB_HAIR_SEQUENCE: {
     },
   ],
 },
+ASK_FOR_BREAK_SEQUENCE: {
+  interactionType: "sequence",
+  title: "Pedir un descanso",
+  instruction: "Sigue los pasos para pedir y tomar un descanso.",
+  helperText: "Avanza paso a paso y vuelve cuando te sientas preparado/a.",
+  completionLabel: "Terminé",
+
+  steps: [
+    {
+      position: 1,
+      type: "pictogram",
+      title: "Notar que necesito una pausa",
+      instruction: "Observa cómo te sientes y si necesitas descansar.",
+      floCardCode: "ASK_FOR_BREAK_NOTICE",
+    },
+    {
+      position: 2,
+      type: "pictogram",
+      title: "Comunicarlo",
+      instruction: "Cuenta que necesitas tomar un descanso.",
+      floCardCode: "ASK_FOR_BREAK_COMMUNICATE",
+    },
+    {
+      position: 3,
+      type: "pictogram",
+      title: "Ir al lugar acordado",
+      instruction: "Ve al lugar acordado para descansar.",
+      floCardCode: "ASK_FOR_BREAK_GO_TO_PLACE",
+    },
+    {
+      position: 4,
+      type: "pictogram",
+      title: "Tomar el descanso",
+      instruction: "Tómate el tiempo que necesitas para descansar.",
+      floCardCode: "ASK_FOR_BREAK_REST",
+    },
+    {
+      position: 5,
+      type: "pictogram",
+      title: "Revisar si puedo volver",
+      instruction: "Comprueba si te sientes preparado/a para volver.",
+      floCardCode: "ASK_FOR_BREAK_CHECK_RETURN",
+    },
+  ],
+},
+
+ASK_FOR_HELP_SEQUENCE: {
+  interactionType: "sequence",
+  title: "Pedir ayuda",
+  instruction: "Sigue los pasos para pedir ayuda cuando la necesites.",
+  helperText: "Avanza paso a paso siguiendo los pictogramas.",
+  completionLabel: "Terminé",
+
+  steps: [
+    {
+      position: 1,
+      type: "pictogram",
+      title: "Identificar una dificultad",
+      instruction: "Piensa qué es lo que te está costando o necesitas resolver.",
+      floCardCode: "ASK_FOR_HELP_IDENTIFY_DIFFICULTY",
+    },
+    {
+      position: 2,
+      type: "pictogram",
+      title: "Elegir a quién pedir ayuda",
+      instruction: "Piensa en una persona de confianza que pueda ayudarte.",
+      floCardCode: "ASK_FOR_HELP_CHOOSE_PERSON",
+    },
+    {
+      position: 3,
+      type: "pictogram",
+      title: "Comunicar que necesito ayuda",
+      instruction: "Dile o muéstrale a esa persona que necesitas ayuda.",
+      floCardCode: "ASK_FOR_HELP_COMMUNICATE",
+    },
+    {
+      position: 4,
+      type: "pictogram",
+      title: "Mostrar o explicar",
+      instruction: "Muestra o explica qué necesitas que te ayuden a resolver.",
+      floCardCode: "ASK_FOR_HELP_SHOW_EXPLAIN",
+    },
+  ],
+},
 });
 
 export const getFloCardInteraction = (floCardCode) => {

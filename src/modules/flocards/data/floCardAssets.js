@@ -54,6 +54,17 @@ import combHairTakeBrush from "../svg/cepillo2.svg";
 import combHairDetangle from "../svg/peinarse.svg";
 import combHairReview from "../svg/espejo.svg";
 
+import askForBreakNotice from "../svg/pedir_pausa.svg";
+import askForBreakCommunicate from "../svg/comunicando.svg";
+import askForBreakGoToPlace from "../svg/lugar_tranquilo.svg";
+import askForBreakRest from "../svg/respirando.svg";
+import askForBreakCheckReturn from "../svg/revisando.svg";
+
+import askForHelpIdentifyDifficulty from "../svg/identificar_dificultad.svg";
+import askForHelpChoosePerson from "../svg/elegir.svg";
+import askForHelpCommunicate from "../svg/como_siento.svg";
+import askForHelpShowExplain from "../svg/mostrar_emociones.svg";
+
 const FLO_CARD_ASSETS = Object.freeze({
   BRUSH_TEETH_TAKE_BRUSH: brushTeethTakeBrush,
 
@@ -148,7 +159,7 @@ const FLO_CARD_ASSETS = Object.freeze({
   TAKE_SHOWER_RINSE: takeShowerWashBody,
 
   TAKE_SHOWER_DRY_DRESS: takeShowerDress,
-  
+
   RETURN_FROM_RECESS_SEQUENCE: returnFromRecessSignal,
 
   RETURN_FROM_RECESS_SIGNAL: returnFromRecessSignal,
@@ -164,8 +175,30 @@ const FLO_CARD_ASSETS = Object.freeze({
   COMB_HAIR_TAKE_BRUSH: combHairTakeBrush,
 
   COMB_HAIR_DETANGLE: combHairDetangle,
-  
+
   COMB_HAIR_REVIEW: combHairReview,
+
+  ASK_FOR_BREAK_SEQUENCE: askForBreakNotice,
+
+  ASK_FOR_BREAK_NOTICE: askForBreakNotice,
+
+  ASK_FOR_BREAK_COMMUNICATE: askForBreakCommunicate,
+
+  ASK_FOR_BREAK_GO_TO_PLACE: askForBreakGoToPlace,
+
+  ASK_FOR_BREAK_REST: askForBreakRest,
+
+  ASK_FOR_BREAK_CHECK_RETURN: askForBreakCheckReturn,
+
+  ASK_FOR_HELP_SEQUENCE: askForHelpIdentifyDifficulty,
+ 
+  ASK_FOR_HELP_IDENTIFY_DIFFICULTY: askForHelpIdentifyDifficulty,
+  
+  ASK_FOR_HELP_CHOOSE_PERSON: askForHelpChoosePerson,
+  
+  ASK_FOR_HELP_COMMUNICATE: askForHelpCommunicate,
+  
+  ASK_FOR_HELP_SHOW_EXPLAIN: askForHelpShowExplain,
 });
 
 export const getFloCardAsset = (floCardCode) => {
