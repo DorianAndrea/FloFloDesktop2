@@ -96,42 +96,41 @@ const FLO_CARD_INTERACTIONS = Object.freeze({
     ],
   },
   REQUEST_NEED_CHOICE: {
-  interactionType: "choice",
-  title: "¿Necesito pedir algo?",
-  instruction:
-    "Elige lo que necesitas en este momento.",
-  helperText:
-    "Puedes pedir lo que necesites o elegir que no necesitas nada ahora.",
-  completionLabel: "Listo",
+    interactionType: "choice",
+    title: "¿Necesito pedir algo?",
+    instruction: "Elige lo que necesitas en este momento.",
+    helperText:
+      "Puedes pedir lo que necesites o elegir que no necesitas nada ahora.",
+    completionLabel: "Listo",
 
-  options: [
-    {
-      value: "space",
-      label: "Necesito espacio",
-      icon: "↔️",
-    },
-    {
-      value: "support",
-      label: "Necesito apoyo",
-      icon: "🤝",
-    },
-    {
-      value: "company",
-      label: "Quiero compañía",
-      icon: "🫂",
-    },
-    {
-      value: "other",
-      label: "Necesito otra cosa",
-      icon: "💭",
-    },
-    {
-      value: "nothing",
-      label: "No necesito nada ahora",
-      icon: "👍",
-    },
-  ],
-},
+    options: [
+      {
+        value: "space",
+        label: "Necesito espacio",
+        icon: "↔️",
+      },
+      {
+        value: "support",
+        label: "Necesito apoyo",
+        icon: "🤝",
+      },
+      {
+        value: "company",
+        label: "Quiero compañía",
+        icon: "🫂",
+      },
+      {
+        value: "other",
+        label: "Necesito otra cosa",
+        icon: "💭",
+      },
+      {
+        value: "nothing",
+        label: "No necesito nada ahora",
+        icon: "👍",
+      },
+    ],
+  },
 
   WASH_HANDS_SEQUENCE: {
     interactionType: "sequence",
@@ -474,160 +473,327 @@ const FLO_CARD_INTERACTIONS = Object.freeze({
     ],
   },
   RETURN_FROM_RECESS_SEQUENCE: {
-  interactionType: "sequence",
-  title: "Volver a clases después del recreo",
-  instruction:
-    "Sigue cada paso para terminar el recreo y volver a la sala.",
-  helperText:
-    "Avanza paso a paso siguiendo los pictogramas.",
-  completionLabel: "Terminé",
+    interactionType: "sequence",
+    title: "Volver a clases después del recreo",
+    instruction: "Sigue cada paso para terminar el recreo y volver a la sala.",
+    helperText: "Avanza paso a paso siguiendo los pictogramas.",
+    completionLabel: "Terminé",
 
-  steps: [
-    {
-      position: 1,
-      type: "pictogram",
-      title: "Escuchar o mirar la señal",
-      instruction: "Identifica que el recreo terminó.",
-      floCardCode: "RETURN_FROM_RECESS_SIGNAL",
-    },
-    {
-      position: 2,
-      type: "pictogram",
-      title: "Terminar la actividad actual",
-      instruction: "Termina el juego o actividad que estabas realizando.",
-      floCardCode: "RETURN_FROM_RECESS_FINISH_ACTIVITY",
-    },
-    {
-      position: 3,
-      type: "pictogram",
-      title: "Volver a la sala",
-      instruction: "Camina hacia la sala o espacio indicado.",
-      floCardCode: "RETURN_FROM_RECESS_RETURN_CLASSROOM",
-    },
-    {
-      position: 4,
-      type: "pictogram",
-      title: "Prepararse para continuar",
-      instruction: "Revisa qué actividad viene ahora.",
-      floCardCode: "RETURN_FROM_RECESS_PREPARE",
-    },
-  ],
-},
-COMB_HAIR_SEQUENCE: {
-  interactionType: "sequence",
-  title: "Peinarse",
-  instruction: "Sigue cada paso para peinarte.",
-  helperText: "Avanza paso a paso siguiendo los pictogramas.",
-  completionLabel: "Terminé",
+    steps: [
+      {
+        position: 1,
+        type: "pictogram",
+        title: "Escuchar o mirar la señal",
+        instruction: "Identifica que el recreo terminó.",
+        floCardCode: "RETURN_FROM_RECESS_SIGNAL",
+      },
+      {
+        position: 2,
+        type: "pictogram",
+        title: "Terminar la actividad actual",
+        instruction: "Termina el juego o actividad que estabas realizando.",
+        floCardCode: "RETURN_FROM_RECESS_FINISH_ACTIVITY",
+      },
+      {
+        position: 3,
+        type: "pictogram",
+        title: "Volver a la sala",
+        instruction: "Camina hacia la sala o espacio indicado.",
+        floCardCode: "RETURN_FROM_RECESS_RETURN_CLASSROOM",
+      },
+      {
+        position: 4,
+        type: "pictogram",
+        title: "Prepararse para continuar",
+        instruction: "Revisa qué actividad viene ahora.",
+        floCardCode: "RETURN_FROM_RECESS_PREPARE",
+      },
+    ],
+  },
+  COMB_HAIR_SEQUENCE: {
+    interactionType: "sequence",
+    title: "Peinarse",
+    instruction: "Sigue cada paso para peinarte.",
+    helperText: "Avanza paso a paso siguiendo los pictogramas.",
+    completionLabel: "Terminé",
 
-  steps: [
-    {
-      position: 1,
-      type: "pictogram",
-      title: "Tomar el cepillo o peine",
-      instruction: "Prepara el elemento que usas habitualmente.",
-      floCardCode: "COMB_HAIR_TAKE_BRUSH",
-    },
-    {
-      position: 2,
-      type: "pictogram",
-      title: "Desenredar",
-      instruction: "Peina con la estrategia habitual y tolerable.",
-      floCardCode: "COMB_HAIR_DETANGLE",
-    },
-    {
-      position: 3,
-      type: "pictogram",
-      title: "Revisar",
-      instruction: "Comprueba si tu cabello quedó cómodo.",
-      floCardCode: "COMB_HAIR_REVIEW",
-    },
-  ],
-},
-ASK_FOR_BREAK_SEQUENCE: {
-  interactionType: "sequence",
-  title: "Pedir un descanso",
-  instruction: "Sigue los pasos para pedir y tomar un descanso.",
-  helperText: "Avanza paso a paso y vuelve cuando te sientas preparado/a.",
-  completionLabel: "Terminé",
+    steps: [
+      {
+        position: 1,
+        type: "pictogram",
+        title: "Tomar el cepillo o peine",
+        instruction: "Prepara el elemento que usas habitualmente.",
+        floCardCode: "COMB_HAIR_TAKE_BRUSH",
+      },
+      {
+        position: 2,
+        type: "pictogram",
+        title: "Desenredar",
+        instruction: "Peina con la estrategia habitual y tolerable.",
+        floCardCode: "COMB_HAIR_DETANGLE",
+      },
+      {
+        position: 3,
+        type: "pictogram",
+        title: "Revisar",
+        instruction: "Comprueba si tu cabello quedó cómodo.",
+        floCardCode: "COMB_HAIR_REVIEW",
+      },
+    ],
+  },
+  ASK_FOR_BREAK_SEQUENCE: {
+    interactionType: "sequence",
+    title: "Pedir un descanso",
+    instruction: "Sigue los pasos para pedir y tomar un descanso.",
+    helperText: "Avanza paso a paso y vuelve cuando te sientas preparado/a.",
+    completionLabel: "Terminé",
 
-  steps: [
-    {
-      position: 1,
-      type: "pictogram",
-      title: "Notar que necesito una pausa",
-      instruction: "Observa cómo te sientes y si necesitas descansar.",
-      floCardCode: "ASK_FOR_BREAK_NOTICE",
-    },
-    {
-      position: 2,
-      type: "pictogram",
-      title: "Comunicarlo",
-      instruction: "Cuenta que necesitas tomar un descanso.",
-      floCardCode: "ASK_FOR_BREAK_COMMUNICATE",
-    },
-    {
-      position: 3,
-      type: "pictogram",
-      title: "Ir al lugar acordado",
-      instruction: "Ve al lugar acordado para descansar.",
-      floCardCode: "ASK_FOR_BREAK_GO_TO_PLACE",
-    },
-    {
-      position: 4,
-      type: "pictogram",
-      title: "Tomar el descanso",
-      instruction: "Tómate el tiempo que necesitas para descansar.",
-      floCardCode: "ASK_FOR_BREAK_REST",
-    },
-    {
-      position: 5,
-      type: "pictogram",
-      title: "Revisar si puedo volver",
-      instruction: "Comprueba si te sientes preparado/a para volver.",
-      floCardCode: "ASK_FOR_BREAK_CHECK_RETURN",
-    },
-  ],
-},
+    steps: [
+      {
+        position: 1,
+        type: "pictogram",
+        title: "Notar que necesito una pausa",
+        instruction: "Observa cómo te sientes y si necesitas descansar.",
+        floCardCode: "ASK_FOR_BREAK_NOTICE",
+      },
+      {
+        position: 2,
+        type: "pictogram",
+        title: "Comunicarlo",
+        instruction: "Cuenta que necesitas tomar un descanso.",
+        floCardCode: "ASK_FOR_BREAK_COMMUNICATE",
+      },
+      {
+        position: 3,
+        type: "pictogram",
+        title: "Ir al lugar acordado",
+        instruction: "Ve al lugar acordado para descansar.",
+        floCardCode: "ASK_FOR_BREAK_GO_TO_PLACE",
+      },
+      {
+        position: 4,
+        type: "pictogram",
+        title: "Tomar el descanso",
+        instruction: "Tómate el tiempo que necesitas para descansar.",
+        floCardCode: "ASK_FOR_BREAK_REST",
+      },
+      {
+        position: 5,
+        type: "pictogram",
+        title: "Revisar si puedo volver",
+        instruction: "Comprueba si te sientes preparado/a para volver.",
+        floCardCode: "ASK_FOR_BREAK_CHECK_RETURN",
+      },
+    ],
+  },
 
-ASK_FOR_HELP_SEQUENCE: {
-  interactionType: "sequence",
-  title: "Pedir ayuda",
-  instruction: "Sigue los pasos para pedir ayuda cuando la necesites.",
-  helperText: "Avanza paso a paso siguiendo los pictogramas.",
-  completionLabel: "Terminé",
+  ASK_FOR_HELP_SEQUENCE: {
+    interactionType: "sequence",
+    title: "Pedir ayuda",
+    instruction: "Sigue los pasos para pedir ayuda cuando la necesites.",
+    helperText: "Avanza paso a paso siguiendo los pictogramas.",
+    completionLabel: "Terminé",
 
-  steps: [
-    {
-      position: 1,
-      type: "pictogram",
-      title: "Identificar una dificultad",
-      instruction: "Piensa qué es lo que te está costando o necesitas resolver.",
-      floCardCode: "ASK_FOR_HELP_IDENTIFY_DIFFICULTY",
-    },
-    {
-      position: 2,
-      type: "pictogram",
-      title: "Elegir a quién pedir ayuda",
-      instruction: "Piensa en una persona de confianza que pueda ayudarte.",
-      floCardCode: "ASK_FOR_HELP_CHOOSE_PERSON",
-    },
-    {
-      position: 3,
-      type: "pictogram",
-      title: "Comunicar que necesito ayuda",
-      instruction: "Dile o muéstrale a esa persona que necesitas ayuda.",
-      floCardCode: "ASK_FOR_HELP_COMMUNICATE",
-    },
-    {
-      position: 4,
-      type: "pictogram",
-      title: "Mostrar o explicar",
-      instruction: "Muestra o explica qué necesitas que te ayuden a resolver.",
-      floCardCode: "ASK_FOR_HELP_SHOW_EXPLAIN",
-    },
-  ],
-},
+    steps: [
+      {
+        position: 1,
+        type: "pictogram",
+        title: "Identificar una dificultad",
+        instruction:
+          "Piensa qué es lo que te está costando o necesitas resolver.",
+        floCardCode: "ASK_FOR_HELP_IDENTIFY_DIFFICULTY",
+      },
+      {
+        position: 2,
+        type: "pictogram",
+        title: "Elegir a quién pedir ayuda",
+        instruction: "Piensa en una persona de confianza que pueda ayudarte.",
+        floCardCode: "ASK_FOR_HELP_CHOOSE_PERSON",
+      },
+      {
+        position: 3,
+        type: "pictogram",
+        title: "Comunicar que necesito ayuda",
+        instruction: "Dile o muéstrale a esa persona que necesitas ayuda.",
+        floCardCode: "ASK_FOR_HELP_COMMUNICATE",
+      },
+      {
+        position: 4,
+        type: "pictogram",
+        title: "Mostrar o explicar",
+        instruction:
+          "Muestra o explica qué necesitas que te ayuden a resolver.",
+        floCardCode: "ASK_FOR_HELP_SHOW_EXPLAIN",
+      },
+    ],
+  },
+  USE_TOILET_SEQUENCE: {
+    interactionType: "sequence",
+    title: "Ir al baño",
+    instruction: "Sigue cada paso para ir al baño.",
+    helperText: "Avanza paso a paso siguiendo los pictogramas.",
+    completionLabel: "Terminé",
+
+    steps: [
+      {
+        position: 1,
+        type: "pictogram",
+        title: "Ir al baño",
+        instruction: "Ve al baño cuando lo necesites.",
+        floCardCode: "USE_TOILET_GO",
+      },
+      {
+        position: 2,
+        type: "pictogram",
+        title: "Bajar la ropa necesaria",
+        instruction: "Baja la ropa necesaria para usar el inodoro.",
+        floCardCode: "USE_TOILET_LOWER_CLOTHES",
+      },
+      {
+        position: 3,
+        type: "pictogram",
+        title: "Usar el inodoro",
+        instruction: "Siéntate y usa el inodoro.",
+        floCardCode: "USE_TOILET_USE",
+      },
+      {
+        position: 4,
+        type: "pictogram",
+        title: "Limpiarse",
+        instruction: "Límpiate cuando termines.",
+        floCardCode: "USE_TOILET_CLEAN",
+      },
+      {
+        position: 5,
+        type: "pictogram",
+        title: "Subir la ropa",
+        instruction: "Sube y acomoda tu ropa.",
+        floCardCode: "USE_TOILET_PULL_UP_CLOTHES",
+      },
+      {
+        position: 6,
+        type: "pictogram",
+        title: "Lavarse las manos",
+        instruction: "Lava tus manos antes de salir del baño.",
+        floCardCode: "USE_TOILET_WASH_HANDS",
+      },
+    ],
+  },
+  EAT_WITH_UTENSILS_SEQUENCE: {
+    interactionType: "sequence",
+    title: "Comer con cubiertos",
+    instruction: "Sigue cada paso para comer usando tus cubiertos.",
+    helperText: "Avanza paso a paso siguiendo los pictogramas.",
+    completionLabel: "Terminé",
+
+    steps: [
+      {
+        position: 1,
+        type: "pictogram",
+        title: "Preparar cubiertos",
+        instruction: "Identifica y prepara los cubiertos que vas a usar.",
+        floCardCode: "EAT_WITH_UTENSILS_PREPARE",
+      },
+      {
+        position: 2,
+        type: "pictogram",
+        title: "Tomar una porción",
+        instruction: "Toma una porción de comida con el cubierto.",
+        floCardCode: "EAT_WITH_UTENSILS_TAKE_PORTION",
+      },
+      {
+        position: 3,
+        type: "pictogram",
+        title: "Comer a ritmo propio",
+        instruction: "Come tranquilamente a tu propio ritmo.",
+        floCardCode: "EAT_WITH_UTENSILS_EAT",
+      },
+      {
+        position: 4,
+        type: "pictogram",
+        title: "Dejar cubiertos al terminar",
+        instruction:
+          "Cuando termines, deja los cubiertos en el plato o lugar correspondiente.",
+        floCardCode: "EAT_WITH_UTENSILS_FINISH",
+      },
+    ],
+  },
+  PUT_AWAY_TOYS_SEQUENCE: {
+    interactionType: "sequence",
+    title: "Guardar juguetes",
+    instruction: "Sigue cada paso para guardar tus juguetes.",
+    helperText: "Avanza paso a paso siguiendo los pictogramas.",
+    completionLabel: "Terminé",
+
+    steps: [
+      {
+        position: 1,
+        type: "pictogram",
+        title: "Juntar los juguetes",
+        instruction: "Reúne los juguetes que están fuera de su lugar.",
+        floCardCode: "PUT_AWAY_TOYS_GATHER",
+      },
+      {
+        position: 2,
+        type: "pictogram",
+        title: "Separar por lugar",
+        instruction: "Ordena los juguetes según dónde corresponde guardarlos.",
+        floCardCode: "PUT_AWAY_TOYS_SORT",
+      },
+      {
+        position: 3,
+        type: "pictogram",
+        title: "Guardar",
+        instruction: "Guarda cada juguete en su lugar.",
+        floCardCode: "PUT_AWAY_TOYS_STORE",
+      },
+    ],
+  },
+  ORGANIZE_BEDROOM_SEQUENCE: {
+    interactionType: "sequence",
+    title: "Ordenar la habitación",
+    instruction: "Sigue cada paso para ordenar tu habitación.",
+    helperText: "Avanza paso a paso siguiendo los pictogramas.",
+    completionLabel: "Terminé",
+
+    steps: [
+      {
+        position: 1,
+        type: "pictogram",
+        title: "Recoger ropa",
+        instruction: "Recoge la ropa que está fuera de su lugar.",
+        floCardCode: "ORGANIZE_BEDROOM_CLOTHES",
+      },
+      {
+        position: 2,
+        type: "pictogram",
+        title: "Guardar juguetes",
+        instruction: "Ordena y guarda los juguetes en su lugar.",
+        floCardCode: "ORGANIZE_BEDROOM_TOYS",
+      },
+      {
+        position: 3,
+        type: "pictogram",
+        title: "Ordenar superficies",
+        instruction: "Ordena los objetos que están sobre las superficies.",
+        floCardCode: "ORGANIZE_BEDROOM_SURFACES",
+      },
+      {
+        position: 4,
+        type: "pictogram",
+        title: "Arreglar la cama",
+        instruction: "Ordena y deja lista tu cama.",
+        floCardCode: "ORGANIZE_BEDROOM_BED",
+      },
+      {
+        position: 5,
+        type: "pictogram",
+        title: "Revisar",
+        instruction: "Mira tu habitación y revisa si todo quedó en su lugar.",
+        floCardCode: "ORGANIZE_BEDROOM_REVIEW",
+      },
+    ],
+  },
 });
 
 export const getFloCardInteraction = (floCardCode) => {

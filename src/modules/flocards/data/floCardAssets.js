@@ -65,6 +65,28 @@ import askForHelpChoosePerson from "../svg/elegir.svg";
 import askForHelpCommunicate from "../svg/como_siento.svg";
 import askForHelpShowExplain from "../svg/mostrar_emociones.svg";
 
+import useToiletGo from "../svg/yendo_al_bano.svg";
+import useToiletLowerClothes from "../svg/bajar_ropa.svg";
+import useToiletUse from "../svg/sentado_bano.svg";
+import useToiletClean from "../svg/limpiandose.svg";
+import useToiletPullUpClothes from "../svg/subiendose_pantalones.svg";
+import useToiletWashHands from "../svg/lavandose_manos.svg";
+
+import eatWithUtensilsPrepare from "../svg/identificando_cubiertos.svg";
+import eatWithUtensilsTakePortion from "../svg/tomando_porcion.svg";
+import eatWithUtensilsEat from "../svg/comiendo.svg";
+import eatWithUtensilsFinish from "../svg/dejando_cubiertos.svg";
+
+import putAwayToysGather from "../svg/juntar_juguetes.svg";
+import putAwayToysSort from "../svg/ordenando.svg";
+import putAwayToysStore from "../svg/guardando_juguetes.svg";
+
+import organizeBedroomClothes from "../svg/guardar_ropa.svg";
+import organizeBedroomToys from "../svg/ordenar_juguetes.svg";
+import organizeBedroomSurfaces from "../svg/ordenar_superficies.svg";
+import organizeBedroomBed from "../svg/ordenar_cama.svg";
+import organizeBedroomReview from "../svg/revisando_dormitorio.svg";
+
 const FLO_CARD_ASSETS = Object.freeze({
   BRUSH_TEETH_TAKE_BRUSH: brushTeethTakeBrush,
 
@@ -191,14 +213,58 @@ const FLO_CARD_ASSETS = Object.freeze({
   ASK_FOR_BREAK_CHECK_RETURN: askForBreakCheckReturn,
 
   ASK_FOR_HELP_SEQUENCE: askForHelpIdentifyDifficulty,
- 
+
   ASK_FOR_HELP_IDENTIFY_DIFFICULTY: askForHelpIdentifyDifficulty,
-  
+
   ASK_FOR_HELP_CHOOSE_PERSON: askForHelpChoosePerson,
-  
+
   ASK_FOR_HELP_COMMUNICATE: askForHelpCommunicate,
-  
+
   ASK_FOR_HELP_SHOW_EXPLAIN: askForHelpShowExplain,
+
+  USE_TOILET_SEQUENCE: useToiletGo,
+
+  USE_TOILET_GO: useToiletGo,
+
+  USE_TOILET_LOWER_CLOTHES: useToiletLowerClothes,
+
+  USE_TOILET_USE: useToiletUse,
+
+  USE_TOILET_CLEAN: useToiletClean,
+
+  USE_TOILET_PULL_UP_CLOTHES: useToiletPullUpClothes,
+
+  USE_TOILET_WASH_HANDS: useToiletWashHands,
+
+  EAT_WITH_UTENSILS_SEQUENCE: eatWithUtensilsPrepare,
+
+  EAT_WITH_UTENSILS_PREPARE: eatWithUtensilsPrepare,
+
+  EAT_WITH_UTENSILS_TAKE_PORTION: eatWithUtensilsTakePortion,
+
+  EAT_WITH_UTENSILS_EAT: eatWithUtensilsEat,
+
+  EAT_WITH_UTENSILS_FINISH: eatWithUtensilsFinish,
+
+  PUT_AWAY_TOYS_SEQUENCE: putAwayToysGather,
+
+  PUT_AWAY_TOYS_GATHER: putAwayToysGather,
+
+  PUT_AWAY_TOYS_SORT: putAwayToysSort,
+
+  PUT_AWAY_TOYS_STORE: putAwayToysStore,
+
+  ORGANIZE_BEDROOM_SEQUENCE: organizeBedroomClothes,
+
+  ORGANIZE_BEDROOM_CLOTHES: organizeBedroomClothes,
+
+  ORGANIZE_BEDROOM_TOYS: organizeBedroomToys,
+
+  ORGANIZE_BEDROOM_SURFACES: organizeBedroomSurfaces,
+
+  ORGANIZE_BEDROOM_BED: organizeBedroomBed,
+
+  ORGANIZE_BEDROOM_REVIEW: organizeBedroomReview,
 });
 
 export const getFloCardAsset = (floCardCode) => {
