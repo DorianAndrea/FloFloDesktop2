@@ -227,18 +227,18 @@ const Navbar = () => {
                 )}
               </div>
 
-              {isParent && (
+              {isParentMode && (
                 <NavLink
-                  to="/mi-familia"
+                  to="/equipo-floflo"
                   className={({ isActive }) =>
                     `font-semibold px-4 py-2 rounded-full transition ${
                       isActive
-                        ? "bg-[#FFF3C4] text-[#6B5A00] border border-[#E8D785]"
-                        : "bg-[#FFF9DF] text-[#6B5A00] border border-[#E8D785] hover:bg-[#FFF3C4]"
+                        ? "bg-[#E8DDFF] text-[#6B4FC3] border border-[#CDBBFF]"
+                        : "bg-[#F3ECFF] text-[#6B4FC3] border border-[#D6C7FF] hover:bg-[#E8DDFF]"
                     }`
                   }
                 >
-                  Mi familia
+                  Equipo FloFlo
                 </NavLink>
               )}
 
@@ -402,6 +402,16 @@ const Navbar = () => {
                     className="bg-[#FFF9DF] text-[#6B5A00] border border-[#E8D785] font-bold px-4 py-3 rounded-full w-fit"
                   >
                     👨‍👩‍👧‍👦 Mi familia
+                  </NavLink>
+                )}
+
+                {isParentMode && (
+                  <NavLink
+                    to="/equipo-floflo"
+                    onClick={closeMenus}
+                    className="bg-[#F3ECFF] text-[#6B4FC3] border border-[#D6C7FF] font-bold px-4 py-3 rounded-full w-fit"
+                  >
+                    👥 Equipo FloFlo
                   </NavLink>
                 )}
 
