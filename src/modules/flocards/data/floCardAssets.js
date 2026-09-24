@@ -87,6 +87,11 @@ import organizeBedroomSurfaces from "../svg/ordenar_superficies.svg";
 import organizeBedroomBed from "../svg/ordenar_cama.svg";
 import organizeBedroomReview from "../svg/revisando_dormitorio.svg";
 
+import expressFeelingsNotice from "../svg/observar_como_siento.svg";
+import expressFeelingsMethod from "../svg/forma_comunicarlo.svg";
+import expressFeelingsCommunicate from "../svg/comunicar_papa.svg";
+import expressFeelingsRequest from "../svg/pedir_algo.svg";
+
 const FLO_CARD_ASSETS = Object.freeze({
   BRUSH_TEETH_TAKE_BRUSH: brushTeethTakeBrush,
 
@@ -265,6 +270,16 @@ const FLO_CARD_ASSETS = Object.freeze({
   ORGANIZE_BEDROOM_BED: organizeBedroomBed,
 
   ORGANIZE_BEDROOM_REVIEW: organizeBedroomReview,
+
+  EXPRESS_FEELINGS_SEQUENCE: expressFeelingsNotice,
+
+  EXPRESS_FEELINGS_NOTICE: expressFeelingsNotice,
+
+  EXPRESS_FEELINGS_METHOD: expressFeelingsMethod,
+
+  EXPRESS_FEELINGS_COMMUNICATE: expressFeelingsCommunicate,
+
+  EXPRESS_FEELINGS_REQUEST: expressFeelingsRequest,
 });
 
 export const getFloCardAsset = (floCardCode) => {

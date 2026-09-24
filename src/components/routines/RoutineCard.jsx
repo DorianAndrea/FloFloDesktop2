@@ -8,6 +8,7 @@ const RoutineCard = ({
   compact = false,
   isNext = false,
   expanded = true,
+  readOnly = false,
   onToggleExpanded = null,
   updatingStepKey,
   isScheduledToday,
@@ -402,8 +403,7 @@ const RoutineCard = ({
                         tabIndex={0}
                         aria-pressed={isChecked}
                         onClick={async () => {
-                          if (isUpdating) return;
-
+                          if (readOnly || isUpdating) return;
                           await onToggleStep(
                             routine,
                             step,
@@ -416,6 +416,7 @@ const RoutineCard = ({
                         }}
                         onKeyDown={async (event) => {
                           if (
+                            readOnly ||
                             isUpdating ||
                             (event.key !== "Enter" && event.key !== " ")
                           ) {
@@ -439,9 +440,11 @@ const RoutineCard = ({
                             ? "border-green-300 bg-green-50 hover:bg-green-100"
                             : "border-[#E4D8FF] bg-[#FAF8FF] hover:border-[#BCA6F0] hover:bg-white"
                         } ${
-                          isUpdating
-                            ? "cursor-wait opacity-60"
-                            : "cursor-pointer"
+                          readOnly
+                            ? "cursor-default"
+                            : isUpdating
+                              ? "cursor-wait opacity-60"
+                              : "cursor-pointer"
                         }`}
                       >
                         <div className="flex w-full items-start gap-3">
@@ -477,6 +480,7 @@ const RoutineCard = ({
                                   event.stopPropagation();
 
                                   if (
+                                    readOnly ||
                                     !step.flocard_code ||
                                     isChecked ||
                                     isUpdating
@@ -530,7 +534,7 @@ const RoutineCard = ({
                               </div>
                             </div>
 
-                            {!isChecked && (
+                            {!readOnly && !isChecked && (
                               <div
                                 className="mt-4"
                                 onClick={(event) => event.stopPropagation()}

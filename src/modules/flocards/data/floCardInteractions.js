@@ -794,6 +794,44 @@ const FLO_CARD_INTERACTIONS = Object.freeze({
       },
     ],
   },
+  EXPRESS_FEELINGS_SEQUENCE: {
+    interactionType: "sequence",
+    title: "Contar cómo me siento",
+    instruction: "Sigue los pasos para reconocer y comunicar cómo te sientes.",
+    helperText: "Avanza paso a paso siguiendo los pictogramas.",
+    completionLabel: "Terminé",
+
+    steps: [
+      {
+        position: 1,
+        type: "pictogram",
+        title: "Notar cómo estoy",
+        instruction: "Observa cómo te sientes en este momento.",
+        floCardCode: "EXPRESS_FEELINGS_NOTICE",
+      },
+      {
+        position: 2,
+        type: "pictogram",
+        title: "Elegir una forma de comunicarlo",
+        instruction: "Piensa cómo quieres contar o mostrar cómo te sientes.",
+        floCardCode: "EXPRESS_FEELINGS_METHOD",
+      },
+      {
+        position: 3,
+        type: "pictogram",
+        title: "Comunicarlo",
+        instruction: "Comunica a una persona cómo te estás sintiendo.",
+        floCardCode: "EXPRESS_FEELINGS_COMMUNICATE",
+      },
+      {
+        position: 4,
+        type: "pictogram",
+        title: "Pedir algo si lo necesito",
+        instruction: "Si necesitas algo, comunícalo o pide apoyo.",
+        floCardCode: "EXPRESS_FEELINGS_REQUEST",
+      },
+    ],
+  },
 });
 
 export const getFloCardInteraction = (floCardCode) => {

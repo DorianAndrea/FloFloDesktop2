@@ -166,6 +166,8 @@ const Rutinas = () => {
   const [updatingStepKey, setUpdatingStepKey] = useState(null);
   const [expandedRoutineId, setExpandedRoutineId] = useState(null);
   const [expandedAllRoutineId, setExpandedAllRoutineId] = useState(null);
+  const [expandedCompletedRoutineId, setExpandedCompletedRoutineId] =
+    useState(null);
   const pendingSectionRef = useRef(null);
 
   const { user } = useFloFlo();
@@ -246,28 +248,41 @@ const Rutinas = () => {
     () => todayRoutines.filter((routine) => routine.completed_today),
     [todayRoutines],
   );
+
   useEffect(() => {
     if (pendingToday.length === 0) {
       setExpandedRoutineId(null);
       return;
     }
 
-    // Si solo hay una pendiente, la dejamos abierta.
-    if (pendingToday.length === 1) {
-      setExpandedRoutineId(pendingToday[0].id);
-      return;
-    }
+    setExpandedRoutineId((current) => {
+      /*
+       * Si no hay una rutina abierta porque venimos de una actualización
+       * de la lista, abrimos la próxima pendiente.
+       */
+      if (current === null) {
+        return pendingToday[0].id;
+      }
 
-    // Si la rutina abierta dejó de estar pendiente,
-    // cerramos el acordeón.
-    const expandedStillPending = pendingToday.some(
-      (routine) => Number(routine.id) === Number(expandedRoutineId),
-    );
+      /*
+       * Si la rutina que estaba abierta sigue siendo pendiente,
+       * la mantenemos.
+       */
+      const expandedStillPending = pendingToday.some(
+        (routine) => Number(routine.id) === Number(current),
+      );
 
-    if (!expandedStillPending) {
-      setExpandedRoutineId(pendingToday[0].id);
-    }
-  }, [pendingToday, expandedRoutineId]);
+      /*
+       * Si la rutina terminó y desapareció de pendientes,
+       * abrimos automáticamente la siguiente.
+       */
+      if (!expandedStillPending) {
+        return pendingToday[0].id;
+      }
+
+      return current;
+    });
+  }, [pendingToday]);
 
   const loadRoutines = async ({ useCache = true } = {}) => {
     try {
@@ -1693,12 +1708,24 @@ const Rutinas = () => {
                               <RoutineCard
                                 key={routine.id}
                                 routine={routine}
-                                compact
-                                expanded={false}
-                                onToggleExpanded={() => {}}
+                                expanded={
+                                  Number(expandedCompletedRoutineId) ===
+                                  Number(routine.id)
+                                }
+                                onToggleExpanded={() => {
+                                  setExpandedCompletedRoutineId((current) =>
+                                    Number(current) === Number(routine.id)
+                                      ? null
+                                      : routine.id,
+                                  );
+                                }}
+                                readOnly
                                 updatingStepKey={updatingStepKey}
                                 isScheduledToday={isScheduledToday}
                                 onToggleStep={handleToggleRoutineStep}
+                                onCompleteStepSequence={
+                                  handleCompleteRoutineStepSequence
+                                }
                                 onStartFloCard={handleStartFloCard}
                                 onComplete={handleCompleteRoutine}
                                 onEdit={handleEdit}
