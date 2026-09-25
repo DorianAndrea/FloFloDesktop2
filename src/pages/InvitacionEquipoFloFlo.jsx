@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import { useFloFlo } from "../context/FloFloContext";
 import { useFeedback } from "../context/FeedbackContext";
 import {
@@ -23,11 +23,12 @@ const getRelationshipLabel = (relationshipKey) => {
 };
 
 const InvitacionEquipoFloFlo = () => {
-    console.log("🟣 INVITACION EQUIPO FLOFLO CARGADA", {
+  console.log("🟣 INVITACION EQUIPO FLOFLO CARGADA", {
     path: window.location.pathname,
   });
   const { token } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const { user } = useFloFlo();
   const { showFeedback } = useFeedback();
@@ -257,6 +258,7 @@ const InvitacionEquipoFloFlo = () => {
 
               <Link
                 to="/login"
+                state={{ from: location }}
                 className="block w-full rounded-2xl bg-[#9B7BE8] px-6 py-4 font-extrabold text-white"
               >
                 Iniciar sesión y continuar

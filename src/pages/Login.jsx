@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 
 import { login } from "../services/authService";
 import { useFloFlo } from "../context/FloFloContext";
@@ -8,6 +8,11 @@ import felix from "../assets/webp/felix_cara_sonriendo.webp";
 
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const redirectTo = location.state?.from?.pathname
+    ? `${location.state.from.pathname}${location.state.from.search || ""}${location.state.from.hash || ""}`
+    : "/";
   const { setUser } = useFloFlo();
   const { showFeedback } = useFeedback();
 
@@ -55,7 +60,7 @@ const Login = () => {
         message: "Entraste correctamente a FloFlo.",
       });
 
-      navigate("/");
+      navigate(redirectTo, { replace: true });
     } catch (error) {
       console.error(error);
 
@@ -64,9 +69,7 @@ const Login = () => {
         icon: "❌",
         label: "No se pudo iniciar sesión",
         title: "Correo o contraseña incorrectos",
-        message:
-          error.message ||
-          "Revisa tus datos e intenta nuevamente.",
+        message: error.message || "Revisa tus datos e intenta nuevamente.",
       });
     }
   };
@@ -75,11 +78,7 @@ const Login = () => {
     <div className="min-h-screen bg-[#F3ECFF] flex justify-center items-center px-6">
       <div className="bg-white rounded-[2rem] shadow-lg p-10 w-full max-w-md">
         <div className="flex justify-center mb-6">
-          <img
-            src={felix}
-            alt="Felix"
-            className="w-36 h-36 object-contain"
-          />
+          <img src={felix} alt="Felix" className="w-36 h-36 object-contain" />
         </div>
 
         <h1 className="text-4xl font-bold text-[#4B367C] text-center mb-2">
