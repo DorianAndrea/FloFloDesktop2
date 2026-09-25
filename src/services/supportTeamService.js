@@ -88,6 +88,32 @@ export const acceptSupportTeamInvitation = async (token) => {
   return response.data;
 };
 
+export const registerAndAcceptSupportTeamInvitation = async ({
+  token,
+  firstName,
+  lastName,
+  password,
+}) => {
+  const cleanToken = normalizeToken(token);
+
+  if (!cleanToken) {
+    throw new Error("La invitación no es válida.");
+  }
+
+  const response = await api.post(
+    `/parent-child/team/invitations/${encodeURIComponent(
+      cleanToken,
+    )}/register-and-accept`,
+    {
+      firstName: String(firstName || "").trim(),
+      lastName: String(lastName || "").trim(),
+      password: String(password || ""),
+    },
+  );
+
+  return response.data;
+};
+
 export const cancelSupportTeamInvitation = async ({
   childId,
   invitationId,

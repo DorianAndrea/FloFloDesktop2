@@ -5,6 +5,7 @@ import { useFeedback } from "../context/FeedbackContext";
 import {
   acceptSupportTeamInvitation,
   getSupportTeamInvitation,
+  registerAndAcceptSupportTeamInvitation,
 } from "../services/supportTeamService";
 
 const getRelationshipLabel = (relationshipKey) => {
@@ -31,6 +32,11 @@ const InvitacionEquipoFloFlo = () => {
   const [invitation, setInvitation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState(false);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [registering, setRegistering] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
   useEffect(() => {
@@ -89,6 +95,70 @@ const InvitacionEquipoFloFlo = () => {
     }
   };
 
+  const handleRegisterAndAccept = async (event) => {
+    event.preventDefault();
+
+    if (!firstName.trim() || !lastName.trim()) {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Faltan datos",
+        title: "Completa tu nombre",
+        message: "Debes ingresar tu nombre y apellido.",
+      });
+
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      showFeedback({
+        type: "warning",
+        icon: "⚠️",
+        label: "Contraseñas distintas",
+        title: "Revisa tu contraseña",
+        message: "Las contraseñas deben coincidir.",
+      });
+
+      return;
+    }
+
+    try {
+      setRegistering(true);
+
+      await registerAndAcceptSupportTeamInvitation({
+        token,
+        firstName,
+        lastName,
+        password,
+      });
+
+      showFeedback({
+        type: "success",
+        icon: "🤝",
+        label: "Cuenta creada",
+        title: "¡Ya formas parte del Equipo FloFlo!",
+        message:
+          "Tu cuenta fue creada correctamente. Ahora inicia sesión para comenzar.",
+      });
+
+      navigate("/login");
+    } catch (error) {
+      console.error(error);
+
+      showFeedback({
+        type: "error",
+        icon: "❌",
+        label: "No se pudo crear la cuenta",
+        title: "Revisa tus datos",
+        message:
+          error.response?.data?.message ||
+          "No fue posible crear tu cuenta y aceptar la invitación.",
+      });
+    } finally {
+      setRegistering(false);
+    }
+  };
+
   const childName = invitation
     ? `${invitation.child_first_name || ""} ${
         invitation.child_last_name || ""
@@ -104,9 +174,7 @@ const InvitacionEquipoFloFlo = () => {
   if (loading) {
     return (
       <main className="min-h-screen bg-[#F6F0FF] flex items-center justify-center">
-        <p className="font-bold text-[#4B367C]">
-          Cargando invitación...
-        </p>
+        <p className="font-bold text-[#4B367C]">Cargando invitación...</p>
       </main>
     );
   }
@@ -161,9 +229,7 @@ const InvitacionEquipoFloFlo = () => {
 
         {invitation?.message && (
           <div className="mt-6 rounded-2xl border-l-4 border-[#9B7BE8] bg-[#F3ECFF] p-5 text-left">
-            <p className="font-bold text-[#4B367C]">
-              Mensaje de {inviterName}
-            </p>
+            <p className="font-bold text-[#4B367C]">Mensaje de {inviterName}</p>
 
             <p className="mt-2 whitespace-pre-line text-gray-600">
               {invitation.message}
@@ -172,34 +238,127 @@ const InvitacionEquipoFloFlo = () => {
         )}
 
         {!user ? (
-          <div className="mt-8 space-y-3">
-            <p className="text-gray-600">
-              Inicia sesión o crea una cuenta adulta con el mismo correo que
-              recibió esta invitación.
-            </p>
+          invitation?.account_exists ? (
+            <div className="mt-8 space-y-4">
+              <p className="text-gray-600">
+                Ya existe una cuenta FloFlo con el correo:
+              </p>
 
-            <Link
-              to="/login"
-              className="block w-full rounded-2xl bg-[#9B7BE8] px-6 py-4 font-extrabold text-white"
+              <p className="font-extrabold text-[#4B367C]">
+                {invitation.email}
+              </p>
+
+              <p className="text-gray-600">
+                Inicia sesión con esa cuenta para aceptar la invitación.
+              </p>
+
+              <Link
+                to="/login"
+                className="block w-full rounded-2xl bg-[#9B7BE8] px-6 py-4 font-extrabold text-white"
+              >
+                Iniciar sesión y continuar
+              </Link>
+            </div>
+          ) : (
+            <form
+              onSubmit={handleRegisterAndAccept}
+              className="mt-8 space-y-4 text-left"
             >
-              Iniciar sesión
-            </Link>
+              <div className="text-center">
+                <h2 className="text-xl font-extrabold text-[#4B367C]">
+                  Crea tu cuenta FloFlo
+                </h2>
 
-            <Link
-              to="/registro"
-              className="block w-full rounded-2xl border-2 border-[#9B7BE8] px-6 py-4 font-extrabold text-[#4B367C]"
-            >
-              Crear cuenta
-            </Link>
+                <p className="mt-2 text-gray-600">
+                  Al crearla quedarás automáticamente incorporado/a al equipo de{" "}
+                  <strong>{childName}</strong>.
+                </p>
+              </div>
 
-            <p className="text-sm text-gray-400">
-              Después vuelve a abrir el enlace del correo para aceptar.
-            </p>
-          </div>
-        ) : user.role !== "parent" ? (
-          <div className="mt-8 rounded-2xl bg-red-50 p-5 text-red-700">
-            Esta invitación debe aceptarse desde una cuenta adulta.
-          </div>
+              <div>
+                <label className="mb-2 block font-bold text-[#4B367C]">
+                  Nombre
+                </label>
+
+                <input
+                  type="text"
+                  value={firstName}
+                  onChange={(event) => setFirstName(event.target.value)}
+                  className="w-full rounded-2xl border-2 border-[#E4D8FF] px-4 py-3 outline-none focus:border-[#9B7BE8]"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block font-bold text-[#4B367C]">
+                  Apellido
+                </label>
+
+                <input
+                  type="text"
+                  value={lastName}
+                  onChange={(event) => setLastName(event.target.value)}
+                  className="w-full rounded-2xl border-2 border-[#E4D8FF] px-4 py-3 outline-none focus:border-[#9B7BE8]"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block font-bold text-[#4B367C]">
+                  Correo
+                </label>
+
+                <input
+                  type="email"
+                  value={invitation?.email || ""}
+                  disabled
+                  className="w-full rounded-2xl border-2 border-[#E4D8FF] bg-gray-50 px-4 py-3 text-gray-500"
+                />
+              </div>
+
+              <div>
+                <label className="mb-2 block font-bold text-[#4B367C]">
+                  Contraseña
+                </label>
+
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  className="w-full rounded-2xl border-2 border-[#E4D8FF] px-4 py-3 outline-none focus:border-[#9B7BE8]"
+                  required
+                />
+
+                <p className="mt-1 text-xs text-gray-400">
+                  Mínimo 8 caracteres, con mayúscula, minúscula y número.
+                </p>
+              </div>
+
+              <div>
+                <label className="mb-2 block font-bold text-[#4B367C]">
+                  Confirmar contraseña
+                </label>
+
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  className="w-full rounded-2xl border-2 border-[#E4D8FF] px-4 py-3 outline-none focus:border-[#9B7BE8]"
+                  required
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={registering}
+                className="w-full rounded-2xl bg-[#9B7BE8] px-6 py-4 font-extrabold text-white shadow-md transition hover:bg-[#8265CF] disabled:opacity-60"
+              >
+                {registering
+                  ? "Creando cuenta..."
+                  : `Crear mi cuenta y acompañar a ${childName}`}
+              </button>
+            </form>
+          )
         ) : (
           <button
             type="button"

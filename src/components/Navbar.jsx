@@ -227,6 +227,21 @@ const Navbar = () => {
                 )}
               </div>
 
+              {isParent && (
+                <NavLink
+                  to="/mi-familia"
+                  className={({ isActive }) =>
+                    `font-semibold px-4 py-2 rounded-full transition ${
+                      isActive
+                        ? "bg-[#FFF3C4] text-[#6B5A00] border border-[#E8D785]"
+                        : "bg-[#FFF9DF] text-[#6B5A00] border border-[#E8D785] hover:bg-[#FFF3C4]"
+                    }`
+                  }
+                >
+                  Mi familia
+                </NavLink>
+              )}
+
               {isParentMode && (
                 <NavLink
                   to="/equipo-floflo"
