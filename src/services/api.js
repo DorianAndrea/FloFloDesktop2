@@ -20,13 +20,23 @@ api.interceptors.response.use(
     const status = error.response?.status;
     const requestUrl = error.config?.url || "";
 
+    console.log("🔎 API ERROR DEBUG", {
+      status,
+      requestUrl,
+      pathname: window.location.pathname,
+    });
+
     const isAuthRequest =
       requestUrl.includes("/auth/login") ||
       requestUrl.includes("/auth/register") ||
       requestUrl.includes("/auth/forgot-password") ||
       requestUrl.includes("/auth/reset-password");
 
-    if (status === 401 && !isAuthRequest) {
+    const isPublicInvitationRequest = requestUrl.includes(
+      "/parent-child/team/invitations/",
+    );
+
+    if (status === 401 && !isAuthRequest && !isPublicInvitationRequest) {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
       localStorage.removeItem("selectedChild");
@@ -34,6 +44,10 @@ api.interceptors.response.use(
       window.dispatchEvent(new Event("floflo:auth-expired"));
 
       if (window.location.pathname !== "/login") {
+        console.log("🚨 REDIRECT AUTOMÁTICO A LOGIN", {
+          status,
+          requestUrl,
+        });
         window.location.href = "/login";
       }
     }
