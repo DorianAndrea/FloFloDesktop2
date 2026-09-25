@@ -23,6 +23,9 @@ const getRelationshipLabel = (relationshipKey) => {
 };
 
 const InvitacionEquipoFloFlo = () => {
+    console.log("🟣 INVITACION EQUIPO FLOFLO CARGADA", {
+    path: window.location.pathname,
+  });
   const { token } = useParams();
   const navigate = useNavigate();
 
