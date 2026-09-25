@@ -25,10 +25,37 @@ const Navbar = () => {
     loadingChildren,
     selectChild,
     getChildDisplayName,
+    selectedRelationshipKey,
+    selectedAccessProfile,
   } = useSelectedChild();
 
   const isParent = user?.role === "parent";
   const isParentMode = isParent && Boolean(selectedChildId);
+  const relationshipLabels = {
+    primary_caregiver: "Cuidador/a principal",
+    caregiver: "Cuidador/a",
+    family: "Familiar",
+    occupational_therapist: "Terapeuta ocupacional",
+    psychologist: "Psicólogo/a",
+    speech_therapist: "Fonoaudiólogo/a",
+    teacher: "Profesor/a",
+    other_professional: "Otro profesional",
+  };
+
+  const accessProfileLabels = {
+    primary_caregiver: "Cuidador/a principal",
+    caregiver: "Cuidador/a",
+    family: "Familiar",
+    therapist: "Profesional de terapia",
+    teacher: "Profesor/a",
+    professional: "Otro profesional",
+  };
+
+  const profileLabel = !isParent
+    ? "Niño"
+    : relationshipLabels[selectedRelationshipKey] ||
+      accessProfileLabels[selectedAccessProfile] ||
+      "Adulto/a de apoyo";
   const intelligentReportPath = selectedChildId
     ? `/informe-inteligente?childId=${selectedChildId}`
     : "/informe-inteligente";
@@ -319,7 +346,7 @@ const Navbar = () => {
                       : "bg-[#E8DDFF] text-[#6B4FC3]"
                   }`}
                 >
-                  {isParent ? "Padre/Cuidador" : "Niño"}
+                  {profileLabel}
                 </span>
               </div>
 
@@ -389,7 +416,7 @@ const Navbar = () => {
                         : "bg-[#E8DDFF] text-[#6B4FC3]"
                     }`}
                   >
-                    Perfil: {isParent ? "Padre/Cuidador" : "Niño"}
+                    Perfil: {profileLabel}
                   </p>
                 </div>
 

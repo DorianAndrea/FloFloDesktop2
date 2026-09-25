@@ -11,16 +11,7 @@ const ProtectedRoute = ({
   const { user } = useFloFlo();
   const { selectedChildId, loadingChildren } = useSelectedChild();
 
-  console.log("🛡️ PROTECTED ROUTE EJECUTADO", {
-    pathname: location.pathname,
-    user: user?.email || null,
-  });
-
   if (!user) {
-    console.log("🔴 PROTECTED ROUTE MANDA A LOGIN", {
-      pathname: location.pathname,
-    });
-
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

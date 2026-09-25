@@ -19,13 +19,6 @@ api.interceptors.response.use(
   (error) => {
     const status = error.response?.status;
     const requestUrl = error.config?.url || "";
-
-    console.log("🔎 API ERROR DEBUG", {
-      status,
-      requestUrl,
-      pathname: window.location.pathname,
-    });
-
     const isAuthRequest =
       requestUrl.includes("/auth/login") ||
       requestUrl.includes("/auth/register") ||
@@ -44,10 +37,6 @@ api.interceptors.response.use(
       window.dispatchEvent(new Event("floflo:auth-expired"));
 
       if (window.location.pathname !== "/login") {
-        console.log("🚨 REDIRECT AUTOMÁTICO A LOGIN", {
-          status,
-          requestUrl,
-        });
         window.location.href = "/login";
       }
     }
