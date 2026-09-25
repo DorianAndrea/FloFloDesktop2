@@ -4,6 +4,7 @@ import { useFloFlo } from "../context/FloFloContext";
 import { useFeedback } from "../context/FeedbackContext";
 import api from "../services/api";
 import { validateImageFile } from "../utils/validateImageFile";
+import { useSelectedChild } from "../context/SelectedChildContext";
 
 const getAvatarUrl = (avatarValue) => {
   if (!avatarValue) return null;
@@ -17,8 +18,7 @@ const getAvatarUrl = (avatarValue) => {
   }
 
   if (avatarString.startsWith("/uploads")) {
-    const apiBase =
-      import.meta.env.VITE_API_URL || "http://localhost:5001/api";
+    const apiBase = import.meta.env.VITE_API_URL || "http://localhost:5001/api";
 
     const backendBase = apiBase.replace(/\/api\/?$/, "");
 
@@ -31,7 +31,7 @@ const getAvatarUrl = (avatarValue) => {
 const MiFamilia = () => {
   const { user } = useFloFlo();
   const { showFeedback } = useFeedback();
-
+  const { selectChild } = useSelectedChild();
   const [children, setChildren] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isCreatingChild, setIsCreatingChild] = useState(false);
@@ -424,19 +424,7 @@ const MiFamilia = () => {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-6">
                     <Link
                       to="/panel-padres"
-                      onClick={() => {
-                        localStorage.setItem(
-                          "selectedChild",
-                          JSON.stringify(child),
-                        );
-
-                        localStorage.setItem(
-                          "floflo_selected_child_id",
-                          String(child.id),
-                        );
-
-                        window.dispatchEvent(new Event("selectedChildChanged"));
-                      }}
+                      onClick={() => selectChild(child.id)}
                       className="text-center bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-xl font-bold transition"
                     >
                       Ver progreso
@@ -444,19 +432,7 @@ const MiFamilia = () => {
 
                     <Link
                       to="/equipo-floflo"
-                      onClick={() => {
-                        localStorage.setItem(
-                          "selectedChild",
-                          JSON.stringify(child),
-                        );
-
-                        localStorage.setItem(
-                          "floflo_selected_child_id",
-                          String(child.id),
-                        );
-
-                        window.dispatchEvent(new Event("selectedChildChanged"));
-                      }}
+                      onClick={() => selectChild(child.id)}
                       className="text-center bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 px-4 py-3 rounded-xl font-bold transition"
                     >
                       Equipo FloFlo
