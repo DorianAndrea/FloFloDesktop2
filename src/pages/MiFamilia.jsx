@@ -31,7 +31,18 @@ const getAvatarUrl = (avatarValue) => {
 const MiFamilia = () => {
   const { user } = useFloFlo();
   const { showFeedback } = useFeedback();
-  const { selectChild } = useSelectedChild();
+  const { selectChild, parentChildren, loadingChildren } = useSelectedChild();
+  const caregiverRelationshipKeys = ["primary_caregiver", "caregiver"];
+
+  const hasCaregiverRelationship = parentChildren.some((child) =>
+    caregiverRelationshipKeys.includes(child.relationship_key),
+  );
+
+  const hasAnyChildRelationship = parentChildren.length > 0;
+
+  const canManageFamily =
+    user?.role === "parent" &&
+    (!hasAnyChildRelationship || hasCaregiverRelationship);
   const [children, setChildren] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isCreatingChild, setIsCreatingChild] = useState(false);
@@ -54,9 +65,13 @@ const MiFamilia = () => {
   const loadChildren = async () => {
     try {
       setLoading(true);
-
       const data = await getMyChildren();
-      setChildren(data);
+
+      const caregiverChildren = data.filter((child) =>
+        caregiverRelationshipKeys.includes(child.relationship_key),
+      );
+
+      setChildren(caregiverChildren);
     } catch (error) {
       console.error("Error cargando familia:", error.response?.data || error);
 
@@ -75,10 +90,10 @@ const MiFamilia = () => {
   };
 
   useEffect(() => {
-    if (user?.id && user?.role === "parent") {
+    if (user?.id && canManageFamily && !loadingChildren) {
       loadChildren();
     }
-  }, [user?.id, user?.role]);
+  }, [user?.id, canManageFamily, loadingChildren]);
 
   const handleChildAvatarChange = (e) => {
     const file = e.target.files[0];
@@ -202,11 +217,15 @@ const MiFamilia = () => {
     return age;
   };
 
-  if (!user) {
-    return <p className="text-center mt-10">Cargando usuario...</p>;
+  if (!user || loadingChildren) {
+    return (
+      <p className="text-center mt-10">
+        Cargando familia...
+      </p>
+    );
   }
 
-  if (user.role !== "parent") {
+  if (!canManageFamily) {
     return (
       <main className="min-h-screen bg-purple-50 p-6">
         <section className="max-w-5xl mx-auto bg-white rounded-3xl p-6 shadow-md text-center">

@@ -31,6 +31,19 @@ const Navbar = () => {
 
   const isParent = user?.role === "parent";
   const isParentMode = isParent && Boolean(selectedChildId);
+  const caregiverRelationshipKeys = ["primary_caregiver", "caregiver"];
+
+  const hasCaregiverRelationship = parentChildren.some((child) =>
+    caregiverRelationshipKeys.includes(child.relationship_key),
+  );
+
+  const hasAnyChildRelationship = parentChildren.length > 0;
+
+  const canAccessMiFamilia =
+    isParent &&
+    !loadingChildren &&
+    (!hasAnyChildRelationship || hasCaregiverRelationship);
+    
   const relationshipLabels = {
     primary_caregiver: "Cuidador/a principal",
     caregiver: "Cuidador/a",
@@ -254,7 +267,7 @@ const Navbar = () => {
                 )}
               </div>
 
-              {isParent && (
+              {canAccessMiFamilia && (
                 <NavLink
                   to="/mi-familia"
                   className={({ isActive }) =>
@@ -437,7 +450,7 @@ const Navbar = () => {
                   </div>
                 </div>
 
-                {isParent && (
+                {canAccessMiFamilia && (
                   <NavLink
                     to="/mi-familia"
                     onClick={closeMenus}
