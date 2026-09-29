@@ -17,9 +17,6 @@ const PanelPadres = () => {
   const [loading, setLoading] = useState(true);
   const [children, setChildren] = useState([]);
   const [selectedChild, setSelectedChild] = useState(null);
-  const [childEmail, setChildEmail] = useState("");
-  const [linkCode, setLinkCode] = useState("");
-  const [isLinkingChild, setIsLinkingChild] = useState(false);
   const [sensoryProfile, setSensoryProfile] = useState(null);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [weeklyPlanHistory, setWeeklyPlanHistory] = useState([]);
@@ -40,15 +37,6 @@ const PanelPadres = () => {
     return Array.isArray(response.data)
       ? response.data
       : response.data.children || [];
-  };
-
-  const linkChildToMe = async (email, code) => {
-    const response = await api.post("/parent-child/me/children", {
-      childEmail: email,
-      linkCode: code,
-    });
-
-    return response.data;
   };
 
   const loadChildSensoryProfile = useCallback(async (childId) => {
@@ -357,87 +345,6 @@ const PanelPadres = () => {
     }
   };
 
-  const handleLinkChild = async () => {
-    try {
-      const cleanEmail = childEmail.trim().toLowerCase();
-      const cleanCode = linkCode.replace(/\s+/g, "").trim();
-
-      if (!cleanEmail || !cleanCode) {
-        showFeedback({
-          type: "warning",
-          icon: "⚠️",
-          label: "Falta información",
-          title: "Ingresa correo y código",
-          message:
-            "Debes escribir el correo del niño/a y el código de vinculación.",
-        });
-        return;
-      }
-
-      if (!/^\d{6}$/.test(cleanCode)) {
-        showFeedback({
-          type: "warning",
-          icon: "⚠️",
-          label: "Código inválido",
-          title: "El código debe tener 6 dígitos",
-          message: "Pide al niño/a que genere un código nuevo desde su cuenta.",
-        });
-        return;
-      }
-
-      setIsLinkingChild(true);
-
-      const result = await linkChildToMe(cleanEmail, cleanCode);
-      const linkedChild = result.child;
-
-      showFeedback({
-        type: "success",
-        icon: "✅",
-        label: "Niño asociado",
-        title: "Asociado correctamente",
-        message: `${getChildFirstName(linkedChild)} fue asociado correctamente a tu cuenta.`,
-      });
-
-      const updatedChildren = await getMyChildren();
-      setChildren(updatedChildren);
-
-      const childToSelect =
-        updatedChildren.find(
-          (child) => String(child.id) === String(linkedChild?.id),
-        ) || updatedChildren[0];
-
-      if (childToSelect) {
-        setSelectedChild(childToSelect);
-        saveSelectedChild(childToSelect);
-
-        const dashboardData = await getChildDashboard(childToSelect.id);
-
-        setDashboard(dashboardData);
-
-        await loadChildSensoryProfile(childToSelect.id);
-        await loadWeeklyPlanHistory(childToSelect.id);
-        await loadEvolutionDashboard(childToSelect.id);
-      }
-
-      setChildEmail("");
-      setLinkCode("");
-    } catch (error) {
-      console.error("ERROR ASOCIANDO:", error.response?.data || error);
-
-      showFeedback({
-        type: "error",
-        icon: "❌",
-        label: "No se pudo asociar",
-        title: "Revisa correo y código",
-        message:
-          error.response?.data?.message ||
-          "No fue posible asociar al niño/a. Intenta nuevamente.",
-      });
-    } finally {
-      setIsLinkingChild(false);
-    }
-  };
-
   const handleDownloadReport = async () => {
     if (!selectedChild || isDownloadingPdf) return;
 
@@ -520,20 +427,9 @@ const PanelPadres = () => {
             cuidador para ver su progreso.
           </p>
 
-          {user?.role === "parent" ? (
-            <LinkChildForm
-              childEmail={childEmail}
-              setChildEmail={setChildEmail}
-              linkCode={linkCode}
-              setLinkCode={setLinkCode}
-              handleLinkChild={handleLinkChild}
-              isLinkingChild={isLinkingChild}
-            />
-          ) : (
-            <p className="text-gray-500">
-              Esta sección está pensada para cuidadores o padres.
-            </p>
-          )}
+          <p className="text-gray-600">
+            No hay información disponible para el niño/a seleccionado todavía.
+          </p>
         </section>
       </main>
     );
@@ -558,17 +454,6 @@ const PanelPadres = () => {
               <label className="block text-sm font-bold text-purple-700 mb-2">
                 Niño seleccionado
               </label>
-
-              <div className="mt-4 mb-4">
-                <LinkChildForm
-                  childEmail={childEmail}
-                  setChildEmail={setChildEmail}
-                  linkCode={linkCode}
-                  setLinkCode={setLinkCode}
-                  handleLinkChild={handleLinkChild}
-                  isLinkingChild={isLinkingChild}
-                />
-              </div>
 
               {children.length > 0 ? (
                 <select
@@ -1048,58 +933,6 @@ const PanelPadres = () => {
         </section>
       </section>
     </main>
-  );
-};
-const LinkChildForm = ({
-  childEmail,
-  setChildEmail,
-  linkCode,
-  setLinkCode,
-  handleLinkChild,
-  isLinkingChild,
-}) => {
-  return (
-    <div className="bg-green-50 border border-green-100 rounded-2xl p-4">
-      <p className="text-sm font-bold text-green-700 mb-2">Asociar niño/a</p>
-
-      <p className="text-gray-500 text-sm mb-4">
-        Pide al niño/a que genere un código desde su cuenta. Luego ingresa su
-        correo y el código de 6 dígitos.
-      </p>
-
-      <div className="flex flex-col md:flex-row gap-3">
-        <input
-          type="email"
-          value={childEmail}
-          onChange={(e) => setChildEmail(e.target.value)}
-          placeholder="Correo del niño/a"
-          className="border border-green-200 rounded-xl px-4 py-3 flex-1"
-        />
-
-        <input
-          type="text"
-          inputMode="numeric"
-          maxLength={6}
-          value={linkCode}
-          onChange={(e) =>
-            setLinkCode(e.target.value.replace(/\D/g, "").slice(0, 6))
-          }
-          placeholder="Código de 6 dígitos"
-          className="border border-green-200 rounded-xl px-4 py-3 w-full md:w-48"
-        />
-
-        <button
-          type="button"
-          onClick={handleLinkChild}
-          disabled={isLinkingChild}
-          className={`bg-green-600 hover:bg-green-700 text-white px-5 py-3 rounded-xl font-semibold transition ${
-            isLinkingChild ? "opacity-60 cursor-not-allowed" : ""
-          }`}
-        >
-          {isLinkingChild ? "Asociando..." : "Asociar niño"}
-        </button>
-      </div>
-    </div>
   );
 };
 
