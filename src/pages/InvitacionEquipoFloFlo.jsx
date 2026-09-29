@@ -37,6 +37,8 @@ const InvitacionEquipoFloFlo = () => {
   const [lastName, setLastName] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [registering, setRegistering] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -323,13 +325,29 @@ const InvitacionEquipoFloFlo = () => {
                   Contraseña
                 </label>
 
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  className="w-full rounded-2xl border-2 border-[#E4D8FF] px-4 py-3 outline-none focus:border-[#9B7BE8]"
-                  required
-                />
+                <div className="relative">
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    className="w-full rounded-2xl border-2 border-[#E4D8FF] px-4 py-3 pr-14 outline-none focus:border-[#9B7BE8]"
+                    required
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((current) => !current)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-xl"
+                    aria-label={
+                      showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+                    }
+                    title={
+                      showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+                    }
+                  >
+                    {showPassword ? "🙈" : "👁️"}
+                  </button>
+                </div>
 
                 <p className="mt-1 text-xs text-gray-400">
                   Mínimo 8 caracteres, con mayúscula, minúscula y número.
@@ -341,13 +359,35 @@ const InvitacionEquipoFloFlo = () => {
                   Confirmar contraseña
                 </label>
 
-                <input
-                  type="password"
-                  value={confirmPassword}
-                  onChange={(event) => setConfirmPassword(event.target.value)}
-                  className="w-full rounded-2xl border-2 border-[#E4D8FF] px-4 py-3 outline-none focus:border-[#9B7BE8]"
-                  required
-                />
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    className="w-full rounded-2xl border-2 border-[#E4D8FF] px-4 py-3 pr-14 outline-none focus:border-[#9B7BE8]"
+                    required
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowConfirmPassword((current) => !current)
+                    }
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-xl"
+                    aria-label={
+                      showConfirmPassword
+                        ? "Ocultar confirmación de contraseña"
+                        : "Mostrar confirmación de contraseña"
+                    }
+                    title={
+                      showConfirmPassword
+                        ? "Ocultar contraseña"
+                        : "Mostrar contraseña"
+                    }
+                  >
+                    {showConfirmPassword ? "🙈" : "👁️"}
+                  </button>
+                </div>
               </div>
 
               <button

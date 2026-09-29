@@ -14,6 +14,10 @@ const ResetPassword = () => {
 
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const [loading, setLoading] = useState(false);
 
   const handleResetPassword = async (e) => {
@@ -41,13 +45,16 @@ const ResetPassword = () => {
       return;
     }
 
-    if (newPassword.length < 6) {
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
+
+    if (!passwordRegex.test(newPassword)) {
       showFeedback({
         type: "warning",
         icon: "⚠️",
-        label: "Contraseña muy corta",
-        title: "Usa al menos 6 caracteres",
-        message: "La nueva contraseña debe tener al menos 6 caracteres.",
+        label: "Contraseña débil",
+        title: "Revisa tu nueva contraseña",
+        message:
+          "La contraseña debe tener al menos 8 caracteres e incluir mayúscula, minúscula y número.",
       });
       return;
     }
@@ -98,11 +105,7 @@ const ResetPassword = () => {
     <div className="min-h-screen bg-[#F3ECFF] flex justify-center items-center px-6">
       <div className="bg-white rounded-[2rem] shadow-lg p-10 w-full max-w-md">
         <div className="flex justify-center mb-6">
-          <img
-            src={felix}
-            alt="Felix"
-            className="w-32 h-32 object-contain"
-          />
+          <img src={felix} alt="Felix" className="w-32 h-32 object-contain" />
         </div>
 
         <h1 className="text-3xl font-bold text-[#4B367C] text-center mb-2">
@@ -119,13 +122,32 @@ const ResetPassword = () => {
               Nueva contraseña
             </label>
 
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Nueva contraseña"
-              className="w-full p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8]"
-            />
+            <div className="relative">
+              <input
+                type={showNewPassword ? "text" : "password"}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Nueva contraseña"
+                className="w-full p-4 pr-14 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8]"
+              />
+
+              <button
+                type="button"
+                onClick={() => setShowNewPassword((current) => !current)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-xl"
+                aria-label={
+                  showNewPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+                }
+                title={
+                  showNewPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+                }
+              >
+                {showNewPassword ? "🙈" : "👁️"}
+              </button>
+            </div>
+            <p className="mt-2 text-sm text-[#6B5A95]">
+              Mínimo 8 caracteres, con mayúscula, minúscula y número.
+            </p>
           </div>
 
           <div>
@@ -133,13 +155,33 @@ const ResetPassword = () => {
               Confirmar contraseña
             </label>
 
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Repite la contraseña"
-              className="w-full p-4 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8]"
-            />
+            <div className="relative">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Repite la contraseña"
+                className="w-full p-4 pr-14 rounded-2xl border-2 border-[#DCCCF8] focus:outline-none focus:border-[#9B7BE8]"
+              />
+
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword((current) => !current)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-xl"
+                aria-label={
+                  showConfirmPassword
+                    ? "Ocultar contraseña"
+                    : "Mostrar contraseña"
+                }
+                title={
+                  showConfirmPassword
+                    ? "Ocultar contraseña"
+                    : "Mostrar contraseña"
+                }
+              >
+                {showConfirmPassword ? "🙈" : "👁️"}
+              </button>
+            </div>
           </div>
 
           <button

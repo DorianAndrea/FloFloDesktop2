@@ -22,6 +22,8 @@ const User = () => {
   const [preview, setPreview] = useState(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const navigate = useNavigate();
   const { setUser } = useFloFlo();
@@ -300,25 +302,61 @@ const User = () => {
               className="w-full py-3 text-gray-500"
             />
 
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Contraseña"
-              className="w-full py-3 text-gray-900 placeholder-gray-400 bg-transparent border-b border-gray-300 focus:outline-none focus:border-cyan-700"
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Contraseña"
+                className="w-full py-3 pr-12 text-gray-900 placeholder-gray-400 bg-transparent border-b border-gray-300 focus:outline-none focus:border-cyan-700"
+              />
+
+              <button
+                type="button"
+                onClick={() => setShowPassword((current) => !current)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-xl"
+                aria-label={
+                  showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+                }
+                title={
+                  showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
+                }
+              >
+                {showPassword ? "🙈" : "👁️"}
+              </button>
+            </div>
 
             <p className="text-sm text-gray-500">
               Mínimo 8 caracteres, con mayúscula, minúscula y número.
             </p>
 
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Confirmar Contraseña"
-              className="w-full py-3 text-gray-900 placeholder-gray-400 bg-transparent border-b border-gray-300 focus:outline-none focus:border-cyan-700"
-            />
+            <div className="relative">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                placeholder="Confirmar Contraseña"
+                className="w-full py-3 pr-12 text-gray-900 placeholder-gray-400 bg-transparent border-b border-gray-300 focus:outline-none focus:border-cyan-700"
+              />
+
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword((current) => !current)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-xl"
+                aria-label={
+                  showConfirmPassword
+                    ? "Ocultar confirmación de contraseña"
+                    : "Mostrar confirmación de contraseña"
+                }
+                title={
+                  showConfirmPassword
+                    ? "Ocultar contraseña"
+                    : "Mostrar contraseña"
+                }
+              >
+                {showConfirmPassword ? "🙈" : "👁️"}
+              </button>
+            </div>
 
             <button
               type="submit"
