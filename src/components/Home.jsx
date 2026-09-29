@@ -233,19 +233,21 @@ const Home = () => {
               }`}
             >
               {user?.role === "parent"
-                ? `${adultProfileEmoji} Perfil: ${adultProfileLabel}`
-                : "👶 Perfil: Niño"}
+                ? `${adultProfileEmoji} ${adultProfileLabel}`
+                : "👶 Niño/a"}
             </p>
 
             <h1 className="text-5xl md:text-7xl font-extrabold text-[#4B367C] leading-tight mb-6">
               {user?.role === "parent"
-                ? `Hola${user?.firstName ? `, ${user.firstName}` : ""}. Estás en modo ${adultProfileLabel} ${adultProfileEmoji}`
+                ? `Hola${user?.firstName ? `, ${user.firstName}` : ""}`
                 : `¡Hola${user?.firstName ? `, ${user.firstName}` : ""}! Soy Félix 👋`}
             </h1>
 
             <p className="text-xl md:text-2xl text-[#6B5A95] leading-relaxed mb-8 max-w-2xl">
               {user?.role === "parent"
-                ? "Desde aquí puedes acompañar, registrar avances y revisar el progreso del niño en FloFlo."
+                ? selectedChild
+                  ? `Acompañas a ${selectedChildName} como ${adultProfileLabel} en FloFlo.`
+                  : `Tu perfil en FloFlo es ${adultProfileLabel}.`
                 : "Cuando entendemos lo que viene, todo se siente más fácil."}
             </p>
 
