@@ -104,6 +104,23 @@ const PanelPadres = () => {
   const getChildFullName = (child) => {
     return `${getChildFirstName(child)} ${getChildLastName(child)}`.trim();
   };
+  const relationshipLabels = {
+    primary_caregiver: "Cuidador/a principal",
+    caregiver: "Cuidador/a",
+    family: "Familiar",
+    occupational_therapist: "Terapeuta ocupacional",
+    psychologist: "Psicólogo/a",
+    speech_therapist: "Fonoaudiólogo/a",
+    teacher: "Profesor/a",
+    other_professional: "Otro profesional",
+  };
+
+  const currentRelationshipLabel =
+    relationshipLabels[selectedChild?.relationship_key] || "Adulto/a de apoyo";
+
+  const canManageTeam =
+    selectedChild?.relationship_key === "primary_caregiver" ||
+    selectedChild?.can_manage_team === true;
   const getPanelCacheKey = (childId = null) => {
     if (!user?.id) return null;
 
@@ -445,7 +462,9 @@ const PanelPadres = () => {
             </h1>
 
             <p className="text-gray-600">
-              Revisa el avance general del niño en FloFlo.
+              {selectedChild
+                ? `Acompañas a ${getChildFirstName(selectedChild)} como ${currentRelationshipLabel}.`
+                : "Revisa el avance general del niño en FloFlo."}
             </p>
           </div>
 
@@ -514,8 +533,9 @@ const PanelPadres = () => {
                   </h2>
 
                   <p className="mt-1 text-gray-600">
-                    Invita a familiares y profesionales que acompañan a{" "}
-                    {getChildFirstName(selectedChild)}.
+                    {canManageTeam
+                      ? `Administra a las personas que acompañan a ${getChildFirstName(selectedChild)}.`
+                      : `Revisa quiénes forman parte del Equipo FloFlo de ${getChildFirstName(selectedChild)}.`}
                   </p>
                 </div>
               </div>
@@ -776,7 +796,7 @@ const PanelPadres = () => {
 
         <section className="mt-10 bg-white rounded-3xl p-6 shadow-md border border-purple-100">
           <h2 className="text-2xl font-bold text-purple-700 mb-5">
-            Alertas para padres
+            Alertas para apoyo
           </h2>
 
           {dashboard.alerts?.length > 0 ? (
