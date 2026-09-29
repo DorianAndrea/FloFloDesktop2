@@ -24,11 +24,60 @@ const getBirthDateValue = (person) => {
 const Home = () => {
   const { mood, user, setPoints } = useFloFlo();
 
-  const { isParent, selectedChild, selectedChildId, getChildDisplayName } =
-    useSelectedChild();
+  const {
+    isParent,
+    selectedChild,
+    selectedChildId,
+    getChildDisplayName,
+    selectedRelationshipKey,
+    selectedAccessProfile,
+  } = useSelectedChild();
 
   const [profile, setProfile] = useState(null);
 
+  const relationshipLabels = {
+    primary_caregiver: "Cuidador/a principal",
+    caregiver: "Cuidador/a",
+    family: "Familiar",
+    occupational_therapist: "Terapeuta ocupacional",
+    psychologist: "Psicólogo/a",
+    speech_therapist: "Fonoaudiólogo/a",
+    teacher: "Profesor/a",
+    other_professional: "Otro profesional",
+  };
+
+  const accessProfileLabels = {
+    caregiver: "Cuidador/a",
+    family: "Familiar",
+    therapist: "Profesional de terapia",
+    teacher: "Profesor/a",
+    professional: "Profesional",
+  };
+
+  const adultProfileLabel =
+    relationshipLabels[selectedRelationshipKey] ||
+    accessProfileLabels[selectedAccessProfile] ||
+    "Adulto/a de apoyo";
+
+  const adultProfileEmoji = (() => {
+    switch (selectedRelationshipKey) {
+      case "psychologist":
+        return "🧠";
+      case "occupational_therapist":
+        return "🧩";
+      case "speech_therapist":
+        return "🗣️";
+      case "teacher":
+        return "🏫";
+      case "family":
+        return "👨‍👩‍👧";
+      case "primary_caregiver":
+      case "caregiver":
+        return "👨‍👩‍👧";
+      default:
+        return "🤝";
+    }
+  })();
   const accesos = [
     {
       titulo: "Estados de ánimo",
@@ -184,13 +233,13 @@ const Home = () => {
               }`}
             >
               {user?.role === "parent"
-                ? "👨‍👩‍👧 Perfil: Padre/Cuidador"
+                ? `${adultProfileEmoji} Perfil: ${adultProfileLabel}`
                 : "👶 Perfil: Niño"}
             </p>
 
             <h1 className="text-5xl md:text-7xl font-extrabold text-[#4B367C] leading-tight mb-6">
               {user?.role === "parent"
-                ? `Hola${user?.firstName ? `, ${user.firstName}` : ""}. Estás en modo cuidador 👨‍👩‍👧`
+                ? `Hola${user?.firstName ? `, ${user.firstName}` : ""}. Estás en modo ${adultProfileLabel} ${adultProfileEmoji}`
                 : `¡Hola${user?.firstName ? `, ${user.firstName}` : ""}! Soy Félix 👋`}
             </h1>
 
@@ -211,7 +260,7 @@ const Home = () => {
               className="inline-block bg-[#9B7BE8] hover:bg-[#8B6FD6] text-white text-xl font-bold px-8 py-4 rounded-full transition"
             >
               {user?.role === "parent"
-                ? "Ir al Panel Padres"
+                ? "Ir al Panel de Apoyo"
                 : user
                   ? "Continuar con Félix"
                   : "Iniciar sesión"}
