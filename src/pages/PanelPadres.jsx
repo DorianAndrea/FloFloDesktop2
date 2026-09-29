@@ -439,11 +439,6 @@ const PanelPadres = () => {
             Panel de Apoyo
           </h1>
 
-          <p className="text-gray-600 mb-5">
-            No hay información disponible todavía. Asocia un niño a este
-            cuidador para ver su progreso.
-          </p>
-
           <p className="text-gray-600">
             No hay información disponible para el niño/a seleccionado todavía.
           </p>
@@ -796,7 +791,7 @@ const PanelPadres = () => {
 
         <section className="mt-10 bg-white rounded-3xl p-6 shadow-md border border-purple-100">
           <h2 className="text-2xl font-bold text-purple-700 mb-5">
-            Alertas para apoyo
+            Alertas de apoyo
           </h2>
 
           {dashboard.alerts?.length > 0 ? (
