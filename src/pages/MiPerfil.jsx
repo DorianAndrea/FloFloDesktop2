@@ -5,6 +5,7 @@ import { useFeedback } from "../context/FeedbackContext";
 import { formatRut, cleanRut } from "../utils/formatRut";
 import { validateImageFile } from "../utils/validateImageFile";
 import { createMyLinkCode } from "../services/parentChildService";
+import { useSelectedChild } from "../context/SelectedChildContext";
 import {
   calculateAge,
   isBirthdayToday,
@@ -37,6 +38,7 @@ const getAvatarUrl = (avatarValue) => {
 const MiPerfil = () => {
   const { setUser } = useFloFlo();
   const { showFeedback } = useFeedback();
+  const { selectedRelationshipKey, selectedAccessProfile } = useSelectedChild();
 
   const [user, setProfileUser] = useState(null);
   const [editing, setEditing] = useState(false);
@@ -51,6 +53,9 @@ const MiPerfil = () => {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
   const [linkCodeData, setLinkCodeData] = useState(null);
   const [generatingLinkCode, setGeneratingLinkCode] = useState(false);
@@ -322,6 +327,32 @@ const MiPerfil = () => {
   const editBirthdayToday = isBirthdayToday(birthDate);
   const todayDate = new Date().toISOString().slice(0, 10);
 
+  const relationshipLabels = {
+    primary_caregiver: "Cuidador/a principal",
+    caregiver: "Cuidador/a",
+    family: "Familiar",
+    occupational_therapist: "Terapeuta ocupacional",
+    psychologist: "Psicólogo/a",
+    speech_therapist: "Fonoaudiólogo/a",
+    teacher: "Profesor/a",
+    other_professional: "Otro profesional",
+  };
+
+  const accessProfileLabels = {
+    caregiver: "Cuidador/a",
+    family: "Familiar",
+    therapist: "Terapeuta",
+    teacher: "Profesor/a",
+    professional: "Profesional",
+  };
+
+  const profileLabel =
+    user.role === "child"
+      ? "Niño/a"
+      : relationshipLabels[selectedRelationshipKey] ||
+        accessProfileLabels[selectedAccessProfile] ||
+        "Adulto/a de apoyo";
+
   return (
     <div className="min-h-screen bg-[#F6F0FF] py-10 px-6">
       <div className="max-w-6xl mx-auto bg-white rounded-3xl shadow-lg p-8 md:p-10">
@@ -378,7 +409,7 @@ const MiPerfil = () => {
                         : "bg-[#E8DDFF] text-[#6B4FC3] border border-[#D6C7FF]"
                     }`}
                   >
-                    {user.role === "parent" ? "Padre/Cuidador" : "Niño"}
+                    {profileLabel}
                   </p>
                 </div>
 
@@ -536,39 +567,88 @@ const MiPerfil = () => {
               </p>
 
               <form onSubmit={handleChangePassword} className="space-y-5">
-                <input
-                  id="perfil-password-actual"
-                  name="currentPassword"
-                  type="password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="Contraseña actual"
-                  className="w-full py-3 text-gray-900 bg-transparent border-b border-gray-300 focus:outline-none focus:border-[#9B7BE8]"
-                />
+                <div className="relative">
+                  <input
+                    id="perfil-password-actual"
+                    name="currentPassword"
+                    type={showCurrentPassword ? "text" : "password"}
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Contraseña actual"
+                    className="w-full py-3 pr-12 text-gray-900 bg-transparent border-b border-gray-300 focus:outline-none focus:border-[#9B7BE8]"
+                  />
 
-                <input
-                  id="perfil-password-nueva"
-                  name="newPassword"
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Nueva contraseña"
-                  className="w-full py-3 text-gray-900 bg-transparent border-b border-gray-300 focus:outline-none focus:border-[#9B7BE8]"
-                />
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowCurrentPassword((current) => !current)
+                    }
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-xl"
+                    aria-label={
+                      showCurrentPassword
+                        ? "Ocultar contraseña"
+                        : "Mostrar contraseña"
+                    }
+                  >
+                    {showCurrentPassword ? "🙈" : "👁️"}
+                  </button>
+                </div>
+
+                <div className="relative">
+                  <input
+                    id="perfil-password-nueva"
+                    name="newPassword"
+                    type={showNewPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Nueva contraseña"
+                    className="w-full py-3 pr-12 text-gray-900 bg-transparent border-b border-gray-300 focus:outline-none focus:border-[#9B7BE8]"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword((current) => !current)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-xl"
+                    aria-label={
+                      showNewPassword
+                        ? "Ocultar contraseña"
+                        : "Mostrar contraseña"
+                    }
+                  >
+                    {showNewPassword ? "🙈" : "👁️"}
+                  </button>
+                </div>
 
                 <p className="text-sm text-[#6B5A95]">
                   Mínimo 8 caracteres, con mayúscula, minúscula y número.
                 </p>
 
-                <input
-                  id="perfil-password-confirmar"
-                  name="confirmNewPassword"
-                  type="password"
-                  value={confirmNewPassword}
-                  onChange={(e) => setConfirmNewPassword(e.target.value)}
-                  placeholder="Confirmar nueva contraseña"
-                  className="w-full py-3 text-gray-900 bg-transparent border-b border-gray-300 focus:outline-none focus:border-[#9B7BE8]"
-                />
+                <div className="relative">
+                  <input
+                    id="perfil-password-confirmar"
+                    name="confirmNewPassword"
+                    type={showConfirmNewPassword ? "text" : "password"}
+                    value={confirmNewPassword}
+                    onChange={(e) => setConfirmNewPassword(e.target.value)}
+                    placeholder="Confirmar nueva contraseña"
+                    className="w-full py-3 pr-12 text-gray-900 bg-transparent border-b border-gray-300 focus:outline-none focus:border-[#9B7BE8]"
+                  />
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowConfirmNewPassword((current) => !current)
+                    }
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-xl"
+                    aria-label={
+                      showConfirmNewPassword
+                        ? "Ocultar contraseña"
+                        : "Mostrar contraseña"
+                    }
+                  >
+                    {showConfirmNewPassword ? "🙈" : "👁️"}
+                  </button>
+                </div>
 
                 <button
                   type="submit"
