@@ -203,6 +203,7 @@ const PerfilSensorial = () => {
     selectedChildId,
     loadingChildren,
     getChildDisplayName,
+    selectedAccessProfile,
   } = useSelectedChild();
 
   const { showFeedback } = useFeedback();
@@ -219,7 +220,18 @@ const PerfilSensorial = () => {
     ? getChildDisplayName(selectedChild)
     : "un niño seleccionado";
 
-  const canEditProfile = isChild || (isParent && Boolean(selectedChildId));
+  const canEditProfile =
+    isChild ||
+    (isParent &&
+      Boolean(selectedChildId) &&
+      [
+        "primary_caregiver",
+        "caregiver",
+        "therapist",
+        "teacher",
+        "professional",
+      ].includes(selectedAccessProfile));
+
   const hasProfileData = fields.some((field) => profile[field.name]?.trim());
   const lastUpdatedAt = profile.updated_at || history[0]?.created_at || null;
 
@@ -404,7 +416,7 @@ const PerfilSensorial = () => {
             label: "Falta selección",
             title: "No hay niño/a seleccionado",
             message:
-              "Selecciona un niño/a activo antes de guardar el perfil sensorial.",
+              "Selecciona un niño/a desde el Panel de Apoyo para ver su perfil sensorial.",
           });
           return;
         }
@@ -485,7 +497,7 @@ const PerfilSensorial = () => {
           <div className="bg-white rounded-3xl shadow-md p-6 border border-purple-100">
             <p className="text-gray-600">
               No hay un niño seleccionado. Selecciona un niño desde el Panel de
-              Padres para ver su perfil sensorial.
+              Apoyo para ver su perfil sensorial.
             </p>
           </div>
         )}
@@ -502,13 +514,15 @@ const PerfilSensorial = () => {
                   <LastUpdatedInfo date={lastUpdatedAt} profile={profile} />
                 </div>
 
-                <button
-                  type="button"
-                  onClick={() => setIsEditing(true)}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl font-bold shadow-md w-fit"
-                >
-                  Editar perfil
-                </button>
+                {canEditProfile && (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(true)}
+                    className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-xl font-bold shadow-md w-fit"
+                  >
+                    Editar perfil
+                  </button>
+                )}
               </div>
 
               <FieldGroupsView profile={profile} />
@@ -554,6 +568,15 @@ const PerfilSensorial = () => {
 
             <HistorySection history={history} />
           </>
+        )}
+
+        {isParent && selectedChild && !canEditProfile && !hasProfileData && (
+          <div className="bg-white rounded-3xl shadow-md p-6 md:p-8 border border-purple-100">
+            <p className="text-gray-600">
+              Todavía no hay información registrada en el perfil sensorial de{" "}
+              <span className="font-bold text-purple-700">{childName}</span>.
+            </p>
+          </div>
         )}
 
         {canEditProfile && (!hasProfileData || isEditing) && (
