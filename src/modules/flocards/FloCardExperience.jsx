@@ -12,35 +12,86 @@ const SUPPORT_OPTIONS = [
   { code: "physical_total", label: "🫶 Apoyo físico total" },
 ];
 
+
 const SupportSelector = ({ value = [], onChange, disabled = false }) => {
   const toggle = (code) => {
     if (disabled) return;
+
     if (value.includes(code)) {
       onChange(value.filter((item) => item !== code));
     } else if (code === "independent") {
       onChange(["independent"]);
     } else {
-      onChange([...value.filter((item) => item !== "independent"), code]);
+      onChange([
+        ...value.filter((item) => item !== "independent"),
+        code,
+      ]);
     }
   };
 
   return (
-    <fieldset disabled={disabled} className="mx-auto mt-5 w-full max-w-md text-left">
-      <legend className="mb-2 text-xs font-extrabold uppercase tracking-wide text-[#9B7BE8]">
+    <section
+      aria-label="Tipos de apoyo observados"
+      className="mx-auto mt-5 w-full max-w-md text-left"
+    >
+      <h3 className="mb-2 text-xs font-extrabold uppercase tracking-wide text-[#9B7BE8]">
         Tipos de apoyo observados (opcional)
-      </legend>
+      </h3>
+
       <div className="grid gap-2">
-        {SUPPORT_OPTIONS.map((support) => (
-          <label key={support.code} className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 text-sm font-semibold ${value.includes(support.code) ? "border-[#9B7BE8] bg-[#EEE7FF] text-[#4B367C]" : "border-[#E4D8FF] bg-white text-[#756596]"}`}>
-            <input type="checkbox" checked={value.includes(support.code)} onChange={() => toggle(support.code)} className="h-4 w-4 accent-[#7C5CE6]" />
-            {support.label}
-          </label>
-        ))}
+        {SUPPORT_OPTIONS.map((support) => {
+          const selected = value.includes(support.code);
+
+          return (
+            <button
+              key={support.code}
+              type="button"
+              disabled={disabled}
+              aria-pressed={selected}
+              onClick={() => toggle(support.code)}
+              className={`
+                flex min-h-12 w-full touch-manipulation
+                items-center gap-3 rounded-xl border
+                px-4 py-3 text-left text-sm font-semibold
+                transition-colors
+                disabled:cursor-not-allowed disabled:opacity-50
+                ${
+                  selected
+                    ? "border-[#9B7BE8] bg-[#EEE7FF] text-[#4B367C]"
+                    : "border-[#E4D8FF] bg-white text-[#756596]"
+                }
+              `}
+            >
+              <span
+                aria-hidden="true"
+                className={`
+                  flex h-6 w-6 shrink-0 items-center
+                  justify-center rounded-md border-2
+                  ${
+                    selected
+                      ? "border-[#7C5CE6] bg-[#7C5CE6] text-white"
+                      : "border-gray-400 bg-white"
+                  }
+                `}
+              >
+                {selected ? "✓" : ""}
+              </span>
+
+              <span>{support.label}</span>
+            </button>
+          );
+        })}
       </div>
-      {value.length === 0 && <p className="mt-2 text-xs font-medium text-[#8A7BB0]">Apoyo no informado</p>}
-    </fieldset>
+
+      {value.length === 0 && (
+        <p className="mt-2 text-xs font-medium text-[#8A7BB0]">
+          Apoyo no informado
+        </p>
+      )}
+    </section>
   );
 };
+
 
 const AnimationExperience = ({ pictogramAsset, floCard, step, helperText }) => {
   return (
