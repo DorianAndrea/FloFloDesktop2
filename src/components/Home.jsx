@@ -4,6 +4,11 @@ import { motion } from "framer-motion";
 import { useFloFlo } from "../context/FloFloContext";
 import { useSelectedChild } from "../context/SelectedChildContext";
 import { getProfile } from "../services/profileService";
+import { getChildProgress } from "../services/progressService";
+import { getChildAchievements } from "../services/achievementService";
+import { getChildSupport } from "../services/dashboardService";
+import SupportChart from "../components/dashboard/SupportChart";
+import RoutineAnalytics from "../components/dashboard/RoutineAnalytics";
 import felix from "../assets/svg/felix_feliz.svg";
 import {
   calculateAge,
@@ -129,7 +134,9 @@ const Home = () => {
     try {
       const data = await getProfile();
       setProfile(data);
-      setPoints(Number(data.progress?.points || 0));
+      if (user?.role !== "parent") {
+        setPoints(Number(data.progress?.points || 0));
+      }
     } catch (error) {
       console.error(error);
     }
@@ -300,7 +307,15 @@ const Home = () => {
           </div>
         </div>
 
-        {user && profile && (
+        {user?.role === "parent" && isParent && selectedChildId && (
+          <ChildRewardStats
+            key={`${user.id}:${selectedChildId}`}
+            childId={selectedChildId}
+            actorUserId={user.id}
+          />
+        )}
+
+        {user && profile && user?.role !== "parent" && (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
             <DashboardCard
               icon="⭐"
@@ -323,7 +338,7 @@ const Home = () => {
           </div>
         )}
 
-        {user && profile && (
+        {user && profile && user?.role !== "parent" && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
             <SmallStat
               icon="💬"
@@ -346,6 +361,15 @@ const Home = () => {
               value={progress?.completed_moods || 0}
             />
           </div>
+        )}
+
+        {user?.role === "parent" && isParent && selectedChildId && (
+          <HomeChildProgress
+            key={`${user.id}:${selectedChildId}`}
+            childId={selectedChildId}
+            actorUserId={user.id}
+            childName={selectedChildName}
+          />
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
@@ -403,6 +427,144 @@ const Home = () => {
     </main>
   );
 };
+
+const normalizeUnlocked = (value) =>
+  value === true || value === "true" || value === 1 || value === "1";
+
+const ChildRewardStats = ({ childId, actorUserId }) => {
+  const [state, setState] = useState({ loading: true, data: null, error: null });
+
+  useEffect(() => {
+    let cancelled = false;
+    setState({ loading: true, data: null, error: null });
+
+    Promise.all([getChildProgress(childId), getChildAchievements(childId)])
+      .then(([progress, achievements]) => {
+        if (cancelled) return;
+        if (progress?.child_id != null && Number(progress.child_id) !== Number(childId)) {
+          throw new Error("El progreso recibido pertenece a otro perfil");
+        }
+        const unlocked = Array.isArray(achievements)
+          ? achievements.filter((item) => normalizeUnlocked(item.unlocked)).length
+          : null;
+        setState({ loading: false, data: { progress, unlocked }, error: null });
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setState({
+          loading: false,
+          data: null,
+          error: error?.response?.status === 403
+            ? "No tienes permiso para consultar este perfil."
+            : "No pudimos cargar las recompensas del perfil infantil.",
+        });
+      });
+
+    return () => { cancelled = true; };
+  }, [childId, actorUserId]);
+
+  if (state.loading) {
+    return <p role="status" className="mb-12 text-[#6B5A95]">Cargando estrellas y logros...</p>;
+  }
+  if (state.error) {
+    return <p role="alert" className="mb-12 text-[#925B24]">{state.error}</p>;
+  }
+
+  const progress = state.data?.progress;
+  const count = (value) => value == null ? "—" : Number(value);
+
+  return (
+    <>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        <DashboardCard icon="⭐" title="Estrellas" value={count(progress?.points)} color="bg-[#FFF3C4]" />
+        <DashboardCard icon="🏆" title="Nivel" value={count(progress?.level)} color="bg-[#E8DDFF]" />
+        <DashboardCard icon="🎖" title="Logros" value={state.data.unlocked ?? "—"} color="bg-[#DDF7FF]" />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-12">
+        <SmallStat icon="💬" title="Conversaciones" value={count(progress?.completed_conversations)} />
+        <SmallStat icon="📍" title="Lugares Preparados" value={count(progress?.completed_places)} />
+        <SmallStat icon="📅" title="Rutinas realizadas" value={count(progress?.completed_routines)} />
+        <SmallStat icon="😊" title="Emociones" value={count(progress?.completed_moods)} />
+      </div>
+    </>
+  );
+};
+
+const HomeChildProgress = ({ childId, actorUserId, childName }) => {
+  const [state, setState] = useState({ loading: true, support: null, error: null });
+
+  useEffect(() => {
+    let cancelled = false;
+    setState({ loading: true, support: null, error: null });
+
+    getChildSupport(childId)
+      .then((support) => {
+        if (cancelled) return;
+        if (Number(support?.child_id) !== Number(childId)) {
+          throw new Error("Perfil infantil recibido incorrecto");
+        }
+        setState({ loading: false, support, error: null });
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setState({
+          loading: false,
+          support: null,
+          error: error?.response?.status === 403
+            ? "No tienes permiso para consultar este perfil."
+            : "No pudimos cargar el resumen de apoyos.",
+        });
+      });
+
+    return () => { cancelled = true; };
+  }, [childId, actorUserId]);
+
+  return (
+    <section className="mb-12 rounded-[2.5rem] bg-white p-6 md:p-9 shadow-md" aria-label="Seguimiento de avances">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+        <div>
+          <p className="text-sm font-bold text-[#8B6FD6]">Seguimiento individual</p>
+          <h2 className="text-2xl md:text-3xl font-extrabold text-[#4B367C]">
+            Avances de {childName}
+          </h2>
+          <p className="mt-2 text-[#6B5A95]">
+            Acciones completadas y apoyos registrados en las rutinas.
+          </p>
+        </div>
+        <Link
+          to={`/dashboard/children/${childId}`}
+          className="inline-flex justify-center rounded-full bg-[#9B7BE8] px-6 py-3 font-bold text-white hover:bg-[#8B6FD6] transition"
+        >
+          Ver seguimiento completo
+        </Link>
+      </div>
+
+      {state.loading && <p role="status" className="text-[#6B5A95]">Cargando apoyos...</p>}
+      {state.error && <p role="alert" className="text-[#925B24]">{state.error}</p>}
+
+      {!state.loading && !state.error && state.support && (
+        <div className="space-y-8">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <HomeProgressStat title="Acciones completadas" value={state.support.total_completed_steps} />
+            <HomeProgressStat title="Con apoyo informado" value={state.support.documented_support_steps} />
+            <HomeProgressStat title="Apoyo no informado" value={state.support.unspecified_support_steps} />
+          </div>
+          <RoutineAnalytics childId={childId} actorUserId={actorUserId} />
+          <SupportChart support={state.support} />
+        </div>
+      )}
+    </section>
+  );
+};
+
+const HomeProgressStat = ({ title, value }) => (
+  <div className="rounded-2xl bg-[#F3ECFF] p-5">
+    <p className="text-sm font-bold text-[#6B5A95]">{title}</p>
+    <p className="mt-2 text-3xl font-extrabold text-[#4B367C]">
+      {Number.isFinite(Number(value)) ? new Intl.NumberFormat("es-CL").format(Number(value)) : "—"}
+    </p>
+  </div>
+);
 
 const DashboardCard = ({ icon, title, value, color }) => {
   return (

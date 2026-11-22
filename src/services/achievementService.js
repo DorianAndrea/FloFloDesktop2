@@ -40,3 +40,29 @@ export const getChildAchievements = async (childId) => {
 
   return [];
 };
+
+/*
+  Contador ligero de logros propios.
+  Utilizado por el Navbar de la cuenta infantil.
+*/
+
+export const getMyAchievementCount = async () => {
+  const response = await api.get("/achievements/count");
+
+  return response.data;
+};
+
+/*
+  Contador ligero de logros de un niño/a asociado.
+  Utilizado por el Navbar del padre/cuidador.
+*/
+
+export const getChildAchievementCount = async (childId) => {
+  const cleanChildId = validateChildId(childId);
+
+  const response = await api.get(
+    `/achievements/children/${cleanChildId}/count`,
+  );
+
+  return response.data;
+};

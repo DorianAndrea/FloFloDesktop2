@@ -1,6 +1,13 @@
 import api from "./api";
 import { validateChildId } from "../utils/validateChildId";
 
+// Nuevo Dashboard general de FloFlo
+export const getDashboardOverview = async () => {
+  const response = await api.get("/dashboard/overview");
+  return response.data;
+};
+
+// Dashboard anterior para cuentas infantiles
 export const getMyDashboard = async () => {
   const response = await api.get("/parent-dashboard/me");
   return response.data;

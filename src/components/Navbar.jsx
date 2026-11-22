@@ -1,22 +1,64 @@
 import { useEffect, useState } from "react";
 import { NavLink } from "react-router-dom";
-import { FaBars, FaTimes, FaChevronDown } from "react-icons/fa";
+import { FaBars, FaTimes } from "react-icons/fa";
 
 import { useFloFlo } from "../context/FloFloContext";
 import { useSelectedChild } from "../context/SelectedChildContext";
+
 import {
-  getMyDashboard,
-  getChildDashboard,
-} from "../services/parentDashboardService";
+  getMyAchievementCount,
+  getChildAchievementCount,
+} from "../services/achievementService";
+
+import NavbarIcon from "./NavbarIcon";
+
+import { getNavbarTheme } from "../config/navbarThemes";
+
+import {
+  navbarNavigation,
+  getNavbarLinks,
+} from "../config/navbarNavigation";
+
 import felixLogo from "../assets/webp/felix_cara_sonriendo.webp";
 import { clearFloFloCache } from "../utils/cache";
 
+const relationshipLabels = {
+  primary_caregiver: "Cuidador/a principal",
+  caregiver: "Cuidador/a",
+  family: "Familiar",
+  occupational_therapist: "Terapeuta ocupacional",
+  psychologist: "Psicólogo/a",
+  speech_therapist: "Fonoaudiólogo/a",
+  teacher: "Profesor/a",
+  other_professional: "Otro profesional",
+};
+
+const accessProfileLabels = {
+  primary_caregiver: "Cuidador/a principal",
+  caregiver: "Cuidador/a",
+  family: "Familiar",
+  therapist: "Profesional de terapia",
+  teacher: "Profesor/a",
+  professional: "Otro profesional",
+};
+
+const caregiverKeys = [
+  "primary_caregiver",
+  "caregiver",
+];
+
 const Navbar = () => {
   const [menuOpen, setMenuOpen] = useState(false);
-  const [activitiesOpen, setActivitiesOpen] = useState(false);
-  const [achievementCount, setAchievementCount] = useState(0);
 
-  const { user, logout, soundEnabled, setSoundEnabled } = useFloFlo();
+  const [achievementResult, setAchievementResult] =
+    useState(null);
+
+  const {
+    user,
+    logout,
+    soundEnabled,
+    setSoundEnabled,
+  } = useFloFlo();
 
   const {
     parentChildren,
@@ -29,513 +71,606 @@ const Navbar = () => {
     selectedAccessProfile,
   } = useSelectedChild();
 
-  const isParent = user?.role === "parent";
-  const isParentMode = isParent && Boolean(selectedChildId);
-  const caregiverRelationshipKeys = ["primary_caregiver", "caregiver"];
+  /*
+    IDENTIFICACIÓN DEL PERFIL
+  */
 
-  const hasCaregiverRelationship = parentChildren.some((child) =>
-    caregiverRelationshipKeys.includes(child.relationship_key),
+  const isParent = user?.role === "parent";
+  const isChild = user?.role === "child";
+
+  const isParentMode =
+    isParent && Boolean(selectedChildId);
+
+  const children = Array.isArray(parentChildren)
+    ? parentChildren
+    : [];
+
+  const hasCaregiverRelationship = children.some(
+    (child) =>
+      caregiverKeys.includes(child.relationship_key),
   );
 
-  const hasAnyChildRelationship = parentChildren.length > 0;
+  const hasAnyChildRelationship =
+    children.length > 0;
 
   const canAccessMiFamilia =
     isParent &&
     !loadingChildren &&
-    (!hasAnyChildRelationship || hasCaregiverRelationship);
-    
-  const relationshipLabels = {
-    primary_caregiver: "Cuidador/a principal",
-    caregiver: "Cuidador/a",
-    family: "Familiar",
-    occupational_therapist: "Terapeuta ocupacional",
-    psychologist: "Psicólogo/a",
-    speech_therapist: "Fonoaudiólogo/a",
-    teacher: "Profesor/a",
-    other_professional: "Otro profesional",
-  };
+    (
+      !hasAnyChildRelationship ||
+      hasCaregiverRelationship
+    );
 
-  const accessProfileLabels = {
-    primary_caregiver: "Cuidador/a principal",
-    caregiver: "Cuidador/a",
-    family: "Familiar",
-    therapist: "Profesional de terapia",
-    teacher: "Profesor/a",
-    professional: "Otro profesional",
-  };
+  /*
+    COLORES DINÁMICOS DEL NAVBAR
+  */
 
-  const profileLabel = !isParent
-    ? "Niño"
-    : relationshipLabels[selectedRelationshipKey] ||
-      accessProfileLabels[selectedAccessProfile] ||
-      "Adulto/a de apoyo";
-  const intelligentReportPath = selectedChildId
-    ? `/informe-inteligente?childId=${selectedChildId}`
-    : "/informe-inteligente";
+  const theme = getNavbarTheme(
+    user?.role,
+    loadingChildren ? null : selectedAccessProfile,
+  );
 
-  const activityLinks = [
-    { name: "Emociones", path: "/emociones", emoji: "😊" },
-    { name: "Rutinas", path: "/rutinas", emoji: "🕒" },
-    { name: "Amigos", path: "/amigos", emoji: "👨‍👩‍👧" },
-    { name: "Conversaciones", path: "/conversaciones", emoji: "💬" },
-    { name: "Lugares", path: "/lugares", emoji: "📍" },
-    { name: "Perfil Sensorial", path: "/perfil-sensorial", emoji: "🧩" },
-  ];
+  const profileLabel = isChild
+    ? "Niño/a"
+    : isParent
+      ? relationshipLabels[selectedRelationshipKey] ||
+        accessProfileLabels[selectedAccessProfile] ||
+        "Adulto/a de apoyo"
+      : "FloFlo";
+
+  /*
+    NAVEGACIÓN SEGÚN PERFIL
+  */
+
+  const navigationLinks = getNavbarLinks({
+    user,
+    canAccessMiFamilia,
+    isParentMode,
+    selectedChildId,
+  });
+
+  /*
+    CONTADOR LIGERO DE LOGROS
+  */
+
+  const canLoadAchievements =
+    isChild ||
+    (
+      isParent &&
+      !loadingChildren &&
+      Boolean(selectedChildId) &&
+      caregiverKeys.includes(selectedAccessProfile)
+    );
+
+  const achievementContextKey =
+    user?.id && canLoadAchievements
+      ? JSON.stringify([
+          user.id,
+          user.role,
+          isParent ? selectedChildId : "self",
+          isParent
+            ? selectedAccessProfile
+            : "child",
+        ])
+      : null;
+
+  const achievementCount =
+    achievementContextKey &&
+    achievementResult?.contextKey ===
+      achievementContextKey
+      ? achievementResult.count
+      : "—";
 
   useEffect(() => {
+    let cancelled = false;
+
+    setAchievementResult(null);
+
+    if (!achievementContextKey) {
+      return;
+    }
+
     const loadNavbarAchievements = async () => {
       try {
-        if (!user?.id) {
-          setAchievementCount(0);
+        const data = isParent
+          ? await getChildAchievementCount(
+              selectedChildId,
+            )
+          : await getMyAchievementCount();
+
+        if (cancelled) {
           return;
         }
 
-        if (isParent && loadingChildren) {
-          return;
+        if (
+          isParent &&
+          Number(data?.child_id) !==
+            Number(selectedChildId)
+        ) {
+          throw new Error(
+            "El contador pertenece a otro perfil infantil",
+          );
         }
 
-        if (isParent && !selectedChildId) {
-          setAchievementCount(0);
-          return;
+        if (
+          !Number.isInteger(data?.achievements) ||
+          data.achievements < 0
+        ) {
+          throw new Error(
+            "Contador de logros inválido",
+          );
         }
 
-        const data = isParentMode
-          ? await getChildDashboard(selectedChildId)
-          : await getMyDashboard();
-
-        setAchievementCount(data?.achievements || 0);
+        setAchievementResult({
+          contextKey: achievementContextKey,
+          count: data.achievements,
+        });
       } catch (error) {
-        console.error("Error cargando logros navbar:", error);
-        setAchievementCount(0);
+        if (!cancelled) {
+          console.error(
+            "Error cargando logros navbar:",
+            error,
+          );
+
+          setAchievementResult(null);
+        }
       }
     };
 
     loadNavbarAchievements();
+
+    return () => {
+      cancelled = true;
+    };
   }, [
-    user?.id,
-    user?.role,
+    achievementContextKey,
     isParent,
-    isParentMode,
     selectedChildId,
-    loadingChildren,
   ]);
 
-  const linkClass = ({ isActive }) =>
-    `font-semibold transition ${
-      isActive ? "text-[#9B7BE8]" : "text-[#5B4B8A] hover:text-[#8B6FD6]"
-    }`;
+  /*
+    ACCIONES GENERALES
+  */
 
   const closeMenus = () => {
     setMenuOpen(false);
-    setActivitiesOpen(false);
   };
 
   const handleLogout = () => {
     clearFloFloCache();
-    logout();
-    setAchievementCount(0);
+    setAchievementResult(null);
     closeMenus();
+    logout();
   };
 
-  const renderSelectedChildDesktop = () => {
-    if (!isParent) return null;
+  /*
+    SELECTOR DE NIÑO/A ACTIVO
+  */
+
+  const renderSelectedChild = (
+    mobile = false,
+  ) => {
+    if (!isParent) {
+      return null;
+    }
 
     return (
-      <div className="mt-1 bg-[#CFEFD9] border border-[#9ED5B3] rounded-xl px-3 py-2">
-        <p className="text-xs font-semibold text-[#2F6B4F]">Niño activo</p>
-
-        {loadingChildren ? (
-          <p className="text-sm font-bold text-[#1F4F39]">Cargando...</p>
-        ) : parentChildren.length === 0 ? (
-          <p className="text-sm font-bold text-[#1F4F39]">
-            Sin niño/a asociado
-          </p>
-        ) : parentChildren.length > 1 ? (
-          <select
-            value={selectedChildId}
-            onChange={(e) => selectChild(e.target.value)}
-            className="mt-1 max-w-[150px] rounded-xl border border-[#9ED5B3] bg-white px-2 py-1 text-sm font-bold text-[#1F4F39] focus:outline-none"
-          >
-            {parentChildren.map((child) => (
-              <option key={child.id} value={child.id}>
-                {getChildDisplayName(child)}
-              </option>
-            ))}
-          </select>
-        ) : (
-          <p className="text-sm font-bold text-[#1F4F39]">
-            👧 {getChildDisplayName(selectedChild)}
-          </p>
-        )}
-      </div>
-    );
-  };
-
-  const renderSelectedChildMobile = () => {
-    if (!isParent) return null;
-
-    return (
-      <div className="mt-3 bg-[#CFEFD9] border border-[#9ED5B3] rounded-2xl px-4 py-3">
-        <p className="text-xs font-semibold text-[#2F6B4F] uppercase tracking-wide">
-          Niño activo
+      <div
+        className={`rounded-xl border px-3 py-2 ${
+          mobile ? "w-full mt-2" : "mt-1"
+        }`}
+        style={{
+          backgroundColor: theme.hover,
+          borderColor: theme.border,
+          color: theme.foreground,
+        }}
+      >
+        <p className="text-xs font-semibold">
+          Niño/a activo
         </p>
 
         {loadingChildren ? (
-          <p className="text-lg font-bold text-[#1F4F39] mt-1">Cargando...</p>
-        ) : parentChildren.length === 0 ? (
-          <p className="text-lg font-bold text-[#1F4F39] mt-1">
+          <p className="text-sm font-bold">
+            Cargando...
+          </p>
+        ) : children.length === 0 ? (
+          <p className="text-sm font-bold">
             Sin niño/a asociado
           </p>
-        ) : parentChildren.length > 1 ? (
+        ) : children.length > 1 ? (
           <select
-            value={selectedChildId}
-            onChange={(e) => selectChild(e.target.value)}
-            className="mt-2 w-full rounded-xl border border-[#9ED5B3] bg-white px-3 py-2 text-[#1F4F39] font-bold focus:outline-none"
+            aria-label="Seleccionar niño activo"
+            value={selectedChildId ?? ""}
+            onChange={(event) =>
+              selectChild(event.target.value)
+            }
+            className={`mt-1 rounded-lg border bg-white
+              px-2 py-1 text-sm font-semibold ${
+                mobile
+                  ? "w-full"
+                  : "max-w-[180px]"
+              }`}
+            style={{
+              borderColor: theme.border,
+              color: theme.foreground,
+            }}
           >
-            {parentChildren.map((child) => (
-              <option key={child.id} value={child.id}>
+            {!selectedChildId && (
+              <option value="" disabled>
+                Seleccionar niño/a
+              </option>
+            )}
+
+            {children.map((child) => (
+              <option
+                key={child.id}
+                value={child.id}
+              >
                 {getChildDisplayName(child)}
               </option>
             ))}
           </select>
         ) : (
-          <p className="text-lg font-bold text-[#1F4F39] mt-1">
-            👧 {getChildDisplayName(selectedChild)}
+          <p className="text-sm font-bold">
+            {getChildDisplayName(
+              selectedChild || children[0],
+            )}
           </p>
         )}
       </div>
     );
   };
 
+  /*
+    IDENTIFICACIÓN VISUAL DEL USUARIO
+  */
+
+  const renderUserIdentity = (
+    mobile = false,
+  ) => {
+    if (!user) {
+      return null;
+    }
+
+    return (
+      <div
+        className={`flex flex-col gap-1 ${
+          mobile
+            ? "rounded-2xl border p-4"
+            : "leading-tight"
+        }`}
+        style={
+          mobile
+            ? {
+                backgroundColor: theme.hover,
+                borderColor: theme.border,
+              }
+            : undefined
+        }
+      >
+        <span
+          className="font-bold whitespace-nowrap"
+          style={{
+            color: theme.foreground,
+          }}
+        >
+          Hola, {user.firstName}
+        </span>
+
+        <span
+          className="text-xs font-bold
+            rounded-full px-2 py-1 w-fit"
+          style={{
+            backgroundColor: theme.active,
+            color: theme.foreground,
+          }}
+        >
+          {profileLabel}
+        </span>
+
+        {renderSelectedChild(mobile)}
+      </div>
+    );
+  };
+
+  /*
+    ACCESOS A LAS FUNCIONALIDADES
+  */
+
+  const renderNavigation = (
+    showLabel = false,
+  ) =>
+    navigationLinks.map((link) => (
+      <NavbarIcon
+        key={link.path}
+        icon={link.icon}
+        label={link.label}
+        to={link.path}
+        end={link.end || false}
+        theme={theme}
+        showLabel={showLabel}
+        onClick={closeMenus}
+      />
+    ));
+
+  /*
+    ACCIONES PERSONALES
+  */
+
+  const renderUserActions = (
+    showLabel = false,
+  ) => {
+    if (!user) {
+      return (
+        <>
+          <NavbarIcon
+            icon={navbarNavigation.login.icon}
+            label={navbarNavigation.login.label}
+            to={navbarNavigation.login.path}
+            theme={theme}
+            showLabel
+            onClick={closeMenus}
+          />
+
+          <NavbarIcon
+            icon={navbarNavigation.register.icon}
+            label={navbarNavigation.register.label}
+            to={navbarNavigation.register.path}
+            theme={theme}
+            showLabel
+            onClick={closeMenus}
+          />
+        </>
+      );
+    }
+
+    return (
+      <>
+        <NavbarIcon
+          icon={
+            navbarNavigation.achievements.icon
+          }
+          label={
+            achievementCount === "—"
+              ? "Logros: contador no disponible"
+              : `Logros: ${achievementCount}`
+          }
+          to={
+            navbarNavigation.achievements.path
+          }
+          count={
+            showLabel ? null : achievementCount
+          }
+          theme={theme}
+          showLabel={showLabel}
+          onClick={closeMenus}
+        />
+
+        <NavbarIcon
+          icon={
+            soundEnabled
+              ? navbarNavigation.sound.enabledIcon
+              : navbarNavigation.sound.disabledIcon
+          }
+          label={
+            soundEnabled
+              ? navbarNavigation.sound.enabledLabel
+              : navbarNavigation.sound.disabledLabel
+          }
+          theme={theme}
+          showLabel={showLabel}
+          onClick={() =>
+            setSoundEnabled(!soundEnabled)
+          }
+        />
+
+        <NavbarIcon
+          icon={navbarNavigation.profile.icon}
+          label={navbarNavigation.profile.label}
+          to={navbarNavigation.profile.path}
+          theme={theme}
+          showLabel={showLabel}
+          onClick={closeMenus}
+        />
+
+        <NavbarIcon
+          icon={navbarNavigation.logout.icon}
+          label={navbarNavigation.logout.label}
+          theme={theme}
+          showLabel={showLabel}
+          onClick={handleLogout}
+        />
+      </>
+    );
+  };
+
+  /*
+    ESTRUCTURA PRINCIPAL DEL NAVBAR
+  */
+
   return (
     <nav
-      className={`sticky top-0 z-50 backdrop-blur-md border-b shadow-sm transition ${
-        user
-          ? isParent
-            ? "bg-[#CFEFD9]/95 border-[#9ED5B3]"
-            : "bg-[#F3ECFF]/95 border-[#D6C7FF]"
-          : "bg-white/90 border-[#E3D9FF]"
-      }`}
+      aria-label="Navegación principal de FloFlo"
+      className="sticky top-0 z-50 border-b
+        shadow-sm transition-colors duration-300"
+      style={{
+        backgroundColor: theme.background,
+        borderColor: theme.border,
+        color: theme.foreground,
+      }}
     >
-      <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-        <NavLink to="/" className="flex items-center gap-3 flex-shrink-0">
-          <img src={felixLogo} alt="FloFlo" className="w-12 h-12" />
-          <span className="text-3xl font-bold text-[#4B367C]">FloFlo</span>
-        </NavLink>
+      <div
+        className="max-w-[1600px] mx-auto
+          px-4 xl:px-6 py-3"
+      >
+        <div
+          className="flex items-center
+            justify-between gap-4"
+        >
+          {/* LOGO FLOFLO */}
 
-        <div className="hidden lg:flex items-center gap-7 flex-1 justify-center">
-          <NavLink to="/" className={linkClass}>
-            Home
+          <NavLink
+            to="/"
+            onClick={closeMenus}
+            aria-label="FloFlo, inicio"
+            className="flex items-center
+              gap-2 shrink-0"
+          >
+            <img
+              src={felixLogo}
+              alt=""
+              className="w-11 h-11 object-contain"
+            />
+
+            <span
+              className="text-2xl font-bold"
+              style={{
+                color: theme.foreground,
+              }}
+            >
+              FloFlo
+            </span>
           </NavLink>
 
-          {user && (
-            <>
-              <div className="relative">
-                <button
-                  type="button"
-                  onClick={() => setActivitiesOpen(!activitiesOpen)}
-                  className="font-semibold text-[#5B4B8A] hover:text-[#8B6FD6] transition flex items-center gap-2"
-                >
-                  Actividades
-                  <FaChevronDown
-                    className={`text-sm transition ${
-                      activitiesOpen ? "rotate-180" : ""
-                    }`}
-                  />
-                </button>
+          {/* NAVEGACIÓN ESCRITORIO */}
 
-                {activitiesOpen && (
-                  <div className="absolute top-9 left-0 bg-white border border-[#E3D9FF] shadow-lg rounded-2xl p-3 w-56">
-                    {activityLinks.map((link) => (
-                      <NavLink
-                        key={link.path}
-                        to={link.path}
-                        onClick={() => setActivitiesOpen(false)}
-                        className={({ isActive }) =>
-                          `flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition ${
-                            isActive
-                              ? "bg-[#F1EBFF] text-[#9B7BE8]"
-                              : "text-[#5B4B8A] hover:bg-[#F7F3FF]"
-                          }`
-                        }
-                      >
-                        <span>{link.emoji}</span>
-                        <span>{link.name}</span>
-                      </NavLink>
-                    ))}
-                  </div>
-                )}
-              </div>
+          <div
+            className="hidden xl:flex flex-1
+              flex-wrap items-center
+              justify-center gap-1"
+          >
+            {renderNavigation(isChild)}
+          </div>
 
-              {canAccessMiFamilia && (
-                <NavLink
-                  to="/mi-familia"
-                  className={({ isActive }) =>
-                    `font-semibold px-4 py-2 rounded-full transition ${
-                      isActive
-                        ? "bg-[#FFF3C4] text-[#6B5A00] border border-[#E8D785]"
-                        : "bg-[#FFF9DF] text-[#6B5A00] border border-[#E8D785] hover:bg-[#FFF3C4]"
-                    }`
-                  }
-                >
-                  Mi familia
-                </NavLink>
-              )}
+          {/* PERFIL Y ACCIONES ESCRITORIO */}
 
-              {isParentMode && (
-                <NavLink
-                  to="/equipo-floflo"
-                  className={({ isActive }) =>
-                    `font-semibold px-4 py-2 rounded-full transition ${
-                      isActive
-                        ? "bg-[#E8DDFF] text-[#6B4FC3] border border-[#CDBBFF]"
-                        : "bg-[#F3ECFF] text-[#6B4FC3] border border-[#D6C7FF] hover:bg-[#E8DDFF]"
-                    }`
-                  }
-                >
-                  Equipo FloFlo
-                </NavLink>
-              )}
+          <div
+            className="hidden xl:flex
+              items-center gap-2 shrink-0"
+          >
+            {renderUserIdentity()}
 
-              {isParent && (
-                <NavLink
-                  to="/panel-padres"
-                  className={({ isActive }) =>
-                    `font-semibold px-4 py-2 rounded-full transition ${
-                      isActive
-                        ? "bg-[#CFEFD9] text-[#2F6B4F] border border-[#9ED5B3]"
-                        : "bg-[#EAF8EF] text-[#2F6B4F] border border-[#9ED5B3] hover:bg-[#CFEFD9]"
-                    }`
-                  }
-                >
-                  Panel de Apoyo
-                </NavLink>
+            <div
+              className="flex items-center
+                gap-1"
+            >
+              {renderUserActions()}
+            </div>
+          </div>
+
+          {/* BOTÓN MENÚ MÓVIL */}
+
+          <div
+            className="xl:hidden flex
+              items-center gap-3"
+          >
+            {user && (
+              <span
+                className="hidden sm:inline
+                  text-xs font-bold rounded-full
+                  px-3 py-1"
+                style={{
+                  backgroundColor: theme.active,
+                  color: theme.foreground,
+                }}
+              >
+                {profileLabel}
+              </span>
+            )}
+
+            <button
+              type="button"
+              aria-label={
+                menuOpen
+                  ? "Cerrar menú"
+                  : "Abrir menú"
+              }
+              aria-expanded={menuOpen}
+              aria-controls="floflo-mobile-menu"
+              onClick={() =>
+                setMenuOpen((previous) => !previous)
+              }
+              className="min-w-[44px]
+                min-h-[44px] rounded-xl
+                flex items-center justify-center
+                text-xl transition-colors"
+              style={{
+                backgroundColor: theme.hover,
+                color: theme.foreground,
+              }}
+            >
+              {menuOpen ? (
+                <FaTimes aria-hidden="true" />
+              ) : (
+                <FaBars aria-hidden="true" />
               )}
-              {isParent && (
-                <NavLink
-                  to={intelligentReportPath}
-                  className={({ isActive }) =>
-                    `font-semibold px-4 py-2 rounded-full transition ${
-                      isActive
-                        ? "bg-[#E8DDFF] text-[#6B4FC3] border border-[#CDBBFF]"
-                        : "bg-[#F3ECFF] text-[#6B4FC3] border border-[#D6C7FF] hover:bg-[#E8DDFF]"
-                    }`
-                  }
-                >
-                  Informe Inteligente
-                </NavLink>
-              )}
-            </>
-          )}
+            </button>
+          </div>
         </div>
-
-        <div className="hidden lg:flex items-center gap-4">
-          {!user ? (
-            <>
-              <NavLink to="/login" className={linkClass}>
-                Login
-              </NavLink>
-
-              <NavLink
-                to="/registro"
-                className="bg-[#9B7BE8] hover:bg-[#8B6FD6] text-white font-semibold px-5 py-3 rounded-full transition"
-              >
-                Registro
-              </NavLink>
-            </>
-          ) : (
-            <>
-              <div className="flex flex-col leading-tight">
-                <span className="font-semibold text-[#4B367C] whitespace-nowrap">
-                  Hola, {user.firstName}
-                </span>
-
-                {renderSelectedChildDesktop()}
-
-                <span
-                  className={`text-xs font-bold px-2 py-1 rounded-full w-fit mt-1 ${
-                    isParent
-                      ? "bg-[#CFEFD9] text-[#2F6B4F] border border-[#9ED5B3]"
-                      : "bg-[#E8DDFF] text-[#6B4FC3]"
-                  }`}
-                >
-                  {profileLabel}
-                </span>
-              </div>
-
-              <NavLink
-                to="/logros"
-                className="bg-[#FFF3C4] text-[#5C4A00] font-bold px-4 py-2 rounded-full shadow-sm hover:shadow-md transition flex items-center gap-2"
-              >
-                <span>⭐</span>
-                <span>{achievementCount}</span>
-              </NavLink>
-
-              <button
-                type="button"
-                onClick={() => setSoundEnabled(!soundEnabled)}
-                className="bg-[#E8DDFF] text-[#4B367C] font-bold px-4 py-2 rounded-full shadow-sm hover:shadow-md transition"
-              >
-                {soundEnabled ? "🔊" : "🔇"}
-              </button>
-
-              <NavLink
-                to="/mi-perfil"
-                className="bg-[#9B7BE8] hover:bg-[#8B6FD6] text-white font-semibold px-5 py-3 rounded-full transition"
-              >
-                Mi Perfil
-              </NavLink>
-
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="text-red-500 font-semibold hover:text-red-700 transition"
-              >
-                Salir
-              </button>
-            </>
-          )}
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setMenuOpen(!menuOpen)}
-          className="lg:hidden text-[#4B367C] text-2xl"
-        >
-          {menuOpen ? <FaTimes /> : <FaBars />}
-        </button>
       </div>
 
+      {/* NAVEGACIÓN MÓVIL Y TABLET */}
+
       {menuOpen && (
-        <div className="lg:hidden bg-white border-t border-[#E3D9FF] px-6 py-5 max-h-[calc(100vh-90px)] overflow-y-auto">
-          <div className="flex flex-col gap-5">
-            <NavLink to="/" className={linkClass} onClick={closeMenus}>
-              Home
-            </NavLink>
+        <div
+          id="floflo-mobile-menu"
+          className="xl:hidden border-t
+            px-4 py-4
+            max-h-[calc(100dvh-80px)]
+            overflow-y-auto"
+          style={{
+            backgroundColor: theme.background,
+            borderColor: theme.border,
+          }}
+        >
+          <div
+            className="max-w-2xl
+              mx-auto flex flex-col gap-4"
+          >
+            {renderUserIdentity(true)}
 
-            {user ? (
-              <>
-                <div className="bg-[#F7F3FF] rounded-2xl p-4">
-                  <p className="font-bold text-[#4B367C]">
-                    Hola, {user.firstName}
-                  </p>
+            <div>
+              <p
+                className="text-xs font-bold
+                  uppercase tracking-wide mb-3"
+                style={{
+                  color: theme.foreground,
+                }}
+              >
+                Navegación
+              </p>
 
-                  {renderSelectedChildMobile()}
+              <div
+                className="grid grid-cols-1
+                  sm:grid-cols-2 gap-2"
+              >
+                {renderNavigation(true)}
+              </div>
+            </div>
 
-                  <p
-                    className={`text-sm font-bold px-3 py-2 rounded-full w-fit mt-2 ${
-                      isParent
-                        ? "bg-[#CFEFD9] text-[#2F6B4F] border border-[#9ED5B3]"
-                        : "bg-[#E8DDFF] text-[#6B4FC3]"
-                    }`}
-                  >
-                    Perfil: {profileLabel}
-                  </p>
-                </div>
+            <div
+              className="border-t pt-4"
+              style={{
+                borderColor: theme.border,
+              }}
+            >
+              <p
+                className="text-xs font-bold
+                  uppercase tracking-wide mb-3"
+                style={{
+                  color: theme.foreground,
+                }}
+              >
+                Mi cuenta
+              </p>
 
-                <div>
-                  <p className="font-bold text-[#4B367C] mb-3">Actividades</p>
-
-                  <div className="flex flex-col gap-3 pl-3">
-                    {activityLinks.map((link) => (
-                      <NavLink
-                        key={link.path}
-                        to={link.path}
-                        onClick={closeMenus}
-                        className={linkClass}
-                      >
-                        {link.emoji} {link.name}
-                      </NavLink>
-                    ))}
-                  </div>
-                </div>
-
-                {canAccessMiFamilia && (
-                  <NavLink
-                    to="/mi-familia"
-                    onClick={closeMenus}
-                    className="bg-[#FFF9DF] text-[#6B5A00] border border-[#E8D785] font-bold px-4 py-3 rounded-full w-fit"
-                  >
-                    👨‍👩‍👧‍👦 Mi familia
-                  </NavLink>
-                )}
-
-                {isParentMode && (
-                  <NavLink
-                    to="/equipo-floflo"
-                    onClick={closeMenus}
-                    className="bg-[#F3ECFF] text-[#6B4FC3] border border-[#D6C7FF] font-bold px-4 py-3 rounded-full w-fit"
-                  >
-                    👥 Equipo FloFlo
-                  </NavLink>
-                )}
-
-                {isParent && (
-                  <NavLink
-                    to="/panel-padres"
-                    onClick={closeMenus}
-                    className="bg-[#CFEFD9] text-[#2F6B4F] border border-[#9ED5B3] font-bold px-4 py-3 rounded-full w-fit"
-                  >
-                    👨‍👩‍👧 Panel de Apoyo
-                  </NavLink>
-                )}
-                {isParent && (
-                  <NavLink
-                    to={intelligentReportPath}
-                    onClick={closeMenus}
-                    className="bg-[#F3ECFF] text-[#6B4FC3] border border-[#D6C7FF] font-bold px-4 py-3 rounded-full w-fit"
-                  >
-                    🧠 Informe Inteligente
-                  </NavLink>
-                )}
-
-                <NavLink
-                  to="/logros"
-                  onClick={closeMenus}
-                  className="bg-[#FFF3C4] text-[#5C4A00] font-bold px-4 py-3 rounded-full w-fit"
-                >
-                  ⭐ {achievementCount} Logros
-                </NavLink>
-
-                <button
-                  type="button"
-                  onClick={() => setSoundEnabled(!soundEnabled)}
-                  className="bg-[#E8DDFF] text-[#4B367C] font-bold px-4 py-3 rounded-full w-fit"
-                >
-                  {soundEnabled ? "🔊 Sonido activado" : "🔇 Sonido apagado"}
-                </button>
-
-                <NavLink
-                  to="/mi-perfil"
-                  onClick={closeMenus}
-                  className="bg-[#9B7BE8] hover:bg-[#8B6FD6] text-white font-semibold px-5 py-3 rounded-full text-center transition"
-                >
-                  Mi Perfil
-                </NavLink>
-
-                <button
-                  type="button"
-                  onClick={handleLogout}
-                  className="bg-red-50 border-2 border-red-200 text-red-600 font-bold px-5 py-3 rounded-full text-center hover:bg-red-100 transition"
-                >
-                  Cerrar sesión
-                </button>
-              </>
-            ) : (
-              <>
-                <NavLink to="/login" className={linkClass} onClick={closeMenus}>
-                  Login
-                </NavLink>
-
-                <NavLink
-                  to="/registro"
-                  className="bg-[#9B7BE8] hover:bg-[#8B6FD6] text-white font-semibold px-5 py-3 rounded-full text-center transition"
-                  onClick={closeMenus}
-                >
-                  Registro
-                </NavLink>
-              </>
-            )}
+              <div
+                className="grid grid-cols-1
+                  sm:grid-cols-2 gap-2"
+              >
+                {renderUserActions(true)}
+              </div>
+            </div>
           </div>
         </div>
       )}

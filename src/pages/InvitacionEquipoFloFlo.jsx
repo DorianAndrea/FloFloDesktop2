@@ -84,14 +84,24 @@ const InvitacionEquipoFloFlo = () => {
     } catch (error) {
       console.error(error);
 
+      const backendMessage = error.response?.data?.message;
+
+      const isWrongAccount =
+        backendMessage ===
+        "Debes iniciar sesión con el correo que recibió la invitación";
+
       showFeedback({
         type: "error",
         icon: "❌",
-        label: "No se pudo aceptar",
-        title: "Revisa tu cuenta",
-        message:
-          error.response?.data?.message ||
-          "No fue posible aceptar esta invitación.",
+        label: isWrongAccount
+          ? "Hay otra cuenta iniciada"
+          : "No se pudo aceptar",
+        title: isWrongAccount
+          ? "Cierra sesión para continuar"
+          : "Revisa tu cuenta",
+        message: isWrongAccount
+          ? "Si tienes una sesión abierta en FloFlo, ciérrala primero. Luego vuelve a abrir esta invitación e inicia sesión con el correo que recibió la invitación."
+          : backendMessage || "No fue posible aceptar esta invitación.",
       });
     } finally {
       setAccepting(false);

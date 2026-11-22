@@ -1,6 +1,46 @@
 import { useEffect, useState } from "react";
 import { getFloCardAsset } from "./data/floCardAssets";
 import { getFloCardInteraction } from "./data/floCardInteractions";
+import FloCardSupport from "./FloCardSupport";
+
+const SUPPORT_OPTIONS = [
+  { code: "independent", label: "🌟 Realizado sin apoyo" },
+  { code: "verbal", label: "💬 Apoyo verbal" },
+  { code: "visual", label: "👁️ Apoyo visual" },
+  { code: "gestural", label: "👋 Apoyo gestual" },
+  { code: "physical_partial", label: "🤝 Apoyo físico parcial" },
+  { code: "physical_total", label: "🫶 Apoyo físico total" },
+];
+
+const SupportSelector = ({ value = [], onChange, disabled = false }) => {
+  const toggle = (code) => {
+    if (disabled) return;
+    if (value.includes(code)) {
+      onChange(value.filter((item) => item !== code));
+    } else if (code === "independent") {
+      onChange(["independent"]);
+    } else {
+      onChange([...value.filter((item) => item !== "independent"), code]);
+    }
+  };
+
+  return (
+    <fieldset disabled={disabled} className="mx-auto mt-5 w-full max-w-md text-left">
+      <legend className="mb-2 text-xs font-extrabold uppercase tracking-wide text-[#9B7BE8]">
+        Tipos de apoyo observados (opcional)
+      </legend>
+      <div className="grid gap-2">
+        {SUPPORT_OPTIONS.map((support) => (
+          <label key={support.code} className={`flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 text-sm font-semibold ${value.includes(support.code) ? "border-[#9B7BE8] bg-[#EEE7FF] text-[#4B367C]" : "border-[#E4D8FF] bg-white text-[#756596]"}`}>
+            <input type="checkbox" checked={value.includes(support.code)} onChange={() => toggle(support.code)} className="h-4 w-4 accent-[#7C5CE6]" />
+            {support.label}
+          </label>
+        ))}
+      </div>
+      {value.length === 0 && <p className="mt-2 text-xs font-medium text-[#8A7BB0]">Apoyo no informado</p>}
+    </fieldset>
+  );
+};
 
 const AnimationExperience = ({ pictogramAsset, floCard, step, helperText }) => {
   return (
@@ -118,6 +158,8 @@ const SequenceExperience = ({
   onStepFinished,
   completing = false,
   nested = false,
+  supportSelections = {},
+  onSupportChange = () => {},
 }) => {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
 
@@ -141,6 +183,7 @@ const SequenceExperience = ({
   }
 
   const currentStep = steps[currentStepIndex];
+  const currentSupportCodes = supportSelections[currentStepIndex] || [];
   const stepType = currentStep.type || "pictogram";
 
   const isNestedSequence = stepType === "sequence";
@@ -199,6 +242,7 @@ const SequenceExperience = ({
         stepIndex: currentStepIndex,
         step: currentStep,
         nested: false,
+        supportCodes: currentSupportCodes,
       });
     }
 
@@ -208,6 +252,7 @@ const SequenceExperience = ({
           completed: true,
           totalSteps: steps.length,
           persistedStepByStep: true,
+          supportSelections,
         });
       }
 
@@ -249,6 +294,7 @@ const SequenceExperience = ({
         step: currentStep,
         nested: true,
         nestedResult,
+        supportCodes: currentSupportCodes,
       });
     }
 
@@ -259,6 +305,7 @@ const SequenceExperience = ({
           totalSteps: steps.length,
           persistedStepByStep: true,
           nestedResult,
+          supportSelections,
         });
       }
 
@@ -364,6 +411,19 @@ const SequenceExperience = ({
             </span>
           )}
         </div>
+      )}
+      {!isNestedSequence &&
+        !hasInvalidStepType &&
+        !hasInvalidNestedSequence && (
+          <FloCardSupport
+            key={`support-${currentStepIndex}-${currentStep.floCardCode}`}
+            instruction={currentStep.instruction || ""}
+            disabled={completing}
+          />
+        )}
+
+      {!isNestedSequence && (
+        <SupportSelector value={currentSupportCodes} onChange={(codes) => onSupportChange(currentStepIndex, codes)} disabled={completing} />
       )}
       {!isNestedSequence && (
         <div className="sticky bottom-0 z-20 mx-auto mt-6 flex max-w-md gap-3 border-t border-[#EEE7FA] bg-white/95 px-1 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur">
@@ -513,6 +573,8 @@ const FloCardExperience = ({
 }) => {
   const [interactionCompleted, setInteractionCompleted] = useState(false);
   const [interactionResult, setInteractionResult] = useState(null);
+  const [supportCodes, setSupportCodes] = useState([]);
+  const [sequenceSupportSelections, setSequenceSupportSelections] = useState({});
 
   if (!floCard?.code || !step) {
     return null;
@@ -587,33 +649,19 @@ const FloCardExperience = ({
             steps={interaction?.steps || []}
             helperText={helperText}
             completing={completing}
+            supportSelections={sequenceSupportSelections}
+            onSupportChange={(index, codes) => setSequenceSupportSelections((current) => ({ ...current, [index]: codes }))}
             onStepFinished={onSequenceStepComplete}
             onFinished={(result) => {
               setInteractionResult(result);
               setInteractionCompleted(true);
 
               if (typeof onComplete === "function") {
-                onComplete(result);
+                onComplete({ ...result, supportSelections: sequenceSupportSelections });
               }
             }}
           />
         );
-        return (
-          <SequenceExperience
-            steps={interaction?.steps || []}
-            helperText={helperText}
-            completing={completing}
-            onFinished={(result) => {
-              setInteractionResult(result);
-              setInteractionCompleted(true);
-
-              if (typeof onComplete === "function") {
-                onComplete(result);
-              }
-            }}
-          />
-        );
-
       default:
         return (
           <SimpleExperience
@@ -634,7 +682,7 @@ const FloCardExperience = ({
 
   return (
     <div className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/40 p-2 sm:items-center sm:p-4">
-  <div className="relative my-2 w-full max-w-xl max-h-[calc(100dvh-1rem)] overflow-y-auto rounded-[2rem] bg-white p-4 shadow-2xl sm:my-0 sm:max-h-[calc(100dvh-2rem)] sm:p-8">
+      <div className="relative my-2 w-full max-w-xl max-h-[calc(100dvh-1rem)] overflow-y-auto rounded-[2rem] bg-white p-4 shadow-2xl sm:my-0 sm:max-h-[calc(100dvh-2rem)] sm:p-8">
         <button
           type="button"
           onClick={onClose}
@@ -662,10 +710,24 @@ const FloCardExperience = ({
           {renderInteraction()}
 
           {interactionType !== "sequence" && (
+            <FloCardSupport
+              key={floCard.code}
+              instruction={instruction}
+              disabled={completing}
+            />
+          )}
+
+          {interactionType !== "sequence" && (
+            <SupportSelector value={supportCodes} onChange={setSupportCodes} disabled={completing} />
+          )}
+
+          {interactionType !== "sequence" && (
             <button
               type="button"
               disabled={completing || !canComplete}
-              onClick={() => onComplete(interactionResult)}
+              onClick={() => {
+                onComplete({ ...(interactionResult || {}), supportCodes });
+              }}
               className="mt-8 w-full rounded-2xl bg-[#7C5CE6] px-6 py-4 text-lg font-black text-white transition hover:bg-[#6949D8] disabled:cursor-not-allowed disabled:opacity-60"
             >
               {completing

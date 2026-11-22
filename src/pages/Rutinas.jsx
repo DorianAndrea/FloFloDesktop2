@@ -49,6 +49,7 @@ import RoutineHistory from "../components/routines/RoutineHistory";
 import RoutineCard from "../components/routines/RoutineCard";
 import { getExperienceTemplate } from "../services/experienceTemplateService";
 import { registerExperienceRecent } from "../services/experienceRecentService";
+import { registerSupportObservation } from "../services/supportService";
 
 const DAYS = [
   { key: "monday", label: "Lun", fullLabel: "Lunes" },
@@ -797,143 +798,134 @@ const Rutinas = () => {
     return routine.days_of_week.includes(todayInfo.day);
   };
 
+  // El backend resuelve child_profile.id desde el progreso completado.
+  // No se supone que selectedChild.id sea el ID interno del perfil.
+  const saveObservedSupports = async (progress, supportCodes) => {
+    if (!Array.isArray(supportCodes) || supportCodes.length === 0) return;
+    if (!isParentMode) {
+      throw new Error("El registro de apoyos requiere una cuenta cuidadora o profesional autorizada.");
+    }
+    if (!progress?.id) {
+      throw new Error("El paso se completó, pero el servidor no devolvió el ID de progreso necesario para registrar apoyos.");
+    }
+    await registerSupportObservation("from-progress", progress.id, supportCodes);
+  };
+
   const handleToggleRoutineStep = async (
     routine,
     step,
-    supportLevel = "independent",
+    supportLevel = null,
     interactionResult = null,
+    supportCodes = null,
   ) => {
-    if (!validateParentChildSelection()) {
-      return;
-    }
-
+    if (!validateParentChildSelection()) return;
     const stepKey = `${routine.id}:${step.id}`;
-
-    if (updatingStepKey === stepKey) {
-      return;
-    }
-
+    if (updatingStepKey === stepKey) return;
+    let stepSaved = false;
     try {
       setUpdatingStepKey(stepKey);
-
+      let response;
       if (step.completed_today) {
-        if (isParentMode) {
-          await uncompleteChildRoutineStep(
-            selectedChildId,
-            routine.id,
-            step.id,
-          );
-        } else {
-          await uncompleteRoutineStep(routine.id, step.id);
-        }
+        response = isParentMode
+          ? await uncompleteChildRoutineStep(selectedChildId, routine.id, step.id)
+          : await uncompleteRoutineStep(routine.id, step.id);
       } else {
+        const codes = Array.isArray(supportCodes)
+          ? supportCodes
+          : (supportLevel ? [supportLevel] : []);
+        if (codes.length && !isParentMode) {
+          throw new Error("El registro de apoyos requiere una cuenta cuidadora o profesional autorizada.");
+        }
         const progressData = {
-          support_level: supportLevel,
+          support_level: codes.length === 1 ? codes[0] : null,
           notes: "",
           interaction_result: interactionResult,
         };
-
-        if (isParentMode) {
-          await completeChildRoutineStep(
-            selectedChildId,
-            routine.id,
-            step.id,
-            progressData,
-          );
-        } else {
-          await completeRoutineStep(routine.id, step.id, progressData);
-        }
+        response = isParentMode
+          ? await completeChildRoutineStep(selectedChildId, routine.id, step.id, progressData)
+          : await completeRoutineStep(routine.id, step.id, progressData);
+        stepSaved = true;
+        await saveObservedSupports(response?.progress, codes);
       }
-
-      await loadRoutines({
-        useCache: false,
-      });
+      await loadRoutines({ useCache: false });
+      return response;
     } catch (error) {
       console.error("Error actualizando paso:", error);
-
       showFeedback({
-        type: "error",
-        icon: "❌",
-        label: "No se pudo guardar",
-        title: "Error al actualizar el paso",
-        message: error.response?.data?.message || "Intenta nuevamente.",
+        type: "error", icon: "❌", label: "No se pudo guardar",
+        title: stepSaved ? "Paso completado; apoyos pendientes" : "Error al actualizar el paso",
+        message: error.response?.data?.message || error.message || "Intenta nuevamente.",
       });
+      if (stepSaved) await loadRoutines({ useCache: false });
+      throw error;
     } finally {
       setUpdatingStepKey(null);
     }
   };
+
   const handleCompleteRoutineStepSequence = async (
     routine,
     triggerStep,
     stepIds,
-    supportLevel = "independent",
+    supportLevel = null,
     interactionResult = null,
+    supportSelections = {},
   ) => {
-    if (!validateParentChildSelection()) {
-      return;
-    }
-
+    if (!validateParentChildSelection()) return;
     if (!Array.isArray(stepIds) || stepIds.length === 0) {
-      showFeedback({
-        type: "error",
-        icon: "❌",
-        label: "Secuencia inválida",
-        title: "No se encontraron los pasos",
-        message: "No se pudo completar la secuencia.",
-      });
-
-      return;
+      throw new Error("No se encontraron los pasos de la secuencia.");
     }
-
     const stepKey = `${routine.id}:${triggerStep.id}`;
-
-    if (updatingStepKey === stepKey) {
-      return;
+    if (updatingStepKey === stepKey) return;
+    const selectedEntries = Object.entries(supportSelections).filter(
+      ([, codes]) => Array.isArray(codes) && codes.length > 0
+    );
+    if (selectedEntries.length && !isParentMode) {
+      throw new Error("El registro de apoyos requiere una cuenta cuidadora o profesional autorizada.");
     }
-
+    // Indexes from the FloCard sequence must correspond exactly to routine steps.
+    const orderedSteps = [...(routine.steps || [])].sort(
+      (a, b) => Number(a.position) - Number(b.position)
+    );
+    if (selectedEntries.length && (
+      orderedSteps.length !== stepIds.length ||
+      orderedSteps.some((step, index) => Number(step.id) !== Number(stepIds[index]))
+    )) {
+      throw new Error("No se pudo relacionar cada apoyo con su paso. No se completó la secuencia.");
+    }
+    let sequenceSaved = false;
     try {
       setUpdatingStepKey(stepKey);
-
       const progressData = {
         step_ids: stepIds,
-        support_level: supportLevel,
+        support_level: selectedEntries.length ? null : (supportLevel || null),
         notes: "",
         interaction_result: interactionResult,
       };
-
-      let response;
-
-      if (isParentMode) {
-        response = await completeChildRoutineStepSequence(
-          selectedChildId,
-          routine.id,
-          triggerStep.id,
-          progressData,
+      const response = isParentMode
+        ? await completeChildRoutineStepSequence(selectedChildId, routine.id, triggerStep.id, progressData)
+        : await completeRoutineStepSequence(routine.id, triggerStep.id, progressData);
+      sequenceSaved = true;
+      for (const [indexText, codes] of selectedEntries) {
+        const index = Number(indexText);
+        if (!Number.isInteger(index) || index < 0 || index >= stepIds.length) {
+          throw new Error("Índice de apoyo inválido en la secuencia.");
+        }
+        const progress = response?.progress?.find(
+          (row) => Number(row.routine_step_id) === Number(stepIds[index])
         );
-      } else {
-        response = await completeRoutineStepSequence(
-          routine.id,
-          triggerStep.id,
-          progressData,
-        );
+        await saveObservedSupports(progress, codes);
       }
-
-      await loadRoutines({
-        useCache: false,
-      });
-
+      await loadRoutines({ useCache: false });
       return response;
     } catch (error) {
       console.error("Error completando secuencia FloCard:", error);
-
       showFeedback({
-        type: "error",
-        icon: "❌",
-        label: "No se pudo guardar",
-        title: "Error al completar la secuencia",
-        message: error.response?.data?.message || "Intenta nuevamente.",
+        type: "error", icon: "❌", label: "No se pudo guardar",
+        title: sequenceSaved ? "Secuencia completada; apoyos pendientes" : "Error al completar la secuencia",
+        message: error.response?.data?.message || error.message || "Intenta nuevamente.",
       });
-
+      if (sequenceSaved) await loadRoutines({ useCache: false });
       throw error;
     } finally {
       setUpdatingStepKey(null);
