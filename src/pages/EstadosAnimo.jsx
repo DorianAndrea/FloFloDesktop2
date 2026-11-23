@@ -14,6 +14,7 @@ import {
 import feliz from "../assets/webp/felix_cara_sonriendo.webp";
 import felixAvergonzado from "../modules/flocards/svg/felix_avergonzado_solo_cara_animado.svg";
 import felixTranquilo from "../modules/flocards/svg/felix_tranquilo_solo_cara_animado.svg";
+import felixFrustrado from "../modules/flocards/svg/felix_frustrado.svg";
 import sorprendido from "../assets/webp/felix_cara_sorprendido.webp";
 import triste from "../assets/webp/felix_cara_triste_animado.webp";
 import enojado from "../assets/webp/felix_enojado_animado.webp";
@@ -144,6 +145,7 @@ const EstadosAnimo = () => {
     "felix_asustado_animado_real.svg": felix_asustado,
     "felix_avergonzado_solo_cara_animado.svg": felixAvergonzado,
     "felix_tranquilo_solo_cara_animado.svg": felixTranquilo,
+    "felix_frustrado.svg": felixFrustrado,
   };
 
   const estados = [
@@ -201,6 +203,13 @@ const EstadosAnimo = () => {
       mensaje: isParentMode
         ? `${childName} se mostró tranquilo/a.`
         : "Qué bien que te sientes tranquilo/a. Disfruta este momento.",
+    },
+    {
+      id: 12,
+      nombre: "Frustrado",
+      valor: "frustrado",
+      imagen: felixFrustrado,
+      color: "#FFF3E0",
     },
   ];
 
