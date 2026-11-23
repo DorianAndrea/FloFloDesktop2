@@ -477,7 +477,7 @@ const SequenceExperience = ({
         <SupportSelector value={currentSupportCodes} onChange={(codes) => onSupportChange(currentStepIndex, codes)} disabled={completing} />
       )}
       {!isNestedSequence && (
-        <div className="sticky bottom-0 z-20 mx-auto mt-6 flex max-w-md gap-3 border-t border-[#EEE7FA] bg-white/95 px-1 pb-[max(1rem,env(safe-area-inset-bottom))] pt-4 backdrop-blur">
+        <div className="relative mx-auto mt-6 flex max-w-md gap-3 border-t border-[#EEE7FA] bg-white px-1 pb-4 pt-4">
           {!isFirstStep && (
             <button
               type="button"
