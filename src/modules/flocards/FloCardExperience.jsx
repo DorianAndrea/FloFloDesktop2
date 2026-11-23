@@ -12,7 +12,6 @@ const SUPPORT_OPTIONS = [
   { code: "physical_total", label: "🫶 Apoyo físico total" },
 ];
 
-
 const SupportSelector = ({ value = [], onChange, disabled = false }) => {
   const toggle = (code) => {
     if (disabled) return;
@@ -22,10 +21,7 @@ const SupportSelector = ({ value = [], onChange, disabled = false }) => {
     } else if (code === "independent") {
       onChange(["independent"]);
     } else {
-      onChange([
-        ...value.filter((item) => item !== "independent"),
-        code,
-      ]);
+      onChange([...value.filter((item) => item !== "independent"), code]);
     }
   };
 
@@ -91,7 +87,6 @@ const SupportSelector = ({ value = [], onChange, disabled = false }) => {
     </section>
   );
 };
-
 
 const AnimationExperience = ({ pictogramAsset, floCard, step, helperText }) => {
   return (
@@ -474,7 +469,11 @@ const SequenceExperience = ({
         )}
 
       {!isNestedSequence && (
-        <SupportSelector value={currentSupportCodes} onChange={(codes) => onSupportChange(currentStepIndex, codes)} disabled={completing} />
+        <SupportSelector
+          value={currentSupportCodes}
+          onChange={(codes) => onSupportChange(currentStepIndex, codes)}
+          disabled={completing}
+        />
       )}
       {!isNestedSequence && (
         <div className="relative mx-auto mt-6 flex max-w-md gap-3 border-t border-[#EEE7FA] bg-white px-1 pb-4 pt-4">
@@ -625,7 +624,9 @@ const FloCardExperience = ({
   const [interactionCompleted, setInteractionCompleted] = useState(false);
   const [interactionResult, setInteractionResult] = useState(null);
   const [supportCodes, setSupportCodes] = useState([]);
-  const [sequenceSupportSelections, setSequenceSupportSelections] = useState({});
+  const [sequenceSupportSelections, setSequenceSupportSelections] = useState(
+    {},
+  );
 
   if (!floCard?.code || !step) {
     return null;
@@ -701,14 +702,22 @@ const FloCardExperience = ({
             helperText={helperText}
             completing={completing}
             supportSelections={sequenceSupportSelections}
-            onSupportChange={(index, codes) => setSequenceSupportSelections((current) => ({ ...current, [index]: codes }))}
+            onSupportChange={(index, codes) =>
+              setSequenceSupportSelections((current) => ({
+                ...current,
+                [index]: codes,
+              }))
+            }
             onStepFinished={onSequenceStepComplete}
             onFinished={(result) => {
               setInteractionResult(result);
               setInteractionCompleted(true);
 
               if (typeof onComplete === "function") {
-                onComplete({ ...result, supportSelections: sequenceSupportSelections });
+                onComplete({
+                  ...result,
+                  supportSelections: sequenceSupportSelections,
+                });
               }
             }}
           />
@@ -769,7 +778,11 @@ const FloCardExperience = ({
           )}
 
           {interactionType !== "sequence" && (
-            <SupportSelector value={supportCodes} onChange={setSupportCodes} disabled={completing} />
+            <SupportSelector
+              value={supportCodes}
+              onChange={setSupportCodes}
+              disabled={false}
+            />
           )}
 
           {interactionType !== "sequence" && (
