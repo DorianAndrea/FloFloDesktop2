@@ -210,6 +210,9 @@ const EstadosAnimo = () => {
       valor: "frustrado",
       imagen: felixFrustrado,
       color: "#FFF3E0",
+       mensaje: isParentMode
+        ? `${childName} se mostró frustrado/a.`
+        : "Qué bien que te sientes frustrado/a. Disfruta este momento.",
     },
   ];
 
