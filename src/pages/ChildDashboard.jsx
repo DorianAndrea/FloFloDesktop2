@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import MiBienestar from "../components/dashboard/MiBienestar";
 
 import {
   FaArrowLeft,
@@ -262,6 +263,9 @@ const ChildDashboard = () => {
             />
 
             <SupportChart support={support} />
+
+            {/* REPORTE DE BIENESTAR EMOCIONAL */}
+            <MiBienestar key={`${userId}:${childId}`} childId={childId} />
           </>
         )}
       </div>

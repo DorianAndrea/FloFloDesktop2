@@ -10,6 +10,8 @@ import { getChildSupport } from "../services/dashboardService";
 import SupportChart from "../components/dashboard/SupportChart";
 import RoutineAnalytics from "../components/dashboard/RoutineAnalytics";
 import felix from "../assets/svg/felix_feliz.svg";
+import MiBienestar from "./dashboard/MiBienestar";
+
 import {
   calculateAge,
   isBirthdayToday,
@@ -370,6 +372,15 @@ const Home = () => {
             actorUserId={user.id}
             childName={selectedChildName}
           />
+        )}
+
+        {user?.role === "parent" && isParent && selectedChildId && (
+          <div className="mb-12">
+            <MiBienestar
+              key={`${user.id}:${selectedChildId}`}
+              childId={selectedChildId}
+            />
+          </div>
         )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">

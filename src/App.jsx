@@ -30,6 +30,7 @@ import InvitacionEquipoFloFlo from "./pages/InvitacionEquipoFloFlo";
 import RoutineExperienceLibrary from "./modules/experiences/components/RoutineExperienceLibrary";
 import Privacidad from "./pages/Privacidad";
 import Terminos from "./pages/Terminos";
+import ReporteBienestar from "./pages/ReporteBienestar";
 
 function App() {
   return (
@@ -43,29 +44,169 @@ function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/privacidad" element={<Privacidad />} />
                 <Route path="/terminos" element={<Terminos />} />
-                <Route path="/biblioteca-experiencias" element={<ProtectedRoute requireSelectedChild><RoutineExperienceLibrary /></ProtectedRoute>} />
+                <Route
+                  path="/biblioteca-experiencias"
+                  element={
+                    <ProtectedRoute requireSelectedChild>
+                      <RoutineExperienceLibrary />
+                    </ProtectedRoute>
+                  }
+                />
                 <Route path="/registro" element={<User />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
-                <Route path="/mi-perfil" element={<ProtectedRoute><MiPerfil /></ProtectedRoute>} />
-                <Route path="/emociones" element={<ProtectedRoute requireSelectedChild><EstadosAnimo /></ProtectedRoute>} />
-                <Route path="/rutinas" element={<ProtectedRoute requireSelectedChild><Rutinas /></ProtectedRoute>} />
-                <Route path="/amigos" element={<ProtectedRoute requireSelectedChild><Amigos /></ProtectedRoute>} />
-                <Route path="/amigos/:id" element={<ProtectedRoute requireSelectedChild><PersonaDetalle /></ProtectedRoute>} />
-                <Route path="/conversaciones" element={<ProtectedRoute requireSelectedChild><Conversaciones /></ProtectedRoute>} />
-                <Route path="/lugares" element={<ProtectedRoute requireSelectedChild><Lugares /></ProtectedRoute>} />
-                <Route path="/lugares/crear" element={<ProtectedRoute requireSelectedChild><CrearLugar /></ProtectedRoute>} />
-                <Route path="/lugares/:id" element={<ProtectedRoute requireSelectedChild><LugarDetalle /></ProtectedRoute>} />
-                <Route path="/logros" element={<ProtectedRoute requireSelectedChild><Logros /></ProtectedRoute>} />
-                <Route path="/mi-familia" element={<ProtectedRoute allowedRoles={["parent"]}><MiFamilia /></ProtectedRoute>} />
-                <Route path="/panel-padres" element={<ProtectedRoute allowedRoles={["parent"]}><PanelPadres /></ProtectedRoute>} />
-                <Route path="/dashboard" element={<ProtectedRoute allowedRoles={["parent"]}><Dashboard /></ProtectedRoute>} />
-                <Route path="/dashboard/children/:childId" element={<ProtectedRoute allowedRoles={["parent"]}><ChildDashboard /></ProtectedRoute>} />
-                <Route path="/informe-inteligente" element={<ProtectedRoute allowedRoles={["parent"]}><InformeInteligentePage /></ProtectedRoute>} />
-                <Route path="/perfil-sensorial" element={<ProtectedRoute><PerfilSensorial /></ProtectedRoute>} />
-                <Route path="/equipo-floflo" element={<ProtectedRoute allowedRoles={["parent"]} requireSelectedChild><EquipoFloFlo /></ProtectedRoute>} />
-                <Route path="/equipo-floflo/invitacion/:token" element={<InvitacionEquipoFloFlo />} />
+                <Route
+                  path="/mi-perfil"
+                  element={
+                    <ProtectedRoute>
+                      <MiPerfil />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/emociones"
+                  element={
+                    <ProtectedRoute requireSelectedChild>
+                      <EstadosAnimo />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/rutinas"
+                  element={
+                    <ProtectedRoute requireSelectedChild>
+                      <Rutinas />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/amigos"
+                  element={
+                    <ProtectedRoute requireSelectedChild>
+                      <Amigos />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/amigos/:id"
+                  element={
+                    <ProtectedRoute requireSelectedChild>
+                      <PersonaDetalle />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/conversaciones"
+                  element={
+                    <ProtectedRoute requireSelectedChild>
+                      <Conversaciones />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/lugares"
+                  element={
+                    <ProtectedRoute requireSelectedChild>
+                      <Lugares />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/lugares/crear"
+                  element={
+                    <ProtectedRoute requireSelectedChild>
+                      <CrearLugar />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/lugares/:id"
+                  element={
+                    <ProtectedRoute requireSelectedChild>
+                      <LugarDetalle />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/logros"
+                  element={
+                    <ProtectedRoute requireSelectedChild>
+                      <Logros />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/mi-familia"
+                  element={
+                    <ProtectedRoute allowedRoles={["parent"]}>
+                      <MiFamilia />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/panel-padres"
+                  element={
+                    <ProtectedRoute allowedRoles={["parent"]}>
+                      <PanelPadres />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/dashboard"
+                  element={
+                    <ProtectedRoute allowedRoles={["parent"]}>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/dashboard/children/:childId"
+                  element={
+                    <ProtectedRoute allowedRoles={["parent"]}>
+                      <ChildDashboard />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/informe-inteligente"
+                  element={
+                    <ProtectedRoute allowedRoles={["parent"]}>
+                      <InformeInteligentePage />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/perfil-sensorial"
+                  element={
+                    <ProtectedRoute>
+                      <PerfilSensorial />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/equipo-floflo"
+                  element={
+                    <ProtectedRoute
+                      allowedRoles={["parent"]}
+                      requireSelectedChild
+                    >
+                      <EquipoFloFlo />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="/equipo-floflo/invitacion/:token"
+                  element={<InvitacionEquipoFloFlo />}
+                />
+                <Route
+                  path="/reporte-bienestar"
+                  element={
+                    <ProtectedRoute>
+                      <ReporteBienestar />
+                    </ProtectedRoute>
+                  }
+                />
               </Routes>
             </main>
             <Footer />
