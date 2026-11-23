@@ -778,21 +778,11 @@ const FloCardExperience = ({
           )}
 
           {interactionType !== "sequence" && (
-            <>
-              <button
-                type="button"
-                onClick={() => alert("TOQUE DETECTADO")}
-                className="relative z-50 my-4 w-full rounded-xl bg-red-500 p-4 font-bold text-white"
-              >
-                PROBAR TOQUE EN FLOCARD
-              </button>
-
-              <SupportSelector
-                value={supportCodes}
-                onChange={setSupportCodes}
-                disabled={completing}
-              />
-            </>
+            <SupportSelector
+              value={supportCodes}
+              onChange={setSupportCodes}
+              disabled={false}
+            />
           )}
 
           {interactionType !== "sequence" && (
