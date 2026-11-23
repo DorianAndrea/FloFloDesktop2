@@ -54,7 +54,7 @@ const CHART_LEVELS = [
   {
     key: "unspecified",
     name: "Apoyo no informado",
-    color: "#D1D5DB",
+    color: "#B5D8F2",
   },
   {
     key: "unknown",
